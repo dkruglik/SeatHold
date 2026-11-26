@@ -38,6 +38,8 @@ function workflowCommands() {
   return commands;
 }
 
+const imageBuildCommand = "docker buildx build --platform linux/amd64,linux/arm64 -f backend/Dockerfile .";
+
 function stepCommandLines() {
   return verifySteps().map((step) => step.label);
 }
@@ -52,7 +54,8 @@ describe("verifySteps", () => {
   it("runs exactly the commands the GitHub workflow runs", () => {
     // The workflow starts PostgreSQL as a service (db:start) and installs with npm ci; the security step is
     // one command locally and two in CI (semgrep in its own image, plus the audit check).
-    const ciOnly = new Set(["npm ci", "node scripts/security-scan.mjs --check audit"]);
+    // The multi-arch image build is a CI-only exception (see "image build job"): it needs buildx and QEMU.
+    const ciOnly = new Set(["npm ci", "node scripts/security-scan.mjs --check audit", imageBuildCommand]);
     const expand = (command) => {
       const script = /^npm run (lint|typecheck|test|build)$/.exec(command)?.[1];
       return script ? rootScriptSegments(script) : [command];
@@ -99,6 +102,21 @@ describe("verifySteps", () => {
     const lines = verifySteps({ startDb: false }).map((step) => step.label);
     assert.ok(!lines.includes("npm run db:start"));
     assert.deepEqual(lines, stepCommandLines().slice(1));
+  });
+});
+
+describe("image build job", () => {
+  it("builds the backend image for amd64 and arm64 in CI without pushing, and verify does not run it", () => {
+    const builds = workflowCommands().filter((command) => command.includes("docker buildx"));
+    assert.deepEqual(builds, [imageBuildCommand]);
+    assert.ok(!/--push|--load|push:\s*true/.test(read(".github/workflows/ci.yml")));
+    assert.ok(stepCommandLines().every((line) => !line.includes("buildx")));
+  });
+
+  it("sets up QEMU and Buildx with actions pinned by full commit SHA", () => {
+    const workflow = read(".github/workflows/ci.yml");
+    assert.match(workflow, /uses: docker\/setup-qemu-action@[0-9a-f]{40} # v\d+\.\d+\.\d+/);
+    assert.match(workflow, /uses: docker\/setup-buildx-action@[0-9a-f]{40} # v\d+\.\d+\.\d+/);
   });
 });
 

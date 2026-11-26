@@ -1,0 +1,17 @@
+# Keep secrets, history and local state out of the build context.
+.env*
+.git
+.github
+**/node_modules
+**/dist
+coverage
+perf
+plans
+docs
+frontend/src
+.claude
+.cursor
+.agent-*
+.test-db.json
+CLAUDE.local.md
+*.log

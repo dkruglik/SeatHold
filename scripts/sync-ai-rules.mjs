@@ -135,8 +135,7 @@ function agentReferences(text, from, to) {
 export const unmatchedGlobAllowlist = [
   // Phase 0 it-5 (frontend skeleton)
   { glob: "frontend/src/**/services/**", until: "phase 0 it-5: ApiClient service" },
-  // Phase 0 it-6 and it-7
-  { glob: "**/Dockerfile*", until: "phase 0 it-6: backend/Dockerfile" },
+  // Phase 0 it-7
   { glob: "docs/**", until: "phase 0 it-7: docs/ai-workflow-log.md" },
   // Phase 1 (auth module, HTTP presentation, email, persistence adapters)
   { glob: "backend/src/modules/**", until: "phase 1: auth module" },

@@ -243,7 +243,7 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Choice.** GitHub Actions: lint, typecheck, unit and integration tests with a PostgreSQL 17 service, build, and a multi-architecture backend image build (not pushed). `scripts/verify.mjs` runs the same steps locally.
 - **Options.** GitLab CI (the repository is on GitHub, so it would need a mirror); no CI, local `verify` only (no visible evidence in the public repository).
 - **Trade-off.** Image is built but never deployed.
-- **Status.** `planned`: Phase 0 it-2, it-6.
+- **Status.** `planned`: Phase 0 it-2, it-6. The workflow and its `image-build` job (QEMU and Buildx, no push) exist; the entry moves to `implemented` in it-7 once CI has run.
 
 ### O15. Committed AI setup
 
@@ -335,6 +335,20 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Options.** A global router singleton (hard to test); `@testing-library/jest-dom` (one more dependency for assertions `getByRole` already makes).
 - **Trade-off.** Setup stubs must be kept in step with what Mantine reads in jsdom.
 - **Status.** `implemented`: `frontend/src/app/`, `frontend/src/features/home/`, `frontend/vite.config.ts`, tests `app.test.tsx`, `vite.config.test.ts` (Phase 0 it-5).
+
+### O28. Backend image
+
+- **Choice.** `backend/Dockerfile`, build context is the repository root (workspaces share the root lockfile). Three stages on `node:24.22.3-alpine3.24` pinned by tag and digest (the multi-arch index digest, so amd64 and arm64 both resolve from it): `base`, `build` (`npm ci -w backend`, `prisma generate`, `tsc` without source maps) and `runtime` (`npm ci --omit=dev --omit=optional -w backend --ignore-scripts`, compiled `dist` only). `--omit=optional` is needed because the lockfile keeps the Prisma CLI and TypeScript as optional peers of `@prisma/client`, and `--omit=dev` alone installs them (358 MB; with the flag 113 MB, 58 packages). `--ignore-scripts` because the generated client is built in the `build` stage. The image runs as `node`, files stay root-owned and read-only to it, `node backend/dist/server.js` is PID 1 (the server registers SIGTERM and SIGINT itself, so no init process), `HEALTHCHECK` uses busybox `wget` on `/api/health`, the port comes from the `BACKEND_PORT` build argument and environment variable (default 3001, the config default). No `.env`, secret or database URL is in the image. `@prisma/client` moved from `devDependencies` to `dependencies` of the backend (same pin 7.10.1): the generated client imports `@prisma/client/runtime/client`, so the first image without dev dependencies would not start.
+- **Options.** `node:24-slim` (glibc, larger, no musl issue; the Fargate target does not need it); tini as init (extra package; node handles SIGTERM); `npm prune --omit=dev` from the build stage (copies the dev tree first); `curl` for the health check (an extra package).
+- **Trade-off.** Residue in the runtime `node_modules` that npm keeps from the frontend workspace entries of the lockfile: `react`, `react-dom` (about 8 MB, never imported) and `@types/*`. Alpine is musl: a future native module must publish musl builds.
+- **Status.** `implemented` for the build, run, health, SIGTERM, non-root and production-only checks (Phase 0 it-6): `backend/Dockerfile`, `.dockerignore`, `backend/package.json`, test `scripts/dockerfile-hygiene.test.mjs`. The arm64 build is not proven on the development host (no buildx or QEMU); it is checked by the `image-build` CI job.
+
+### O29. No Prisma `binaryTargets`
+
+- **Choice.** `schema.prisma` has no `binaryTargets`. Prisma 7's `prisma-client` generator with the `@prisma/adapter-pg` driver adapter compiles queries in WebAssembly inside `@prisma/client`; there is no native query engine file to select per platform, so `linux-musl-openssl-3.0.x` and `linux-musl-arm64-openssl-3.0.x` would be dead configuration. The Phase 0 plan listed them as a precaution.
+- **Options.** Add the targets anyway (harmless, but misleading and unproven).
+- **Trade-off.** If a later Prisma version or setup brings back a native engine, targets must be added then; the image smoke test (the server connects to PostgreSQL in the container) would fail first.
+- **Status.** `implemented`: verified by running the Alpine image against PostgreSQL (Phase 0 it-6).
 
 ---
 
