@@ -9,14 +9,14 @@ If an implementation shortcut conflicts with `.cursor/rules/`, follow the rules.
 
 Product and domain specifications live in [`context/`](./context/) and are separate from engineering rules.
 
-Plans and project plan context live in [`.cursor/plans/`](./.cursor/plans/), the default folder for every plan (see `00-governance.mdc`).
+Plans and project plan context live in [`plans/`](./plans/), the default folder for every plan (see `00-governance.mdc`).
 
 ## Always-on rules
 
 | File | Summary |
 |------|---------|
 | [`00-governance.mdc`](./.cursor/rules/00-governance.mdc) | Approval before code changes, workflows, definition of done |
-| [`01-project-foundation.mdc`](./.cursor/rules/01-project-foundation.mdc) | Stack, environments, typed config, hosting agnostic |
+| [`01-project-foundation.mdc`](./.cursor/rules/01-project-foundation.mdc) | Stack, environments, typed config, AWS target, Docker locally |
 | [`16-repository-commits.mdc`](./.cursor/rules/16-repository-commits.mdc) | Commit messages, branch names, authorship, repository hygiene |
 | [`40-security-general.mdc`](./.cursor/rules/40-security-general.mdc) | General security, CORS, secrets |
 
