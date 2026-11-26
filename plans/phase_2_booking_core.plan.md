@@ -4,28 +4,28 @@ overview: "Catalog and seat schema, deterministic seed data, and the seat hold, 
 todos:
   - id: it-0-approvals
     content: Approve the booking defaults below (no new dependencies)
-    status: pending
+    status: completed
   - id: it-1-catalog-schema-seed
     content: venues, shows, events, seats schema with constraints; deterministic seed (~12 venues, 200 shows, 10x20 grid per event)
-    status: pending
+    status: completed
   - id: it-2-hold-domain
     content: Hold and seat domain rules, holder identity (user or visitor), errors
-    status: pending
+    status: completed
   - id: it-3-hold-release-service
     content: Hold-on-click and release services with conditional UPDATE, one timer per hold, seat cap; concurrency test (100 -> 1)
-    status: pending
+    status: completed
   - id: it-4-expiry
     content: Lazy expiry everywhere a hold or seat is read or written; controlled-clock expiry test; idempotent sweeper query
-    status: pending
+    status: completed
   - id: it-5-checkout-service
     content: Mock payment port, confirm in one transaction, late payment rejected and voided, double-confirm race test
-    status: pending
+    status: completed
   - id: it-6-booking-http
     content: Seat map, hold, release, current hold and checkout routes; visitor cookie; CSRF on mutations
-    status: pending
+    status: completed
   - id: it-7-docs-verify
-    content: DECISIONS entries 1, 2, 4, 6; install skill seeds catalog; README; full verify; roadmap status
-    status: pending
+    content: DECISIONS entries 1, 2, 4, 6; install skill seeds catalog; README; full verify; roadmap status. Release guide written (docs/release_guides/phase-2-booking-core.md); deploy and its checks open
+    status: completed
 isProject: false
 ---
 

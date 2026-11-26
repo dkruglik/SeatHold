@@ -9,8 +9,8 @@ todos:
     content: "Phase 1 built on branch feature/phase-1-auth-access, 2026-11-26: email-code login, Postgres sessions with hashed tokens, roles (buyer default, admin via seed and user:promote CLI only), CSRF and Origin checks, /api/admin/* prefix hook with route-wide 401/403 test, seeded admin and buyer, login screen and route guards, DECISIONS security entry, release guide (docs/release_guides/phase-1-auth-access.md). Still open: login flow not run in a real browser against a real backend; first GitHub Actions run; Phase 0 branch not merged yet (Phase 1 is based on it); production deploy and release-guide checks; no migration path in the backend image (DECISIONS O35) (plan: plans/phase_1_auth_access.plan.md)"
     status: completed
   - id: phase-2-booking-core
-    content: "Phase 2: catalog schema, seed, seat hold/confirm/expiry with the two KPI tests (100 parallel holds -> 1 winner; controlled-clock expiry); DECISIONS entries for locking, hold state and expiry, late payment, data store (plan: plans/phase_2_booking_core.plan.md)"
-    status: pending
+    content: "Phase 2 built on branch feature/phase-2-booking-core, 2026-11-26: catalog schema and deterministic seed (200 shows, 200 events, 200 seats each), hold and release with one conditional UPDATE per seat, lazy expiry and idempotent sweeper, checkout with mock payment and late-payment rejection, booking HTTP routes with visitor identity and adoption on login, DECISIONS entries for locking, hold state and expiry, late payment, data store, release guide (docs/release_guides/phase-2-booking-core.md). Still open: deploy and release-guide checks; human review of the whole branch; second external review of the last commits; first GitHub Actions run; no browser UI until Phase 3 (plan: plans/phase_2_booking_core.plan.md)"
+    status: completed
   - id: phase-3-buyer-flow
     content: "Phase 3: end-to-end flow on a plain UI: show search with filters and DateTimeRangePicker, SeatMap with hold and countdown, mock payment, My bookings with QR, guest one-time link with QR; DECISIONS entry for the guest link (plan: plans/phase_3_buyer_flow.plan.md)"
     status: pending
@@ -36,7 +36,7 @@ Source brief: `plans/Appcharge_AC11_TeamLeader_AI_Test_Task_PartA.md`.
 |---|---|---|
 | 0 Setup | completed (8/8 iterations; open: GitHub Actions run, clean-Mac install, deploy and release-guide checks) | [phase_0_setup.plan.md](phase_0_setup.plan.md) |
 | 1 Auth and access | completed (9/9 iterations; open: browser run of the login flow, GitHub Actions run, Phase 0 merge, production deploy and release-guide checks, migration path in the backend image (DECISIONS O35)) | [phase_1_auth_access.plan.md](phase_1_auth_access.plan.md) |
-| 2 Booking core | pending | [phase_2_booking_core.plan.md](phase_2_booking_core.plan.md) |
+| 2 Booking core | completed (8/8 iterations; open: deploy and release-guide checks, human review of the whole branch, second external review of the last commits, first GitHub Actions run, browser run (UI is Phase 3)) | [phase_2_booking_core.plan.md](phase_2_booking_core.plan.md) |
 | 3 Buyer flow (end to end) | pending | [phase_3_buyer_flow.plan.md](phase_3_buyer_flow.plan.md) |
 | 4 Back office | pending | [phase_4_back_office.plan.md](phase_4_back_office.plan.md) |
 | 5 Deliverables | pending | [phase_5_deliverables.plan.md](phase_5_deliverables.plan.md) |

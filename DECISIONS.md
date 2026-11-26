@@ -644,6 +644,14 @@ The Phase 1 summary and its open risks are in O56.
 - **Trade-off.** A stuck transaction holds a connection and row locks for up to 10 s. The latency targets (hold p95 < 50 ms) are separate and are a Phase 5 measurement, not enforced by this timeout.
 - **Status.** `implemented`: Phase 2 it-3, it-5; the 100-parallel-holds test runs within it.
 
+### O67. Checkout price is read at checkout time
+
+- **Context.** A booking copies the event's unit price when it is confirmed (plan: money section). The seat map shows the current price. The hold does not freeze a price: it records seats and an expiry only.
+- **Choice.** The price is read at checkout, in the first clock read of the lookup phase, and stored in the booking (`unit_price_minor`, `total_minor`, `currency`).
+- **Options.** Freeze the price on the hold (needs a price column on the hold and a back-office rule for price changes); read the price at checkout (chosen).
+- **Trade-off.** Once a price-change path exists (Phase 4 back office), a buyer could hold at price A and pay price B. No such path exists in Phase 2, so the risk is latent. Raised by the Phase 2 external review and accepted for now; revisit in Phase 4 it-1, when events become editable.
+- **Status.** `implemented`: `backend/src/modules/booking/infrastructure/persistence/prisma-checkout-repository.ts` (`findHoldForCheckout`); tests `prisma-checkout-repository.integration.test.ts`.
+
 ---
 
 ## Back-office capability proposal
