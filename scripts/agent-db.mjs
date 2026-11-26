@@ -58,7 +58,7 @@ export function agentDbUpArgs(project, networkContainer = null) {
   return [...composeArgs(project, networkContainer), "up", "-d", "--wait"];
 }
 
-// No --rmi: the pgvector image stays cached on the host for the next run.
+// No --rmi: the Postgres image stays cached on the host for the next run.
 export function agentDbDownArgs(project, networkContainer = null) {
   return [...composeArgs(project, networkContainer), "down", "-v", "--remove-orphans"];
 }
