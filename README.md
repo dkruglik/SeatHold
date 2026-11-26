@@ -91,6 +91,9 @@ Configuration (names and local defaults in `.env.example`; the rules for each ar
 | `AUTH_REQUEST_CODE_COOLDOWN_SECONDS` | `60` | no | Minimum gap between two requests |
 | `SESSION_TTL_DAYS` | `30` | no | Fixed session lifetime |
 | `COOKIE_SECURE` | `false` | no | Must be `true` in production |
+| `HOLD_DURATION_MINUTES` | `10` | no | How long a seat hold lasts (positive integer) |
+| `MAX_SEATS_PER_HOLD` | `10` | no | Most seats in one hold (positive integer) |
+| `DEFAULT_CURRENCY` | `EUR` | no | Three uppercase letters (ISO 4217) |
 
 ## Tests and verify
 

@@ -30,6 +30,12 @@ export interface AppConfig {
   /** The session cookie carries the Secure attribute. Required true in production (DECISIONS.md O44). */
   readonly cookieSecure: boolean;
   readonly sessionTtlDays: number;
+  /** How long a seat hold lasts, in minutes. */
+  readonly holdDurationMinutes: number;
+  /** The most seats one hold may contain. */
+  readonly maxSeatsPerHold: number;
+  /** ISO 4217 code used when a show does not set its own currency. */
+  readonly defaultCurrency: string;
 }
 
 /** The value `.env.example` carries for local development. Production refuses it (DECISIONS.md O42). */
@@ -61,6 +67,9 @@ const requirements = {
   AUTH_REQUEST_CODE_COOLDOWN_SECONDS: "must be a positive integer",
   COOKIE_SECURE: "must be true or false (in production it must be true)",
   SESSION_TTL_DAYS: "must be a positive integer",
+  HOLD_DURATION_MINUTES: "must be a positive integer",
+  MAX_SEATS_PER_HOLD: "must be a positive integer",
+  DEFAULT_CURRENCY: "must be a 3-letter uppercase currency code such as EUR",
 } as const;
 
 export const configVariableNames = Object.keys(requirements) as ReadonlyArray<keyof typeof requirements>;
@@ -102,6 +111,9 @@ const envSchema = z.object({
   AUTH_REQUEST_CODE_COOLDOWN_SECONDS: positiveInteger.default(60),
   COOKIE_SECURE: z.enum(["true", "false"]).transform((value) => value === "true").default(false),
   SESSION_TTL_DAYS: positiveInteger.default(30),
+  HOLD_DURATION_MINUTES: positiveInteger.default(10),
+  MAX_SEATS_PER_HOLD: positiveInteger.default(10),
+  DEFAULT_CURRENCY: z.string().regex(/^[A-Z]{3}$/).default("EUR"),
 });
 
 /** Thrown at startup for invalid configuration. Carries variable names and rules, never values (DATABASE_URL has a password). */
@@ -133,32 +145,7 @@ function productionRefusedPlaceholders(present: Readonly<Record<string, string |
   ];
 }
 
-/** Reads, validates and converts the environment once. Pass `process.env` only from the entry point. */
-export function loadConfig(env: Readonly<Record<string, string | undefined>> = process.env): AppConfig {
-  const present = Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined && value !== ""));
-  const parsed = envSchema.safeParse(present);
-  const invalid = new Set<string>(parsed.success ? [] : parsed.error.issues.map((issue) => String(issue.path[0])));
-  const productionOrigin = !invalid.has("FRONTEND_ORIGIN") && present.APP_ENV === "production" && !isProductionOrigin(present.FRONTEND_ORIGIN);
-  if (productionOrigin) {
-    invalid.add("FRONTEND_ORIGIN");
-  }
-  if (present.APP_ENV === "production" && present.EMAIL_PROVIDER === "console") {
-    invalid.add("EMAIL_PROVIDER");
-  }
-  for (const name of productionRefusedPlaceholders(present)) {
-    invalid.add(name);
-  }
-  if (present.APP_ENV === "production" && present.COOKIE_SECURE !== "true") {
-    invalid.add("COOKIE_SECURE");
-  }
-  // Credentials come as a pair; the missing half is named.
-  if ((present.SMTP_USER === undefined) !== (present.SMTP_PASS === undefined)) {
-    invalid.add(present.SMTP_USER === undefined ? "SMTP_USER" : "SMTP_PASS");
-  }
-  if (!parsed.success || invalid.size > 0) {
-    throw new ConfigError(configVariableNames.filter((name) => invalid.has(name)));
-  }
-  const values = parsed.data;
+function toConfig(values: z.output<typeof envSchema>): AppConfig {
   return Object.freeze({
     appEnv: values.APP_ENV,
     backendHost: values.BACKEND_HOST,
@@ -179,7 +166,42 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>> = p
     authRequestCodeCooldownSeconds: values.AUTH_REQUEST_CODE_COOLDOWN_SECONDS,
     cookieSecure: values.COOKIE_SECURE,
     sessionTtlDays: values.SESSION_TTL_DAYS,
+    holdDurationMinutes: values.HOLD_DURATION_MINUTES,
+    maxSeatsPerHold: values.MAX_SEATS_PER_HOLD,
+    defaultCurrency: values.DEFAULT_CURRENCY,
     ...(values.SMTP_USER === undefined ? {} : { smtpUser: values.SMTP_USER }),
     ...(values.SMTP_PASS === undefined ? {} : { smtpPass: values.SMTP_PASS }),
   });
+}
+
+/** Reads, validates and converts the environment once. Pass `process.env` only from the entry point. */
+export function loadConfig(env: Readonly<Record<string, string | undefined>> = process.env): AppConfig {
+  const present = Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined && value !== ""));
+  const parsed = envSchema.safeParse(present);
+  const invalid = new Set<string>(parsed.success ? [] : parsed.error.issues.map((issue) => String(issue.path[0])));
+  const productionOrigin = !invalid.has("FRONTEND_ORIGIN") && present.APP_ENV === "production" && !isProductionOrigin(present.FRONTEND_ORIGIN);
+  if (productionOrigin) {
+    invalid.add("FRONTEND_ORIGIN");
+  }
+  if (present.APP_ENV === "production" && present.EMAIL_PROVIDER === "console") {
+    invalid.add("EMAIL_PROVIDER");
+  }
+  for (const name of productionRefusedPlaceholders(present)) {
+    invalid.add(name);
+  }
+  if (present.APP_ENV === "production" && present.COOKIE_SECURE !== "true") {
+    invalid.add("COOKIE_SECURE");
+  }
+  // An empty currency is a mistake, not "unset": it must not fall back to the default.
+  if (env.DEFAULT_CURRENCY === "") {
+    invalid.add("DEFAULT_CURRENCY");
+  }
+  // Credentials come as a pair; the missing half is named.
+  if ((present.SMTP_USER === undefined) !== (present.SMTP_PASS === undefined)) {
+    invalid.add(present.SMTP_USER === undefined ? "SMTP_USER" : "SMTP_PASS");
+  }
+  if (!parsed.success || invalid.size > 0) {
+    throw new ConfigError(configVariableNames.filter((name) => invalid.has(name)));
+  }
+  return toConfig(parsed.data);
 }

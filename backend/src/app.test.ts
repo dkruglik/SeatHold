@@ -24,6 +24,9 @@ const config: AppConfig = {
   authRequestCodeCooldownSeconds: 60,
   cookieSecure: false,
   sessionTtlDays: 30,
+  holdDurationMinutes: 10,
+  maxSeatsPerHold: 10,
+  defaultCurrency: "EUR",
 };
 
 describe("GET /api/health", () => {

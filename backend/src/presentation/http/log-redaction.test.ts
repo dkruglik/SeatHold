@@ -39,6 +39,9 @@ const config: AppConfig = {
   authRequestCodeCooldownSeconds: 60,
   cookieSecure: false,
   sessionTtlDays: 30,
+  holdDurationMinutes: 10,
+  maxSeatsPerHold: 10,
+  defaultCurrency: "EUR",
 };
 
 function capture(): { lines: string[]; stream: Writable; records: () => LogRecord[] } {

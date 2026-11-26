@@ -35,6 +35,9 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     authRequestCodeCooldownSeconds: 60,
     cookieSecure: false,
     sessionTtlDays: 30,
+    holdDurationMinutes: 10,
+    maxSeatsPerHold: 10,
+    defaultCurrency: "EUR",
     ...overrides,
   };
 }
