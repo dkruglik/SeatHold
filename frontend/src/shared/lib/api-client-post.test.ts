@@ -63,6 +63,7 @@ describe("ApiClient.post", () => {
 
     await expect(client(fetchImpl).post("/auth/logout")).resolves.toBeUndefined();
     expect(seen[1]?.init?.body).toBeUndefined();
+    expect(new Headers(seen[1]?.init?.headers).get("content-type")).toBeNull();
   });
 
   it("refetches the token once after 403 CSRF_INVALID and retries the request once", async () => {

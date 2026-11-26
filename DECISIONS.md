@@ -356,10 +356,10 @@ The Phase 1 summary and its open risks are in O56.
 
 ### O30. No `.env.local.example`
 
-- **Choice.** The plan's it-3 listed `.env.local.example` next to `.env.example`. It was dropped: both workspaces read the single repository-root `.env` (the backend through `--env-file-if-exists=../.env`; the Vite dev server sets `envDir` to the repository root, so `BACKEND_*` for the proxy and `VITE_*` for the client both come from it), and nothing reads `.env.local`. `.env.example` is the template for host and Docker runs; `.env.docker.local.example` stays for the Compose overrides.
+- **Choice.** The plan's it-3 listed `.env.local.example` next to `.env.example`. It was dropped: both workspaces read the single repository-root `.env` (the backend through `--env-file-if-exists=../.env`; the Vite dev server sets `envDir` to the repository root, so `BACKEND_*` for the proxy and `VITE_*` for the client both come from it), and nothing reads `.env.local`. `backend/prisma.config.ts` loads that same file with `process.loadEnvFile` when it exists, and does not replace a `DATABASE_URL` already present in the environment, so CI and the throwaway test database keep the URL they inject. `.env.example` is the template for host and Docker runs; `.env.docker.local.example` stays for the Compose overrides.
 - **Options.** Keep a second template nothing loads (a trap: copying it does nothing).
 - **Trade-off.** One file serves host and Docker runs, so the host values (`127.0.0.1`) are the example defaults and the image sets its own `BACKEND_HOST`.
-- **Status.** `implemented`: `.env.local.example` deleted; `frontend/vite.config.ts` `envDir`, test `frontend/vite.config.test.ts` (Phase 0 review fixes).
+- **Status.** `implemented`: `.env.local.example` deleted; `frontend/vite.config.ts` `envDir`, test `frontend/vite.config.test.ts` (Phase 0 review fixes). Prisma CLI: `backend/prisma.config.ts` loads the root `.env`.
 
 ### O31. Database pool size
 
