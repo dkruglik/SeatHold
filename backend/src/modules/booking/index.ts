@@ -16,3 +16,4 @@ export { PrismaHoldRepository } from "./infrastructure/persistence/prisma-hold-r
 export { createBookingServices, createPrismaHoldRepository, type BookingServices, type BookingSettings } from "./booking-composition.js";
 export * from "./domain/errors.js";
 export { holderFrom, resolveHolder, type Holder, type HolderInput } from "./domain/holder.js";
+export { bookingPlugin, type BookingPluginOptions } from "./presentation/http/booking-plugin.js";

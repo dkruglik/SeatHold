@@ -5,6 +5,8 @@ import {
   AuthorizationError,
   BusinessError,
   InfrastructureError,
+  NotFoundError,
+  PaymentRequiredError,
   ValidationError,
 } from "./app-error.js";
 
@@ -14,6 +16,8 @@ describe("application errors", () => {
     [AuthenticationError, "authentication"],
     [AuthorizationError, "authorization"],
     [BusinessError, "business"],
+    [NotFoundError, "not_found"],
+    [PaymentRequiredError, "payment_required"],
     [InfrastructureError, "infrastructure"],
   ] as const)("%o is an AppError with kind %s", (ErrorClass, kind) => {
     const error = new ErrorClass("boom");

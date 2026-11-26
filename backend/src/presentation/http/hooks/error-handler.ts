@@ -13,6 +13,8 @@ const clientKinds: Readonly<Record<Exclude<ErrorKind, "infrastructure">, { statu
   authentication: { status: 401, code: "authentication_required" },
   authorization: { status: 403, code: "forbidden" },
   business: { status: 409, code: "business_rule_violation" },
+  not_found: { status: 404, code: "not_found" },
+  payment_required: { status: 402, code: "payment_required" },
 };
 
 function body(code: string, message: string): ErrorBody {
@@ -48,7 +50,7 @@ function handle(error: FastifyError | AppError, request: FastifyRequest, reply: 
 
 /**
  * Registers the app-wide error handler: every error leaves as `{ "error": { "code", "message" } }`.
- * Application errors map to 400, 401, 403 and 409; Fastify's request errors to 400 or 413 with fixed text;
+ * Application errors map to 400, 401, 402, 403, 404 and 409; Fastify's request errors to 400 or 413 with fixed text;
  * everything else is a 500 with a generic message, and the real error is logged once.
  */
 export function registerErrorHandler(app: FastifyInstance): void {

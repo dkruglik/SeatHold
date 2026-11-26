@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AppError } from "../../../shared/errors/app-error.js";
+import { AppError, BusinessError, NotFoundError, PaymentRequiredError } from "../../../shared/errors/app-error.js";
 import { EventNotFound, GuestEmailInvalid, HoldExpired, HoldLimitReached, HoldNotFound, PaymentFailed, SeatUnavailable } from "./errors.js";
 
 describe("booking errors", () => {
@@ -15,5 +15,14 @@ describe("booking errors", () => {
     expect(error).toBeInstanceOf(AppError);
     expect(error.publicCode).toBe(code);
     expect(error.name).toBe(error.constructor.name);
+  });
+
+  it("maps to the intended error kinds: 404 for missing things, 402 for payment, 409 for the rest", () => {
+    expect(new HoldNotFound()).toBeInstanceOf(NotFoundError);
+    expect(new EventNotFound()).toBeInstanceOf(NotFoundError);
+    expect(new PaymentFailed()).toBeInstanceOf(PaymentRequiredError);
+    for (const error of [new SeatUnavailable(), new HoldExpired(), new HoldLimitReached()]) {
+      expect(error).toBeInstanceOf(BusinessError);
+    }
   });
 });

@@ -1,4 +1,4 @@
-import { BusinessError, ValidationError } from "../../../shared/errors/app-error.js";
+import { BusinessError, NotFoundError, PaymentRequiredError, ValidationError } from "../../../shared/errors/app-error.js";
 
 /**
  * Booking rule violations. Each has a stable `publicCode` the HTTP error handler sends as `error.code`.
@@ -22,19 +22,19 @@ export class HoldLimitReached extends BusinessError {
   }
 }
 
-export class HoldNotFound extends BusinessError {
+export class HoldNotFound extends NotFoundError {
   constructor() {
     super("The hold was not found", { publicCode: "HOLD_NOT_FOUND" });
   }
 }
 
-export class PaymentFailed extends BusinessError {
+export class PaymentFailed extends PaymentRequiredError {
   constructor() {
     super("The payment was not accepted", { publicCode: "PAYMENT_FAILED" });
   }
 }
 
-export class EventNotFound extends BusinessError {
+export class EventNotFound extends NotFoundError {
   constructor() {
     super("The event was not found", { publicCode: "EVENT_NOT_FOUND" });
   }

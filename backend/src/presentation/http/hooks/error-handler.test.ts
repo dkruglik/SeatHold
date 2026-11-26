@@ -8,6 +8,8 @@ import {
   AuthorizationError,
   BusinessError,
   InfrastructureError,
+  NotFoundError,
+  PaymentRequiredError,
   ValidationError,
 } from "../../../shared/errors/app-error.js";
 import { ControlledClock } from "../../../shared/time/controlled-clock.js";
@@ -65,6 +67,9 @@ describe("HTTP error contract for application errors", () => {
     ["authentication", new AuthenticationError("Sign in first"), 401, "authentication_required"],
     ["authorization", new AuthorizationError("Not allowed"), 403, "forbidden"],
     ["business", new BusinessError("Seat is already held"), 409, "business_rule_violation"],
+    ["not_found", new NotFoundError("No such thing"), 404, "not_found"],
+    ["payment_required", new PaymentRequiredError("Pay first"), 402, "payment_required"],
+    ["not_found with a public code", new NotFoundError("No hold", { publicCode: "HOLD_NOT_FOUND" }), 404, "HOLD_NOT_FOUND"],
   ])("maps a %s error to its status and the { error: { code, message } } body", async (_kind, error, status, code) => {
     const built = build();
     app = built.app;

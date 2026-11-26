@@ -1,4 +1,4 @@
-export type ErrorKind = "validation" | "authentication" | "authorization" | "business" | "infrastructure";
+export type ErrorKind = "validation" | "authentication" | "authorization" | "business" | "not_found" | "payment_required" | "infrastructure";
 
 /** Base of the errors the application distinguishes. Anything else is an unexpected error. */
 export abstract class AppError extends Error {
@@ -28,6 +28,16 @@ export class AuthorizationError extends AppError {
 
 export class BusinessError extends AppError {
   readonly kind = "business";
+}
+
+/** The thing the request names does not exist (or is not the caller's to see): HTTP 404. */
+export class NotFoundError extends AppError {
+  readonly kind = "not_found";
+}
+
+/** A payment was attempted and not accepted: HTTP 402. */
+export class PaymentRequiredError extends AppError {
+  readonly kind = "payment_required";
 }
 
 export class InfrastructureError extends AppError {

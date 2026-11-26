@@ -9,6 +9,7 @@ import { registerErrorHandler } from "./presentation/http/hooks/error-handler.js
 import { healthRoute } from "./presentation/http/routes/health.route.js";
 import { adminPingRoute } from "./presentation/http/routes/admin-ping.route.js";
 import { authPlugin, createAuthHooks, type AuthPluginOptions } from "./modules/auth/index.js";
+import { bookingPlugin, type BookingPluginOptions } from "./modules/booking/index.js";
 import type { Clock } from "./shared/time/clock.js";
 
 const SECONDS_PER_DAY = 86_400;
@@ -19,6 +20,8 @@ export interface AppDeps {
   readonly logStream?: Writable;
   /** The auth module's services; routes under /api/auth exist only when given. */
   readonly auth?: Pick<AuthPluginOptions, "services">;
+  /** The booking module's services; routes under /api/events exist only when given, and they need `auth` for the session lookup. */
+  readonly booking?: Pick<BookingPluginOptions, "services">;
 }
 
 /**
@@ -43,6 +46,15 @@ export function buildApp(config: AppConfig, deps: AppDeps): FastifyInstance {
       auth: createAuthHooks(deps.auth.services.sessions),
       mutationHooks,
       routes: [adminPingRoute],
+    });
+  }
+  if (deps.booking !== undefined && deps.auth !== undefined) {
+    void app.register(bookingPlugin, {
+      prefix: "/api",
+      ...deps.booking,
+      mutationHooks: browserStateChangeHooks(config),
+      auth: createAuthHooks(deps.auth.services.sessions),
+      cookie: { secure: config.cookieSecure },
     });
   }
   return app;
