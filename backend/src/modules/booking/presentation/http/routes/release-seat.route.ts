@@ -9,6 +9,7 @@ export const releaseSeatRoute: FastifyPluginAsync<BookingRouteOptions> = async (
     "/events/:eventId/hold/seats/:seatId",
     { schema: { params: holdSeatParamsSchema }, onRequest: [...options.mutationHooks, ...options.identity.resolve] },
     async (request, reply) => {
+      void reply.header("cache-control", "no-store");
       if (request.holder === null) {
         throw new HoldNotFound();
       }

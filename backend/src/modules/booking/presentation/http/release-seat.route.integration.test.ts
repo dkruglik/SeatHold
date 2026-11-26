@@ -17,6 +17,7 @@ describe("DELETE /api/events/:eventId/hold/seats/:seatId", () => {
 
     expect(response.statusCode).toBe(204);
     expect(response.body).toBe("");
+    expect(response.headers["cache-control"]).toBe("no-store");
     const map = await harness.get(`/api/events/${eventId}/seats`);
     expect(map.json<{ seats: { state: string }[] }>().seats.map((s) => s.state)).toEqual(["available"]);
   });
@@ -29,6 +30,7 @@ describe("DELETE /api/events/:eventId/hold/seats/:seatId", () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toEqual(notFound);
+    expect(response.headers["cache-control"]).toBe("no-store");
     expect((await seatRow(harness.prisma, seatIds[0] as string)).status).toBe("held");
   });
 
