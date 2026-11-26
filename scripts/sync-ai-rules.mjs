@@ -133,10 +133,6 @@ function agentReferences(text, from, to) {
 // A glob that is on this list and matches a tracked file fails the check (remove the entry); so does a glob that is
 // not on the list and matches nothing, and an entry that no rule uses.
 export const unmatchedGlobAllowlist = [
-  // Phase 0 it-4 (backend skeleton)
-  { glob: "backend/src/server.ts", until: "phase 0 it-4: server entry and graceful shutdown" },
-  { glob: "backend/src/app.ts", until: "phase 0 it-4: app factory with health route" },
-  { glob: "backend/src/infrastructure/**", until: "phase 0 it-4: clock and Prisma adapters" },
   // Phase 0 it-5 (frontend skeleton)
   { glob: "frontend/src/**/services/**", until: "phase 0 it-5: ApiClient service" },
   { glob: "frontend/src/shared/lib/**", until: "phase 0 it-5: shared API client helpers" },
@@ -147,9 +143,7 @@ export const unmatchedGlobAllowlist = [
   { glob: "backend/src/modules/**", until: "phase 1: auth module" },
   { glob: "backend/src/modules/**/application/**", until: "phase 1: auth application services" },
   { glob: "backend/src/modules/*/infrastructure/**", until: "phase 1: auth Prisma and email adapters" },
-  { glob: "backend/**/presentation/**", until: "phase 1: route modules and hooks" },
   { glob: "backend/**/modules/**/http/**", until: "phase 1: auth route modules" },
-  { glob: "backend/**/persistence/**", until: "phase 1: Prisma repositories" },
   { glob: "backend/**/ports/**", until: "phase 1: UserRepository, EmailProvider ports" },
   { glob: "backend/**/auth/**", until: "phase 1: backend auth module" },
   { glob: "frontend/**/auth/**", until: "phase 1: frontend auth state" },

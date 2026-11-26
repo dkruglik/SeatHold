@@ -173,14 +173,14 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Choice.** A `Clock` port: production reads `clock_timestamp()` from PostgreSQL once per operation and passes the value to every statement of that operation; tests use a controlled clock. No SQL statement calls `now()` itself.
 - **Options.** Host clock (`Date.now()`) everywhere.
 - **Trade-off.** One extra cheap query per operation; in return several instances with skewed host clocks agree on expiry, and tests stay deterministic.
-- **Status.** `planned`: Phase 0 it-4.
+- **Status.** `implemented`: `backend/src/shared/time/` (`Clock`, `DatabaseClock`, `ControlledClock`), tests `controlled-clock.test.ts` and `database-clock.integration.test.ts` (Phase 0 it-4). `DatabaseClock` is built in `server.ts` and passed to `buildApp` in its deps; no route reads it yet.
 
 ### O5. One origin for frontend and API
 
 - **Choice.** All routes under `/api`; Vite proxy locally, CloudFront path routing in production. No CORS plugin is installed, so cross-origin browser calls are refused. The health check is `GET /api/health` as well (container check, ALB target group, install skill), so the proxy and CloudFront route one path prefix; there is no separate `/health`.
 - **Options.** Separate API domain with credentialed CORS.
 - **Trade-off.** Needs path routing at the edge; in return session cookies stay first-party with `SameSite=Lax` and CORS stays closed.
-- **Status.** `planned`: Phase 0 it-4, it-5.
+- **Status.** `implemented` for the backend: `backend/src/app.ts` registers every route under `/api` and no CORS plugin; tests `app.test.ts` (`/health` is 404, no CORS headers) (Phase 0 it-4). The Vite proxy follows in it-5, so the entry stays open until then.
 
 ### O6. Hold model on the seat map
 
@@ -307,6 +307,20 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Options.** `latest` (not reproducible, rule 12); a digest pin (unreadable, harder to update).
 - **Trade-off.** The tag is bumped by hand.
 - **Status.** `implemented`: `docker-compose.yml` (Phase 0 it-3).
+
+### O24. Prisma driver adapter and no pino-pretty
+
+- **Choice.** `@prisma/adapter-pg` 7.10.1 (exact pin, same version as Prisma) is a runtime dependency of the backend: Prisma 7 has no built-in query engine connection and needs a driver adapter; `PrismaService` builds `PrismaClient` with `PrismaPg({ connectionString })`. `pino-pretty` from the Phase 0 list is not installed: logs stay JSON everywhere, and nothing uses a pretty printer.
+- **Options.** Prisma Accelerate (a hosted proxy, against the AWS target); installing `pino-pretty` for local logs (an unused dependency until someone pipes `npm run dev` through it).
+- **Trade-off.** Local logs are JSON lines, harder to read than pretty output; `| npx pino-pretty` works ad hoc.
+- **Status.** `implemented`: `backend/src/infrastructure/persistence/prisma-service.ts`, `backend/package.json` (Phase 0 it-4).
+
+### O25. Log shape and redaction
+
+- **Choice.** Fastify's logger writes JSON to stdout. Custom `req` and `res` serializers add the request and response headers to the log entries (Fastify's defaults omit them), and Pino `redact` replaces `req.headers.cookie`, `req.headers["x-csrf-token"]`, `req.headers.authorization` and `res.headers["set-cookie"]` with `[Redacted]` (`authorization` was added after review, because the serializer logs every request header). Request bodies are never logged. Shutdown logs `shutdown started` and `shutdown complete` (or `shutdown timed out`, exit 1) with the signal.
+- **Options.** Do not log headers (nothing to redact, but less diagnostic detail); redact by allowlisting headers instead of a denylist.
+- **Trade-off.** A denylist: a new secret-bearing header (for example a service API key header in Phase 1) must be added to `redactedPaths`. The logged `url` includes the query string, so a token must never travel in a query string.
+- **Status.** `implemented`: `backend/src/infrastructure/logging/logger-options.ts`, `backend/src/shutdown.ts`, tests `presentation/http/log-redaction.test.ts`, `shutdown.test.ts` (Phase 0 it-4).
 
 ---
 
