@@ -1,0 +1,13 @@
+# Override for runs inside a container (Agent Manager): a port published on the Docker host's
+# 127.0.0.1 is not this container's loopback, so the database joins this container's network
+# and listens on its 127.0.0.1 instead.
+services:
+  postgres:
+    network_mode: "container:${AGENT_DB_NETWORK_CONTAINER:?set by scripts/agent-db.mjs}"
+    ports: !reset []
+    command: ["postgres", "-c", "port=${AGENT_DB_PORT:?set by scripts/agent-db.mjs}", "-c", "listen_addresses=127.0.0.1"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h 127.0.0.1 -p ${AGENT_DB_PORT}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

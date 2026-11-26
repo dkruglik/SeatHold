@@ -4,3 +4,4 @@ scripts
 .claude/rules
 .claude/skills
 .env.manager
+.agent-db.json
