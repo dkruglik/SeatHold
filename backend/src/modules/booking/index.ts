@@ -1,6 +1,12 @@
 // Public API of the booking module.
 export { HoldSeatService, type HoldSeatDeps, type HoldSeatResult } from "./application/hold-seat-service.js";
 export { ReleaseSeatService, type ReleaseSeatDeps } from "./application/release-seat-service.js";
+export { ExpireHoldsService, type SweepResult } from "./application/expire-holds-service.js";
+export { GetCurrentHoldQuery } from "./application/get-current-hold-query.js";
+export { GetSeatMapQuery, type SeatMap, type SeatMapSeat } from "./application/get-seat-map-query.js";
+export type { CurrentHold, CurrentHoldReader } from "./application/ports/current-hold-reader.js";
+export type { HoldSweeper } from "./application/ports/hold-sweeper.js";
+export type { SeatMapReader, StoredSeatMap, StoredSeatView } from "./application/ports/seat-map-reader.js";
 export type { ActiveHold, HoldRepository, HoldTransaction } from "./application/ports/hold-repository.js";
 export { PrismaHoldRepository } from "./infrastructure/persistence/prisma-hold-repository.js";
 export { createBookingServices, createPrismaHoldRepository, type BookingServices, type BookingSettings } from "./booking-composition.js";
