@@ -134,6 +134,32 @@ describe("loadConfig production rule", () => {
     },
   );
 
+  it("refuses the IPv6 loopback origin in production", () => {
+    expect(failureOf({ ...productionEnv, FRONTEND_ORIGIN: "https://[::1]" }).variables).toEqual(["FRONTEND_ORIGIN"]);
+  });
+
+  it("treats an empty FRONTEND_ORIGIN as unset and refuses it in production", () => {
+    expect(failureOf({ ...productionEnv, FRONTEND_ORIGIN: "" }).variables).toEqual(["FRONTEND_ORIGIN"]);
+  });
+
+  it("reports FRONTEND_ORIGIN once when the production origin is also malformed", () => {
+    const error = failureOf({ ...productionEnv, FRONTEND_ORIGIN: "https://seats.example.com/app" });
+
+    expect(error.variables).toEqual(["FRONTEND_ORIGIN"]);
+    expect(error.message.match(/FRONTEND_ORIGIN/g)).toHaveLength(1);
+  });
+
+  it("accepts a valid https origin with a port in production", () => {
+    expect(loadConfig({ ...productionEnv, FRONTEND_ORIGIN: "https://seats.example.com:8443" }).frontendOrigin).toBe("https://seats.example.com:8443");
+  });
+
+  it("defaults APP_ENV to local when unset, which skips the production origin rule (DECISIONS.md O32)", () => {
+    const config = loadConfig({ DATABASE_URL: databaseUrl, FRONTEND_ORIGIN: "http://seats.example.com" });
+
+    expect(config.appEnv).toBe("local");
+    expect(config.frontendOrigin).toBe("http://seats.example.com");
+  });
+
   it("allows the same local origin when APP_ENV is local", () => {
     expect(loadConfig({ ...minimalEnv, FRONTEND_ORIGIN: "http://localhost:5173" }).appEnv).toBe("local");
   });

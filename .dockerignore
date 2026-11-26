@@ -1,5 +1,5 @@
 # Keep secrets, history and local state out of the build context.
-.env*
+**/.env*
 .git
 .github
 **/node_modules

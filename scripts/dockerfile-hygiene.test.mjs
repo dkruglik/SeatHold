@@ -83,7 +83,7 @@ describe(".dockerignore", () => {
   const entries = () => read(".dockerignore").split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
 
   it("keeps secrets, history and local state out of the build context", () => {
-    for (const entry of [".env*", ".git", "**/node_modules", "**/dist", "coverage", ".agent-*"]) {
+    for (const entry of ["**/.env*", ".git", "**/node_modules", "**/dist", "coverage", ".agent-*"]) {
       assert.ok(entries().includes(entry), `missing ${entry}`);
     }
     assert.ok(!entries().some((entry) => entry.startsWith("!.env")));

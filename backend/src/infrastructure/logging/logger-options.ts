@@ -8,9 +8,13 @@ type LoggedReply = Partial<FastifyReply> & Pick<FastifyReply, "statusCode">;
 /** Pino paths whose values never reach a log line (DECISIONS.md, log redaction). */
 export const redactedPaths = ['req.headers.cookie', 'req.headers["x-csrf-token"]', 'req.headers.authorization', 'res.headers["set-cookie"]'];
 
+/** The request target without its query string. */
+const pathOf = (url: string): string => (url.includes("?") ? url.slice(0, url.indexOf("?")) : url);
+
 /**
  * JSON logs on stdout. The serializers add headers to the request and response entries so that
- * redaction has something to redact and diagnostics keep them. Request bodies are never logged.
+ * redaction has something to redact and diagnostics keep them. Request bodies and query strings are never logged
+ * (the url is the path only), so a token in a query string cannot reach a log line.
  */
 export function buildLoggerOptions(config: Pick<AppConfig, "logLevel">, stream?: Writable) {
   return {
@@ -19,7 +23,7 @@ export function buildLoggerOptions(config: Pick<AppConfig, "logLevel">, stream?:
     serializers: {
       req: (request: FastifyRequest) => ({
         method: request.method,
-        url: request.url,
+        url: pathOf(request.url),
         host: request.host,
         remoteAddress: request.ip,
         headers: request.headers,
