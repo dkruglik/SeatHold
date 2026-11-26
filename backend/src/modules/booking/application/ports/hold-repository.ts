@@ -23,6 +23,17 @@ export interface HoldTransaction {
   releaseSeat(input: { eventId: string; seatId: string; holdId: string }): Promise<boolean>;
   /** Marks the hold `released` when it has no seats left. */
   releaseHoldIfEmpty(holdId: string): Promise<void>;
+  /** The ids of the seats the hold holds, in seat order (row, number). */
+  seatIdsOfHold(holdId: string): Promise<string[]>;
+  /** The active holds of one visitor over all events, locked until the transaction ends. */
+  listActiveVisitorHolds(visitorHash: string): Promise<{ id: string; eventId: string }[]>;
+  /**
+   * Moves an active visitor hold to the user (`user_id` set, `visitor_hash` cleared). False, with nothing changed,
+   * when the hold is no longer active or the user already has an active hold for that event, also when that hold is created concurrently.
+   */
+  adoptHold(input: { holdId: string; userId: string }): Promise<boolean>;
+  /** Frees every seat of the hold and marks it `released`. */
+  releaseHold(holdId: string): Promise<void>;
 }
 
 export interface HoldRepository {

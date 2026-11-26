@@ -1,6 +1,7 @@
 import type { PrismaService } from "../../infrastructure/persistence/prisma-service.js";
 import type { AppConfig } from "../../config/load-config.js";
 import type { Clock } from "../../shared/time/clock.js";
+import { AdoptVisitorHoldsService } from "./application/adopt-visitor-holds-service.js";
 import { HoldSeatService } from "./application/hold-seat-service.js";
 import type { HoldRepository } from "./application/ports/hold-repository.js";
 import { ExpireHoldsService } from "./application/expire-holds-service.js";
@@ -20,6 +21,7 @@ import { PrismaHoldRepository } from "./infrastructure/persistence/prisma-hold-r
 export interface BookingServices {
   readonly holdSeat: HoldSeatService;
   readonly releaseSeat: ReleaseSeatService;
+  readonly adoptVisitorHolds: AdoptVisitorHoldsService;
   readonly getSeatMap: GetSeatMapQuery;
   readonly getCurrentHold: GetCurrentHoldQuery;
   readonly expireHolds: ExpireHoldsService;
@@ -39,6 +41,7 @@ export function createBookingServices(deps: BookingSettings & { readonly prisma:
   return {
     holdSeat: new HoldSeatService({ holds, clock, holdDurationMinutes, maxSeatsPerHold }),
     releaseSeat: new ReleaseSeatService({ holds, clock }),
+    adoptVisitorHolds: new AdoptVisitorHoldsService({ holds, clock }),
     getSeatMap: new GetSeatMapQuery({ reader: new PrismaSeatMapReader(deps.prisma), clock }),
     getCurrentHold: new GetCurrentHoldQuery({ holds: new PrismaCurrentHoldReader(deps.prisma), clock }),
     expireHolds: new ExpireHoldsService({ sweeper: new PrismaHoldSweeper(deps.prisma), clock }),

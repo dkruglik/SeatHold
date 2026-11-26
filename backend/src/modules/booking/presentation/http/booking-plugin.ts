@@ -4,6 +4,8 @@ import type { BookingServices } from "../../booking-composition.js";
 import type { BookingRouteOptions } from "./booking-route-options.js";
 import { createHolderHooks, type VisitorCookieSettings } from "./hooks/holder-hooks.js";
 import { currentHoldRoute } from "./routes/current-hold.route.js";
+import { holdSeatRoute } from "./routes/hold-seat.route.js";
+import { releaseSeatRoute } from "./routes/release-seat.route.js";
 import { seatMapRoute } from "./routes/seat-map.route.js";
 
 export interface BookingPluginOptions {
@@ -23,7 +25,7 @@ export const bookingPlugin: FastifyPluginAsync<BookingPluginOptions> = async (ap
   app.decorateRequest("user", null);
   app.decorateRequest("sessionId", null);
   app.decorateRequest("holder", null);
-  const holder = createHolderHooks(options.cookie);
+  const holder = createHolderHooks(options.cookie, options.services.adoptVisitorHolds);
   const routeOptions: BookingRouteOptions = {
     services: options.services,
     mutationHooks: options.mutationHooks,
@@ -34,4 +36,6 @@ export const bookingPlugin: FastifyPluginAsync<BookingPluginOptions> = async (ap
   };
   await app.register(seatMapRoute, routeOptions);
   await app.register(currentHoldRoute, routeOptions);
+  await app.register(holdSeatRoute, routeOptions);
+  await app.register(releaseSeatRoute, routeOptions);
 };

@@ -28,6 +28,17 @@ describe("HoldSeatService", () => {
     expect(result.expiresAt).toEqual(new Date(T0.getTime() + 600_000));
   });
 
+  it("returns the ids of every seat the hold holds", async () => {
+    const { hold, repo } = setup();
+    repo.seats.set("s1", "available");
+    repo.seats.set("s2", "available");
+
+    await hold.hold({ holder, eventId: "e", seatId: "s1" });
+    const result = await hold.hold({ holder, eventId: "e", seatId: "s2" });
+
+    expect(result.seatIds).toEqual(["s1", "s2"]);
+  });
+
   it("rejects with SeatUnavailable and keeps no empty hold when the seat is taken", async () => {
     const { hold, repo } = setup();
     repo.seats.set("s1", "sold");

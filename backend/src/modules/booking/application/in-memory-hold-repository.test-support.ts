@@ -75,6 +75,32 @@ export class InMemoryHoldRepository implements HoldRepository, HoldTransaction {
     return Promise.resolve(true);
   }
 
+  seatIdsOfHold(holdId: string): Promise<string[]> {
+    return Promise.resolve([...this.seats].filter(([, state]) => state === holdId).map(([id]) => id));
+  }
+
+  listActiveVisitorHolds(visitorHash: string): Promise<{ id: string; eventId: string }[]> {
+    const holds = this.holds.filter((h) => h.status === "active" && h.key.includes(`"visitorHash":${JSON.stringify(visitorHash)}`));
+    return Promise.resolve(holds.map((h) => ({ id: h.id, eventId: h.key.slice(0, h.key.indexOf(":")) })));
+  }
+
+  adoptHold(input: { holdId: string; userId: string }): Promise<boolean> {
+    const hold = this.holds.find((h) => h.id === input.holdId && h.status === "active");
+    if (hold === undefined) return Promise.resolve(false);
+    const eventId = hold.key.slice(0, hold.key.indexOf(":"));
+    const key = `${eventId}:${JSON.stringify({ kind: "user", userId: input.userId })}`;
+    if (this.holds.some((h) => h.key === key && h.status === "active")) return Promise.resolve(false);
+    hold.key = key;
+    return Promise.resolve(true);
+  }
+
+  releaseHold(holdId: string): Promise<void> {
+    for (const [id, state] of this.seats) if (state === holdId) this.seats.set(id, "available");
+    const hold = this.holds.find((h) => h.id === holdId && h.status === "active");
+    if (hold !== undefined) hold.status = "released";
+    return Promise.resolve();
+  }
+
   releaseHoldIfEmpty(holdId: string): Promise<void> {
     const hold = this.holds.find((h) => h.id === holdId);
     if (hold !== undefined && ![...this.seats.values()].includes(holdId)) hold.status = "released";

@@ -3,7 +3,7 @@ import type { PrismaService } from "../../../../infrastructure/persistence/prism
 import type { ActiveHold, HoldRepository, HoldTransaction } from "../../application/ports/hold-repository.js";
 import type { Holder } from "../../domain/holder.js";
 import { holderColumns, toActiveHold } from "./hold-mappers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded, isUniqueViolation } from "./persistence-errors.js";
 
 type Tx = Prisma.TransactionClient;
 
@@ -71,6 +71,42 @@ class PrismaHoldTransaction implements HoldTransaction {
     await this.tx.$executeRaw`
       UPDATE holds SET status = 'released'
       WHERE id = ${holdId}::uuid AND status = 'active' AND NOT EXISTS (SELECT 1 FROM seats WHERE hold_id = ${holdId}::uuid)`;
+  }
+
+  async seatIdsOfHold(holdId: string): Promise<string[]> {
+    const rows = await this.tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM seats WHERE hold_id = ${holdId}::uuid AND status = 'held' ORDER BY row_label, seat_number`;
+    return rows.map((r) => r.id);
+  }
+
+  async listActiveVisitorHolds(visitorHash: string): Promise<{ id: string; eventId: string }[]> {
+    const rows = await this.tx.$queryRaw<{ id: string; event_id: string }[]>`
+      SELECT id, event_id FROM holds WHERE visitor_hash = ${visitorHash} AND status = 'active' ORDER BY id FOR UPDATE`;
+    return rows.map((r) => ({ id: r.id, eventId: r.event_id }));
+  }
+
+  async adoptHold(input: { holdId: string; userId: string }): Promise<boolean> {
+    // A unique violation aborts a PostgreSQL transaction, so the attempt runs inside a savepoint: a user hold created
+    // concurrently (after the NOT EXISTS check) rolls back to it and the caller takes the release path.
+    await this.tx.$executeRaw`SAVEPOINT adopt_hold`;
+    try {
+      const moved = await this.tx.$executeRaw`
+        UPDATE holds SET user_id = ${input.userId}::uuid, visitor_hash = NULL
+        WHERE id = ${input.holdId}::uuid AND status = 'active' AND visitor_hash IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM holds u WHERE u.event_id = holds.event_id AND u.user_id = ${input.userId}::uuid AND u.status = 'active')`;
+      await this.tx.$executeRaw`RELEASE SAVEPOINT adopt_hold`;
+      return moved === 1;
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      await this.tx.$executeRaw`ROLLBACK TO SAVEPOINT adopt_hold`;
+      return false;
+    }
+  }
+
+  async releaseHold(holdId: string): Promise<void> {
+    await this.tx.$executeRaw`
+      UPDATE seats SET status = 'available', hold_id = NULL, held_until = NULL WHERE hold_id = ${holdId}::uuid AND status = 'held'`;
+    await this.tx.$executeRaw`UPDATE holds SET status = 'released' WHERE id = ${holdId}::uuid AND status = 'active'`;
   }
 }
 

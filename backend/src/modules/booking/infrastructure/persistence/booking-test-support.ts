@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { ControlledClock } from "../../../../shared/time/controlled-clock.js";
 import { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
@@ -29,10 +30,10 @@ export interface SeatedEvent {
   readonly seatIds: readonly string[];
 }
 
-/** One event with `seatCount` available seats in row A. */
+/** One event with `seatCount` available seats in row A, in a venue of its own so a test can create several events. */
 export async function insertSeatedEvent(prisma: PrismaService, seatCount: number): Promise<SeatedEvent> {
   const [venue] = await prisma.client.$queryRaw<{ id: string }[]>`
-    INSERT INTO venues (name, city, country_code, timezone) VALUES ('Hall', 'Berlin', 'DE', 'Europe/Berlin') RETURNING id`;
+    INSERT INTO venues (name, city, country_code, timezone) VALUES (${`Hall ${randomUUID()}`}, 'Berlin', 'DE', 'Europe/Berlin') RETURNING id`;
   const [show] = await prisma.client.$queryRaw<{ id: string }[]>`
     INSERT INTO shows (title, type, genre, description) VALUES ('Show', 'concert', 'rock', 'd') RETURNING id`;
   const [event] = await prisma.client.$queryRaw<{ id: string }[]>`

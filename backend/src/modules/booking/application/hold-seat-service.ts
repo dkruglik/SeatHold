@@ -14,6 +14,8 @@ export interface HoldSeatDeps {
 export interface HoldSeatResult {
   readonly holdId: string;
   readonly expiresAt: Date;
+  /** Every seat the hold holds after this call, in seat order. */
+  readonly seatIds: readonly string[];
 }
 
 /** Hold on click (plan flow 1): one transaction, one clock read, one conditional seat UPDATE. */
@@ -32,7 +34,7 @@ export class HoldSeatService {
       if (!(await tx.tryHoldSeat({ eventId, seatId, holdId: hold.id, expiresAt: hold.expiresAt, now }))) {
         throw new SeatUnavailable();
       }
-      return { holdId: hold.id, expiresAt: hold.expiresAt };
+      return { holdId: hold.id, expiresAt: hold.expiresAt, seatIds: await tx.seatIdsOfHold(hold.id) };
     });
   }
 }

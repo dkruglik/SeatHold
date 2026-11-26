@@ -38,12 +38,18 @@ export const seatMapSchema = {
   required: ["event", "seats"],
 } as const;
 
+export const holdSeatParamsSchema = {
+  type: "object",
+  properties: { eventId: { type: "string", format: "uuid" }, seatId: { type: "string", format: "uuid" } },
+  required: ["eventId", "seatId"],
+} as const;
+
 export interface CurrentHoldDto {
   readonly seatIds: readonly string[];
   readonly expiresAt: string;
 }
 
-export const toCurrentHoldDto = (hold: CurrentHold): CurrentHoldDto => ({ seatIds: hold.seatIds, expiresAt: hold.expiresAt.toISOString() });
+export const toCurrentHoldDto = (hold: Pick<CurrentHold, "seatIds" | "expiresAt">): CurrentHoldDto => ({ seatIds: hold.seatIds, expiresAt: hold.expiresAt.toISOString() });
 
 export const currentHoldSchema = {
   type: "object",

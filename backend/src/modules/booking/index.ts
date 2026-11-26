@@ -1,5 +1,6 @@
 // Public API of the booking module.
 export { HoldSeatService, type HoldSeatDeps, type HoldSeatResult } from "./application/hold-seat-service.js";
+export { AdoptVisitorHoldsService, type AdoptVisitorHoldsDeps } from "./application/adopt-visitor-holds-service.js";
 export { ReleaseSeatService, type ReleaseSeatDeps } from "./application/release-seat-service.js";
 export { ExpireHoldsService, type SweepResult } from "./application/expire-holds-service.js";
 export { CheckoutService, type CheckoutDeps, type CheckoutInput } from "./application/checkout-service.js";
