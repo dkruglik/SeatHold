@@ -38,4 +38,24 @@ describe("UserMenu on the home layout", () => {
     await screen.findByLabelText(/^Email/);
     expect(router.state.location.pathname).toBe("/login");
   });
+
+  it("shows an alert with Retry when the account cannot be loaded, and Retry refetches", async () => {
+    const { user, backend } = renderRoutes("/", { user: buyer, meFailures: 1 });
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Could not load your account");
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    await screen.findByText("buyer@example.com");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(backend.calls.filter((call) => call.path === "/auth/me")).toHaveLength(2);
+  });
+
+  it("shows nothing while the account is loading", () => {
+    renderRoutes("/", { user: buyer });
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  });
 });

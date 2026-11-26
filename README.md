@@ -78,6 +78,7 @@ Configuration (names and local defaults in `.env.example`; the rules for each ar
 
 | Variable | Default | Secret | Notes |
 |---|---|---|---|
+| `FRONTEND_ORIGIN` | `http://localhost:5173` | no | The one allowed browser `Origin` for state-changing requests; scheme, host and optional port, no path. Production requires it to be set, `https` and not localhost |
 | `AUTH_CODE_PEPPER` | local placeholder in `.env.example` | yes | At least 32 characters; production refuses the placeholder and injects its own |
 | `CSRF_SECRET` | local placeholder in `.env.example` | yes | At least 32 characters; signs the CSRF cookie; production refuses the placeholder |
 | `SMTP_PASS` | unset | yes | Set together with `SMTP_USER` in production only; never in a file |

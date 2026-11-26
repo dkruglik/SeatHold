@@ -5,7 +5,7 @@ import { useMe } from "../hooks/use-me";
 
 /**
  * Sends an anonymous visitor to the login page and remembers where they were going. This is a UX guard only:
- * the server decides what a caller may do (DECISIONS O52).
+ * the server decides what a caller may do (DECISIONS O55).
  */
 export function RequireAuth({ children }: { readonly children: ReactNode }) {
   const me = useMe();

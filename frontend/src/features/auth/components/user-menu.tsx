@@ -6,7 +6,20 @@ import { useAuthApi } from "../hooks/use-auth-api";
 import { useAuthSession } from "../hooks/use-auth-session";
 import { useMe } from "../hooks/use-me";
 
-/** Header area: Sign in for a visitor; the email and Log out for a signed-in user. Renders nothing while `me` loads or if it failed. */
+function AccountError({ onRetry }: { readonly onRetry: () => void }) {
+  return (
+    <Group gap="sm" wrap="wrap" justify="flex-end">
+      <Alert color="red" role="alert" py={4} px="sm">
+        Could not load your account.
+      </Alert>
+      <Button variant="default" size="compact-md" onClick={onRetry}>
+        Retry
+      </Button>
+    </Group>
+  );
+}
+
+/** Header area: Sign in for a visitor; the email and Log out for a signed-in user. Renders nothing while `me` loads; if it failed, an alert with Retry. */
 export function UserMenu() {
   const me = useMe();
   const api = useAuthApi();
@@ -28,6 +41,9 @@ export function UserMenu() {
     void navigate("/");
   }
 
+  if (me.isError) {
+    return <AccountError onRetry={() => void me.refetch()} />;
+  }
   if (me.data === undefined) {
     return null;
   }

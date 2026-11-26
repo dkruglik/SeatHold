@@ -9,6 +9,8 @@ export interface FakeBackendOptions {
   readonly validCode?: string;
   readonly roleOnLogin?: "buyer" | "admin";
   readonly rateLimitedForSeconds?: number;
+  /** `/auth/me` answers 500 this many times, then works. */
+  readonly meFailures?: number;
 }
 
 export interface RecordedCall {
@@ -57,12 +59,15 @@ function mutate(state: State, options: FakeBackendOptions, path: string, body: R
   return failure(404, "not_found");
 }
 
-function read(state: State, path: string): Response {
+function read(state: State, options: FakeBackendOptions, path: string, meCalls: number): Response {
   const { user } = state;
   if (path === "/auth/csrf") {
     return json({ csrfToken: state.token });
   }
   if (path === "/auth/me") {
+    if (meCalls <= (options.meFailures ?? 0)) {
+      return failure(500, "INTERNAL");
+    }
     return json({ user });
   }
   if (path === "/admin/ping") {
@@ -75,6 +80,7 @@ function read(state: State, path: string): Response {
 export function createFakeBackend(options: FakeBackendOptions = {}): FakeBackend {
   const state: State = { user: options.user ?? null, token: "token-1" };
   let rotations = 0;
+  let meCalls = 0;
   const calls: RecordedCall[] = [];
 
   const fetchImpl: typeof fetch = (input, init) => {
@@ -82,11 +88,14 @@ export function createFakeBackend(options: FakeBackendOptions = {}): FakeBackend
     const method = init?.method ?? "GET";
     const headers = new Headers(init?.headers);
     const body: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+    if (path === "/auth/me") {
+      meCalls += 1;
+    }
     calls.push({ method, path, csrfToken: headers.get("x-csrf-token"), credentials: init?.credentials, body });
     if (method !== "GET" && headers.get("x-csrf-token") !== state.token) {
       return Promise.resolve(failure(403, "CSRF_INVALID"));
     }
-    return Promise.resolve(method === "GET" ? read(state, path) : mutate(state, options, path, (body ?? {}) as Record<string, unknown>));
+    return Promise.resolve(method === "GET" ? read(state, options, path, meCalls) : mutate(state, options, path, (body ?? {}) as Record<string, unknown>));
   };
 
   return {

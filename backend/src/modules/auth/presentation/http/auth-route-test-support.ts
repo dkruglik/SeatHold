@@ -5,6 +5,7 @@ import { buildApp } from "../../../../app.js";
 import type { AppConfig } from "../../../../config/load-config.js";
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import { ControlledClock } from "../../../../shared/time/controlled-clock.js";
+import type { EmailProvider } from "../../application/ports/email-provider.js";
 import { ConsoleEmailProvider } from "../../infrastructure/email/console-email-provider.js";
 import { createAuthServices, createPrismaAuthRepositories } from "../../auth-composition.js";
 import { fetchCsrf } from "./auth-memory-app-test-support.js";
@@ -70,7 +71,7 @@ export const cookieHeader = (sid: string): Record<string, string> => ({ cookie: 
 export const sha256Hex = (value: string): string => createHash("sha256").update(value).digest("hex");
 
 /** An app over the real Prisma repositories on the throwaway database, a controlled clock and a console email whose lines are captured. */
-export function useAuthApp(overrides: Partial<AppConfig> = {}, beforeReady?: (app: FastifyInstance) => void): AuthHarness {
+export function useAuthApp(overrides: Partial<AppConfig> = {}, beforeReady?: (app: FastifyInstance) => void, emailOverride?: EmailProvider): AuthHarness {
   const prisma = useAuthDatabase();
   const clock = new ControlledClock(T0);
   const lines: string[] = [];
@@ -84,7 +85,7 @@ export function useAuthApp(overrides: Partial<AppConfig> = {}, beforeReady?: (ap
     const config = testConfig(overrides);
     const services = createAuthServices(config, {
       clock,
-      email: new ConsoleEmailProvider((line) => lines.push(line)),
+      email: emailOverride ?? new ConsoleEmailProvider((line) => lines.push(line)),
       ...createPrismaAuthRepositories(prisma),
     });
     current = buildApp(config, { clock, auth: { services } });

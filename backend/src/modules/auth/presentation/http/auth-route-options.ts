@@ -5,7 +5,7 @@ import type { SessionCookieSettings } from "./session-cookie.js";
 
 /**
  * What every auth route module receives. `mutationHooks` (Origin, then CSRF) run first on every state-changing route.
- * The type needs at least one hook and `buildApp` always supplies the shared list (DECISIONS.md O44, O46).
+ * The type needs at least one hook and `buildApp` always supplies the shared list (DECISIONS.md O44, O46, O47, O48).
  */
 export interface AuthRouteOptions {
   readonly services: AuthServices;
