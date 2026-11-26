@@ -8,6 +8,7 @@ import { ConsoleEmailProvider } from "../../../auth/infrastructure/email/console
 import { createAuthServices, createPrismaAuthRepositories, type AuthServices } from "../../../auth/index.js";
 import { fetchCsrf } from "../../../auth/presentation/http/auth-memory-app-test-support.js";
 import { testConfig } from "../../../auth/presentation/http/auth-route-test-support.js";
+import type { PaymentGateway } from "../../application/ports/payment-gateway.js";
 import { createBookingServices, type BookingServices } from "../../booking-composition.js";
 import { T0, insertUser, useBookingPool } from "../../infrastructure/persistence/booking-test-support.js";
 import { VISITOR_COOKIE, hashVisitorToken } from "./hooks/visitor-token.js";
@@ -23,13 +24,13 @@ export interface BookingHarness {
   readonly app: () => FastifyInstance;
   readonly get: (url: string, headers?: Record<string, string>) => Promise<LightMyRequestResponse>;
   /** A browser-like mutation: carries a CSRF token with its cookie and the frontend Origin. Passed headers win; `cookie` values are merged. */
-  readonly mutate: (method: "PUT" | "DELETE", url: string, headers?: Record<string, string>) => Promise<LightMyRequestResponse>;
+  readonly mutate: (method: "PUT" | "DELETE" | "POST", url: string, headers?: Record<string, string>, payload?: object) => Promise<LightMyRequestResponse>;
   /** A user with a live session: its id and the `cookie` header that carries the session. */
   readonly signedInUser: (email: string) => Promise<{ userId: string; headers: Record<string, string> }>;
 }
 
 /** The real app over Prisma repositories on the throwaway database, with auth and booking services and a controlled clock. */
-export function useBookingApp(configOverrides: Partial<AppConfig> = {}): BookingHarness {
+export function useBookingApp(configOverrides: Partial<AppConfig> = {}, paymentGateway?: (clock: ControlledClock) => PaymentGateway): BookingHarness {
   const prisma = useBookingPool();
   const clock = new ControlledClock(T0);
   let current: FastifyInstance | undefined;
@@ -40,7 +41,7 @@ export function useBookingApp(configOverrides: Partial<AppConfig> = {}): Booking
     clock.set(T0);
     const config = testConfig(configOverrides);
     auth = createAuthServices(config, { clock, email: new ConsoleEmailProvider(() => undefined), ...createPrismaAuthRepositories(prisma) });
-    booking = createBookingServices({ prisma, clock, holdDurationMinutes: config.holdDurationMinutes, maxSeatsPerHold: config.maxSeatsPerHold });
+    booking = createBookingServices({ prisma, clock, holdDurationMinutes: config.holdDurationMinutes, maxSeatsPerHold: config.maxSeatsPerHold, ...(paymentGateway === undefined ? {} : { paymentGateway: paymentGateway(clock) }) });
     current = buildApp(config, { clock, auth: { services: auth }, booking: { services: booking } });
     await current.ready();
   });
@@ -51,10 +52,10 @@ export function useBookingApp(configOverrides: Partial<AppConfig> = {}): Booking
     return current;
   };
   const get: BookingHarness["get"] = (url, headers) => app().inject({ method: "GET", url, ...(headers === undefined ? {} : { headers }) });
-  const mutate: BookingHarness["mutate"] = async (method, url, headers) => {
+  const mutate: BookingHarness["mutate"] = async (method, url, headers, payload) => {
     const csrf = await fetchCsrf(app());
     const cookie = [csrf.cookie, headers?.cookie].filter((value) => value !== undefined).join("; ");
-    return app().inject({ method, url, headers: { origin: testConfig().frontendOrigin, "x-csrf-token": csrf.token, ...headers, cookie } });
+    return app().inject({ method, url, headers: { origin: testConfig().frontendOrigin, "x-csrf-token": csrf.token, ...headers, cookie }, ...(payload === undefined ? {} : { payload }) });
   };
   const signedInUser: BookingHarness["signedInUser"] = async (email) => {
     const userId = await insertUser(prisma, email);

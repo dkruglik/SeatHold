@@ -37,7 +37,7 @@ describe("every state-changing route", () => {
     const mutating = routes.filter((route) => !SAFE_METHODS.has(route.method));
 
     expect(mutating.map((route) => `${route.method} ${route.url}`).sort()).toEqual(
-      expect.arrayContaining(["POST /api/auth/request-code", "POST /api/auth/verify", "POST /api/auth/logout", "POST /api/auth/logout-all", "PUT /api/events/:eventId/hold/seats/:seatId", "DELETE /api/events/:eventId/hold/seats/:seatId"]),
+      expect.arrayContaining(["POST /api/auth/request-code", "POST /api/auth/verify", "POST /api/auth/logout", "POST /api/auth/logout-all", "PUT /api/events/:eventId/hold/seats/:seatId", "DELETE /api/events/:eventId/hold/seats/:seatId", "POST /api/events/:eventId/hold/checkout"]),
     );
   });
 

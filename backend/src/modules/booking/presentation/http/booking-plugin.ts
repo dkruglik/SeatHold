@@ -3,6 +3,7 @@ import type { BrowserStateChangeHooks } from "../../../../presentation/http/hook
 import type { BookingServices } from "../../booking-composition.js";
 import type { BookingRouteOptions } from "./booking-route-options.js";
 import { createHolderHooks, type VisitorCookieSettings } from "./hooks/holder-hooks.js";
+import { checkoutRoute } from "./routes/checkout.route.js";
 import { currentHoldRoute } from "./routes/current-hold.route.js";
 import { holdSeatRoute } from "./routes/hold-seat.route.js";
 import { releaseSeatRoute } from "./routes/release-seat.route.js";
@@ -38,4 +39,5 @@ export const bookingPlugin: FastifyPluginAsync<BookingPluginOptions> = async (ap
   await app.register(currentHoldRoute, routeOptions);
   await app.register(holdSeatRoute, routeOptions);
   await app.register(releaseSeatRoute, routeOptions);
+  await app.register(checkoutRoute, routeOptions);
 };

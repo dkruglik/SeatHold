@@ -563,6 +563,14 @@ The Phase 1 summary and its open risks are in O56.
 - **Trade-off.** A summary can drift from the entries it links; the linked entries are the source, and this one changes in the same commit as any of them.
 - **Status.** `implemented` as documentation in Phase 1 it-8: this entry, the Security section above and `README.md`, "Authentication". The controls are proven by the tests named in the linked entries; the login flow has not been exercised in a real browser against a real backend, and CI has not run on GitHub.
 
+### O57. Checkout route and strict request bodies
+
+- **Context.** Phase 2 it-6: `POST /api/events/:eventId/hold/checkout` pays for the caller's hold. Fastify's default Ajv strips unknown body fields (`removeAdditional: true`), so `additionalProperties: false` alone would not reject them, and the auth routes rely on that stripping.
+- **Choice.** The route composes the shared CSRF and Origin hooks, then `identity.resolve` (adopts a visitor's holds when a session and a `vid` cookie arrive together; never issues a cookie). Body `{ paymentOutcome, guestEmail? }` with `additionalProperties: false` and `guestEmail` at most 254 characters; the email's syntax stays a domain rule (400 `GUEST_EMAIL_INVALID`). No holder gives 404 `HOLD_NOT_FOUND`. Success is 201 with the booking and its tickets; every response is `Cache-Control: no-store`. Request bodies are never logged (O25). The schema adds `propertyNames: { enum: [...] }`, which rejects an unknown field with 400 without changing the app-wide Ajv behaviour.
+- **Options.** Per-route stripping tolerated (unknown fields silently ignored: hides client bugs); Ajv `removeAdditional: false` app-wide (breaks the auth tests that prove an extra `role` field is ignored); a custom per-route check (duplicates the schema).
+- **Trade-off.** Strict only on this route; other bodies still strip unknown fields.
+- **Status.** `implemented`: `modules/booking/presentation/http/{booking-dto.ts,routes/checkout.route.ts}`; tests `checkout.route.integration.test.ts`, `mutating-routes-guard.test.ts`.
+
 ---
 
 ## Back-office capability proposal
