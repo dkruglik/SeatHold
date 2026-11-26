@@ -1,11 +1,15 @@
-import { Container, Text, Title } from "@mantine/core";
+import { Container, Group, Text, Title } from "@mantine/core";
+import { UserMenu } from "../auth";
 
 export function HomePage() {
   return (
     <>
       <header>
         <Container size="md" py="md">
-          <Text fw={700}>SeatHolder</Text>
+          <Group justify="space-between" wrap="wrap" gap="sm">
+            <Text fw={700}>SeatHolder</Text>
+            <UserMenu />
+          </Group>
         </Container>
       </header>
       <main>
