@@ -1,7 +1,7 @@
 // The connection URL comes from DATABASE_URL through prisma.config.ts.
 //
-// Prisma cannot express CHECK constraints, and the first migration is edited by hand for them
-// (see DECISIONS.md O40). Timestamps have no database default: callers pass the injected `now`.
+// Prisma cannot express CHECK constraints or partial unique indexes, and the migrations are edited by
+// hand for them (see DECISIONS.md O40; the booking schema adds partial indexes on holds). Timestamps have no database default: callers pass the injected `now`.
 generator client {
   provider        = "prisma-client"
   output          = "../src/generated/prisma"
@@ -14,11 +14,13 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email     String   @unique @db.Citext
-  role      String   @default("buyer")
-  createdAt DateTime @map("created_at") @db.Timestamptz(3)
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String    @unique @db.Citext
+  role      String    @default("buyer")
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3)
   sessions  Session[]
+  holds     Hold[]
+  bookings  Booking[]
 
   @@map("users")
 }
@@ -48,4 +50,137 @@ model Session {
 
   @@index([userId])
   @@map("sessions")
+}
+
+model Venue {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  city        String
+  countryCode String  @map("country_code") @db.Char(2)
+  timezone    String
+  events      Event[]
+
+  @@unique([name, city])
+  @@map("venues")
+}
+
+model Show {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  type        String
+  genre       String
+  description String
+  events      Event[]
+
+  @@index([type])
+  @@index([genre])
+  @@map("shows")
+}
+
+model Event {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  showId      String    @map("show_id") @db.Uuid
+  venueId     String    @map("venue_id") @db.Uuid
+  startsAt    DateTime  @map("starts_at") @db.Timestamptz(3)
+  priceMinor  Int       @map("price_minor")
+  currency    String    @db.Char(3)
+  rows        Int
+  seatsPerRow Int       @map("seats_per_row")
+  show        Show      @relation(fields: [showId], references: [id])
+  venue       Venue     @relation(fields: [venueId], references: [id])
+  seats       Seat[]
+  holds       Hold[]
+  bookings    Booking[]
+
+  @@index([startsAt])
+  @@index([showId])
+  @@index([venueId])
+  @@map("events")
+}
+
+model Seat {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId    String    @map("event_id") @db.Uuid
+  rowLabel   String    @map("row_label")
+  seatNumber Int       @map("seat_number")
+  status     String
+  holdId     String?   @map("hold_id") @db.Uuid
+  heldUntil  DateTime? @map("held_until") @db.Timestamptz(3)
+  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  hold       Hold?     @relation(fields: [holdId], references: [id], onDelete: Restrict)
+  ticket     Ticket?
+
+  @@unique([eventId, rowLabel, seatNumber])
+  @@index([eventId, status])
+  @@index([holdId])
+  @@map("seats")
+}
+
+// Partial unique indexes (event_id, user_id) and (event_id, visitor_hash) WHERE status = 'active'
+// live only in the migration.
+model Hold {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId     String    @map("event_id") @db.Uuid
+  userId      String?   @map("user_id") @db.Uuid
+  visitorHash String?   @map("visitor_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
+  status      String
+  createdAt   DateTime  @map("created_at") @db.Timestamptz(3)
+  event       Event     @relation(fields: [eventId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  seats       Seat[]
+  booking     Booking?
+  payments    Payment[]
+
+  @@index([eventId])
+  @@index([userId])
+  @@map("holds")
+}
+
+model Booking {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  holdId         String   @unique @map("hold_id") @db.Uuid
+  eventId        String   @map("event_id") @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  guestEmail     String?  @map("guest_email") @db.Citext
+  status         String
+  unitPriceMinor Int      @map("unit_price_minor")
+  totalMinor     Int      @map("total_minor")
+  currency       String   @db.Char(3)
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+  hold           Hold     @relation(fields: [holdId], references: [id])
+  event          Event    @relation(fields: [eventId], references: [id])
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tickets        Ticket[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([guestEmail])
+  @@index([eventId])
+  @@map("bookings")
+}
+
+model Ticket {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId String   @map("booking_id") @db.Uuid
+  seatId    String   @unique @map("seat_id") @db.Uuid
+  code      String   @unique
+  createdAt DateTime @map("created_at") @db.Timestamptz(3)
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  seat      Seat     @relation(fields: [seatId], references: [id])
+
+  @@index([bookingId])
+  @@map("tickets")
+}
+
+model Payment {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  holdId         String   @map("hold_id") @db.Uuid
+  idempotencyKey String   @unique @map("idempotency_key")
+  amountMinor    Int      @map("amount_minor")
+  outcome        String
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+  hold           Hold     @relation(fields: [holdId], references: [id])
+
+  @@index([holdId])
+  @@map("payments")
 }
