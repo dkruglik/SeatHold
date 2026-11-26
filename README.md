@@ -59,7 +59,7 @@ Create the role and database named by `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POS
 | `npm run db:migrate` | Creates and applies a migration in development |
 | `npm run db:migrate:deploy` | Applies existing migrations |
 | `npm run db:seed` | Creates the local admin and buyer accounts and the demo catalog (venues, shows, events, seats) if missing; safe to repeat; refuses to run with `APP_ENV=production` |
-| `npm run sweep:holds -- --batch-size=<1-10000>` | Runs the hold sweeper once (default batch size 500) and prints `holds swept freedSeats=<n> expiredHolds=<n>`; exit code 2 on bad arguments; allowed in production; optional, because expiry is lazy |
+| `npm run sweep:holds -- --batch-size=<1-10000>` | Development and local only (needs the dev dependencies, so it does not work in the production image; there run `node backend/dist/scripts/sweep-holds.js --batch-size=<n>`). Runs the hold sweeper once (default batch size 500) and prints `holds swept freedSeats=<n> expiredHolds=<n>`; exit code 2 on bad arguments; allowed in production; optional, because expiry is lazy |
 | `npm run user:promote -- <email>` | Makes an existing user an admin (the person signs in once first) |
 | `npm run user:demote -- <email>` | Makes an existing admin a buyer again; takes effect on their next request |
 
@@ -98,7 +98,7 @@ Configuration (names and local defaults in `.env.example`; the rules for each ar
 
 ## Booking
 
-Phase 2 is the backend only: the catalog, the seat hold, expiry and the mock checkout, with no UI. A seat is never sold twice: holding a seat is one conditional `UPDATE` in PostgreSQL (`status = 'available'` or an expired hold), zero rows means 409, and `UNIQUE(seat_id)` on tickets is the backstop. Holds expire lazily: every read and write treats a hold past its `expires_at` as free, so nothing depends on a background job (a sweeper exists, and `npm run sweep:holds` runs it once, but nothing schedules it). Time comes from the injected clock, read once per operation. The reasoning is in `DECISIONS.md` (D1, D2, D4, D6, O58 to O68).
+Phase 2 is the backend only: the catalog, the seat hold, expiry and the mock checkout, with no UI. A seat is never sold twice: holding a seat is one conditional `UPDATE` in PostgreSQL (`status = 'available'` or an expired hold), zero rows means 409, and `UNIQUE(seat_id)` on tickets is the backstop. Holds expire lazily: every read and write treats a hold past its `expires_at` as free, so nothing depends on a background job (a sweeper exists, and `node backend/dist/scripts/sweep-holds.js` runs it once in production, `npm run sweep:holds` in development, but nothing schedules it). Time comes from the injected clock, read once per operation. The reasoning is in `DECISIONS.md` (D1, D2, D4, D6, O58 to O68).
 
 **Seed.** `npm run db:seed` prints one line per account and then the catalog line:
 
@@ -108,7 +108,7 @@ catalog inserted venues=12 shows=200 events=200 seats=40000
 
 The numbers are the rows created by that run, so a second run prints zeros. The catalog is 12 venues in 5 countries, 200 shows and one event per show in the next 90 days, each with a 10 x 20 seat grid (200 seats). It is deterministic apart from the start times.
 
-**Sweeping expired holds.** Expiry never needs it, but `npm run sweep:holds -- --batch-size=500` frees the seats of expired holds once and prints `holds swept freedSeats=<n> expiredHolds=<n>`. It is safe to repeat and to run beside the app. The repository does not schedule it; production would run it as a one-off task (DECISIONS.md O64).
+**Sweeping expired holds.** Expiry never needs it, but `node backend/dist/scripts/sweep-holds.js --batch-size=500` (the compiled script, which is what the production image runs; `npm run sweep:holds -- --batch-size=500` is the development equivalent and needs the dev dependencies) frees the seats of expired holds once and prints `holds swept freedSeats=<n> expiredHolds=<n>`. It is safe to repeat and to run beside the app. The repository does not schedule it; production would run it as a one-off task (DECISIONS.md O64).
 
 **Who is booking.** A signed-in user holds seats as the user. Anyone else gets a random `vid` cookie on the first hold (`HttpOnly`, `SameSite=Lax`, scoped to `/api`, 30 days; only its hash is stored). After login, the next booking request moves the visitor's holds to the user and clears the cookie. A person can only release or pay for their own hold; another person's hold answers 404.
 

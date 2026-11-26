@@ -8,7 +8,7 @@ Placeholders used below: `<site-origin>` (the public https origin, the same valu
 
 ## What changes for users
 
-Nothing is visible in the browser yet: Phase 2 is the backend only, and there is no booking UI until Phase 3. The API now serves a catalog of events with seat maps. A visitor or a signed-in user can hold seats for 10 minutes, release them, and pay with a mock payment to receive one ticket code per seat. A seat is never sold twice. A hold that runs out is treated as free on the next read or write, with no background job.
+Nothing is visible in the browser yet: Phase 2 is the backend only, and there is no booking UI until Phase 3. The API now serves a catalog of events with seat maps. A visitor or a signed-in user can hold seats for 10 minutes, release them, and pay with a mock payment to receive one ticket code per seat. A seat is never sold twice. A hold that runs out is treated as free on the next read or write, with nothing scheduled in the background (an optional one-off sweep command exists, see section 7).
 
 The booking routes are registered only when auth is configured (the real server always does, through `backend/src/runtime.ts`). All are under `/api`:
 
@@ -60,7 +60,7 @@ For production, add the same three lines to the task environment.
 1. The Phase 1 requirements still apply: https on `<site-origin>`, `FRONTEND_ORIGIN` equal to the exact browser origin (every booking mutation checks the `Origin` header), and `/api/*` routed to the backend.
 2. TODO(operator): decide how the production catalog is loaded. The `seed` command refuses to run when `APP_ENV=production` (it also creates a well-known admin), so it is not a production path. Until you decide, the production database has no venues, shows or events, and the seat map route has nothing to return.
 3. TODO(operator): the mock payment gateway is the only payment adapter. `POST /api/events/:eventId/hold/checkout` takes `paymentOutcome` (`succeed` or `fail`) from the client, so any caller can mark a payment as paid. Do not expose the booking routes to real customers in production until a real payment adapter replaces it, or block `POST /api/events/*/hold/checkout` at the edge. Decide which, and who owns it.
-4. The expiry sweeper exists (`backend/src/modules/booking/infrastructure/persistence/prisma-hold-sweeper.ts`) but is not scheduled and not needed for correctness: expiry is lazy. Nothing to schedule in this release.
+4. The expiry sweeper exists (`backend/src/modules/booking/infrastructure/persistence/prisma-hold-sweeper.ts`) but is not scheduled and not needed for correctness: expiry is lazy. Nothing schedules it in this release; the optional one-off sweep command is in section 7, and correctness does not depend on it.
 
 ## Deploy
 
@@ -250,11 +250,13 @@ Expected last line on a fresh local database: `catalog inserted venues=12 shows=
 
 ### 7. Sweeping expired holds (optional)
 
-Expiry is lazy, so nothing depends on this. The sweeper only tidies stale `held` rows. **Action:** frees the seats of expired holds and marks those holds `expired`; safe to repeat and to run beside the running app. Run it once as a one-off task with the backend's environment (the same `DATABASE_URL` and configuration as the service):
+Expiry is lazy, so nothing depends on this. The sweeper only tidies stale `held` rows. **Action:** frees the seats of expired holds and marks those holds `expired`; safe to repeat and to run beside the running app. Run it once as a one-off task from the same image and environment as the API (the same `DATABASE_URL` and configuration as the service), with the image's app directory (`/app`) as the working directory. The production image has no dev dependencies (no `tsx`), so the task runs the compiled script:
 
 ```bash
-npm run sweep:holds -w backend -- --batch-size=500
+node backend/dist/scripts/sweep-holds.js --batch-size=500
 ```
+
+The development and local equivalent, which needs the dev dependencies, is `npm run sweep:holds -w backend -- --batch-size=500`; do not use it in the production image.
 
 Expected: one line `holds swept freedSeats=<n> expiredHolds=<n>` and exit code 0 (`0` and `0` when nothing was stale). A batch size outside 1 to 10000, or any other argument, prints the usage and exits with 2. To check the result, the SQL count of stale seats (after step 2's query) should be 0 right after the run:
 
@@ -264,7 +266,7 @@ SELECT count(*) FROM seats WHERE status = 'held' AND held_until <= now();
 
 ### Scheduler checks
 
-None. Nothing in this repository schedules the sweeper. TODO(operator): decide whether to run `sweep:holds` on a schedule (for example an EventBridge Scheduler target that starts the one-off task) or skip it, which is safe because expiry is lazy.
+None. Nothing in this repository schedules the sweeper. TODO(operator): decide whether to run the sweep on a schedule (for example an EventBridge Scheduler target that starts a one-off task from the API image with the command `node backend/dist/scripts/sweep-holds.js --batch-size=500`) or skip it, which is safe because expiry is lazy.
 
 ## Rollback
 
@@ -294,7 +296,7 @@ Expected: `COMMIT`. The Phase 1 tables and accounts are untouched.
 
 - The mock payment takes the outcome from the client and is the only payment adapter (see the TODO(operator) in "Other requirements").
 - The production catalog has no loader: the seed is local only (see the TODO(operator) in "Other requirements").
-- The sweeper is not scheduled (the one-off `sweep:holds` command exists). Stale `held` rows stay until a later hold or read treats them as free; correctness does not depend on it.
+- The sweeper is not scheduled (the one-off command `node backend/dist/scripts/sweep-holds.js` exists). Stale `held` rows stay until a later hold or read treats them as free; correctness does not depend on it.
 - No booking UI yet (Phase 3), so nothing in the browser exercises these routes.
 - The backend image has no migration path (DECISIONS.md O35), as in Phase 1.
 - The GitHub Actions workflow has not run on this branch.
