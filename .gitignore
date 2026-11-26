@@ -3,3 +3,4 @@ scripts
 .claude/marketplace
 .claude/rules
 .claude/skills
+.env.manager
