@@ -33,17 +33,19 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
   - Distributed lock (Redis): an extra moving part; a lock in a second store can disagree with the database.
   - Database constraint only (`UNIQUE` on tickets): catches the double sale only at purchase, so two buyers both "hold" the same seat.
   - **Atomic conditional `UPDATE` per seat plus a unique constraint as backstop.**
-- **Choice.** `UPDATE seats SET status='held', hold_id=$hold, held_until=$expires WHERE id=$seat AND event_id=$event AND (status='available' OR (status='held' AND held_until <= $now)) RETURNING id`. `$now` is the value read once from the `Clock` for the operation (O4). Zero rows means the seat is taken (409). The holder's hold row is created with `INSERT ... ON CONFLICT DO NOTHING` on a partial unique index, so parallel first clicks of one holder share one hold. Confirm uses the same pattern (`WHERE hold_id=$hold AND held_until > $now`). `UNIQUE(seat_id)` on `tickets` is the backstop. No application-side check-then-write anywhere.
+- **Choice.** `UPDATE seats SET status='held', hold_id=$hold, held_until=$expires WHERE id=$seat AND event_id=$event AND (status='available' OR (status='held' AND held_until <= $now)) RETURNING id`. `$now` is the value read once from the `Clock` for the operation (O4). Zero rows means the seat is taken (409). The holder's hold row is created with `INSERT ... ON CONFLICT DO NOTHING` on a partial unique index, so parallel first clicks of one holder share one hold. Confirm uses the same pattern: `UPDATE seats SET status='sold', held_until=NULL WHERE hold_id=$hold AND status='held' AND held_until > $now RETURNING id`, inside a transaction that first locks the active hold row (`SELECT ... FOR UPDATE`); the number of returned rows must equal the hold's seat count, otherwise the transaction rolls back. `UNIQUE(seat_id)` on `tickets` is the backstop: a violation rolls the whole confirm back, maps to 409 `HOLD_EXPIRED` and voids the payment. No application-side check-then-write anywhere.
+- **Seat cap race (changed from the plan).** The plan checked the cap against a count taken while getting the hold. Two parallel clicks of one holder could both read the old count and both pass. The hold row is now locked first (`SELECT id, expires_at FROM holds ... FOR UPDATE`, in `findActiveHold`) and the seats are counted in a second statement, so under READ COMMITTED the second click sees the first click's committed seat. The cap integration test found the race.
+- **Hold transaction.** One transaction per click: expire the holder's stale hold, get or create the active hold (`INSERT ... ON CONFLICT DO NOTHING`, no conflict target, the two partial unique indexes arbitrate, then the locking select), check the cap (409 `HOLD_LIMIT_REACHED`), run the conditional seat UPDATE (zero rows throws `SeatUnavailable`, 409 `SEAT_UNAVAILABLE`, and the throw rolls back a hold created in the same transaction, so no empty hold stays). Transaction `maxWait` and `timeout` are 10 s (O66).
 - **Trade-off.** All contention lands on PostgreSQL row locks; a very hot seat serializes on one row (fine at this scale, see Scale). One statement per clicked seat instead of a batch.
-- **Status.** `planned`: Phase 2 it-3 (hold), it-5 (confirm). Proof: 100 parallel holds on one seat -> exactly 1 winner. Backstop proof: a forced second ticket for a sold seat is rejected by `UNIQUE(seat_id)` and the confirm rolls back (Phase 2 it-5).
+- **Status.** `implemented` (Phase 2 it-3, it-5). Files: `backend/src/modules/booking/infrastructure/persistence/{prisma-hold-repository.ts,prisma-checkout-repository.ts,checkout-statements.ts}`, `application/{hold-seat-service.ts,checkout-service.ts}`. Tests: `prisma-hold-repository.hold-concurrency.integration.test.ts` (100 parallel holds from 100 visitors on one seat give exactly 1 success and 99 `SEAT_UNAVAILABLE`, and the seat row points at the winner's hold; a sold seat cannot be held; two parallel clicks of one holder on two seats make one hold with both), `prisma-hold-repository.hold-cap.integration.test.ts` (cap, also under parallel clicks), `prisma-checkout-repository.races.integration.test.ts` (two concurrent checkouts of one hold make one booking; the ticket backstop test forces a second ticket for an already ticketed seat, gets 409 `HOLD_EXPIRED` and a full rollback), `catalog-booking-schema.integration.test.ts` (`UNIQUE(seat_id)` and `UNIQUE(code)` on tickets, `UNIQUE(hold_id)` on bookings).
 
 ### D2. Where hold state lives and how expiry fires
 
 - **Context.** A hold lasts X minutes (default 10); after that the seats return to sale, deterministically.
 - **Options.** TTL store (Redis keys with expiry); scheduled sweeper; lazy expiry on read; queue with delayed messages.
-- **Choice.** Hold state lives on the seat row (`hold_id`, `held_until`) and in a `holds` row (`expires_at`). **Lazy expiry**: every read and write treats `held_until <= now` as available, so correctness never depends on a background job. An idempotent sweeper query exists for tidiness only (production would run it once from EventBridge Scheduler). `now` is read once per operation from an injected `Clock` (database time in the running app, a controlled clock in tests) and passed to every statement, the sweeper included; no SQL statement calls `now()` itself.
+- **Choice.** Hold state lives on the seat row (`hold_id`, `held_until`) and in a `holds` row (`expires_at`). **Lazy expiry**: every read and write treats `held_until <= now` as available, so correctness never depends on a background job. An idempotent sweeper exists for tidiness only (O64); nothing schedules it yet, production would run it once from EventBridge Scheduler. The one expiry rule is `isExpired(expiresAt, now)`: a hold is over at exactly `expires_at` (`<=`). The public seat map (`GetSeatMapQuery`) derives `available` for an expired hold from the row's `held_until` and the operation's `now`; the viewer's own hold (`GetCurrentHoldQuery`) is read with `expires_at > $now`; the hold transaction first marks the holder's stale active hold `expired` and frees its seats. `now` is read once per operation from an injected `Clock` (database time in the running app, a controlled clock in tests) and passed to every statement, the sweeper included; no SQL statement calls `now()` itself.
 - **Trade-off.** Expired rows stay `held` in storage until touched or swept, so every query and admin count must apply the same rule. No push notification when a hold expires; the UI relies on its countdown and polling.
-- **Status.** `planned`: Phase 2 it-4. Proof: controlled-clock test, seat back on sale after X minutes, same result every run, no real waiting.
+- **Status.** `implemented` (Phase 2 it-2, it-4). Files: `backend/src/modules/booking/domain/{hold-rules.ts,seat-state.ts}`, `application/{get-seat-map-query.ts,get-current-hold-query.ts,expire-holds-service.ts}`, `infrastructure/persistence/{prisma-hold-repository.ts,prisma-seat-map-reader.ts,prisma-current-hold-reader.ts,prisma-hold-sweeper.ts}`. Tests: `prisma-hold-repository.kpi-expiry.integration.test.ts` (with a `ControlledClock`, another visitor holds the seat 1 second after the hold duration, run twice with the same result; the seat is still held at `expires_at` minus 1 second and free at exactly `expires_at`; no real waiting), `application/expiry-and-reads.test.ts`, `seat-state.test.ts`, `hold-rules.test.ts`, `prisma-seat-map-reader.integration.test.ts`, `prisma-current-hold-reader.integration.test.ts`.
 
 ### D3. Caching
 
@@ -61,9 +63,9 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 
 - **Context.** Payment succeeds 3 seconds after the hold expired, and the seat is already held by another buyer.
 - **Options.** Honour the payment and take the seat back (sells a seat the other buyer holds); move the buyer to other seats automatically; reject and refund.
-- **Choice.** The mock payment is authorized outside the database transaction, then the confirm transaction requires every seat of the hold to still be `held` by it with `held_until > now`. If not, the transaction rolls back, the booking is `rejected`, the payment is `voided`, and the buyer gets 409 `HOLD_EXPIRED` with the map refreshed to choose again.
-- **Trade-off.** A buyer who paid a little late loses the seats and must start again; no automatic substitute seats. A real provider would need a refund or void call, made idempotent with the payment's idempotency key.
-- **Status.** `planned`: Phase 2 it-5. Proof: test with the clock moved past expiry and the seat retaken.
+- **Choice.** `CheckoutService` reads the clock twice. The first value serves the hold lookup, the expiry check (`expires_at <= now` gives 409 `HOLD_EXPIRED` before any payment) and the price. The mock payment is then authorized outside any database transaction, with the idempotency key `hold:<holdId>`. The second clock value is read after authorize returns and is used for the confirm and for every record written afterwards, so a hold that lapsed during the payment is rejected rather than sold. The confirm transaction requires every seat of the hold to still be `held` by it with `held_until > now`. If fewer rows match (`seats_lost`), the transaction rolls back, a second transaction marks the hold `expired`, frees its seats, inserts the booking as `rejected` and upserts the payment as `voided`, and the buyer gets 409 `HOLD_EXPIRED` with the map refreshed to choose again. A failed payment records the payment `failed`, leaves the hold and seats unchanged and answers 402 `PAYMENT_FAILED` (the buyer may retry; the retry overwrites the `failed` row, a `succeeded` row is never overwritten). A `UNIQUE` violation in the confirm (the ticket backstop, or a booking that already exists for the hold) rolls back, voids the payment and answers 409 `HOLD_EXPIRED`. When the hold is no longer active at confirm (another checkout won the race, or it was released), the confirm returns `hold_gone`, no payment row is written and the answer is 404 `HOLD_NOT_FOUND`. The payment upsert is idempotent: `INSERT ... ON CONFLICT (idempotency_key) DO UPDATE ... WHERE outcome <> 'succeeded'`.
+- **Trade-off.** A buyer who paid a little late loses the seats and must start again; no automatic substitute seats. A real provider would need a refund or void call, made idempotent with the payment's idempotency key. Known gap: with the mock, `hold_gone` after a successful authorization leaves no payment row and nothing is voided; a real provider would need an explicit void call there too, which the `PaymentGateway` port does not have yet. The two clock reads cost one extra read per checkout.
+- **Status.** `implemented` (Phase 2 it-5). Files: `backend/src/modules/booking/application/checkout-service.ts`, `infrastructure/persistence/{prisma-checkout-repository.ts,checkout-statements.ts}`, `infrastructure/payment/mock-payment-gateway.ts`. Tests: `application/checkout-service.test.ts` (clock read once per phase, before and after authorize; seats lost during payment gives rejection; backstop voids; `hold_gone` records nothing), `prisma-checkout-repository.races.integration.test.ts` (late payment with the seat retaken: booking `rejected`, payment `voided`, the other holder's seat untouched, no tickets; a payment finishing after expiry is rejected even when nobody retook the seat), `prisma-checkout-repository.integration.test.ts` (success, failed payment, retry after failure, expired hold without payment).
 
 ### D5. Guest one-time link
 
@@ -77,9 +79,9 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 
 - **Context.** One source of truth for seats, holds, bookings, users and sessions.
 - **Options.** PostgreSQL only; PostgreSQL plus Redis for holds or sessions; a document store.
-- **Choice.** PostgreSQL 17 only (Prisma behind repositories). Guarantees relied on: row-level locks taken by `UPDATE` (concurrent updates of one row serialize, and the second re-evaluates the `WHERE` under READ COMMITTED); atomic transactions for confirm; `UNIQUE`, `CHECK` and foreign-key constraints for invariants (one ticket per seat, a held seat always has a hold, one active hold per holder and event); the database clock, read once per operation through the `Clock` port (O4), as the single time source for expiry in production.
+- **Choice.** PostgreSQL 17 only (Prisma behind repositories). Guarantees relied on: row-level locks taken by `UPDATE` (concurrent updates of one row serialize, and the second re-evaluates the `WHERE` under READ COMMITTED); atomic transactions for confirm; `UNIQUE`, `CHECK` and foreign-key constraints for invariants (one ticket per seat, a held seat always has a hold, one active hold per holder and event); the database clock, read once per operation through the `Clock` port (O4), as the single time source for expiry in production. The Phase 2 schema (`backend/prisma/migrations/20261126130000_booking_schema/migration.sql`) adds `UNIQUE(event_id, row_label, seat_number)` on seats, the `seats_hold_consistency_check` (`(status='held') = (hold_id IS NOT NULL AND held_until IS NOT NULL)`), the holder check on holds (exactly one of `user_id`, `visitor_hash`), partial unique indexes for one active hold per holder and event, `UNIQUE(hold_id)` on bookings, `UNIQUE(seat_id)` and `UNIQUE(code)` on tickets, `UNIQUE(idempotency_key)` on payments, and the status and outcome CHECKs. Timestamp columns have no defaults: callers pass the injected `now`. Foreign keys and extra indexes: O65.
 - **Trade-off.** One writer database is the scaling limit for the hold path; session lookups and polling also land on it until a cache is approved (see Scale).
-- **Status.** `planned`: Phase 0 it-3, Phase 1 it-2, Phase 2 it-1.
+- **Status.** `implemented`: Phase 0 it-3, Phase 1 it-2, Phase 2 it-1. Phase 2 tests: `backend/src/modules/catalog/infrastructure/persistence/catalog-schema.integration.test.ts` and `catalog-booking-schema.integration.test.ts` (each constraint rejects its violating row), plus the concurrency tests named in D1.
 
 ---
 
@@ -87,8 +89,8 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 
 | KPI | Target | How it is shown | Status |
 |---|---|---|---|
-| Oversell | 0 seats sold twice | Test: 100 parallel holds on one seat produce exactly 1 winner | `planned` Phase 2 it-3 |
-| Hold expiry | Seat back on sale after X minutes, same result every run | Test with a controlled clock, no real waiting | `planned` Phase 2 it-4 |
+| Oversell | 0 seats sold twice | Test: 100 parallel holds on one seat produce exactly 1 winner | `implemented` Phase 2 it-3: `prisma-hold-repository.hold-concurrency.integration.test.ts` (D1) |
+| Hold expiry | Seat back on sale after X minutes, same result every run | Test with a controlled clock, no real waiting | `implemented` Phase 2 it-4: `prisma-hold-repository.kpi-expiry.integration.test.ts` (D2) |
 | Time to first run | Clean Mac to running system < 10 min | `install-seathold` skill, timed run | `planned` Phase 0 it-7, Phase 5 it-1 |
 | Caching | See D3 | Written | `planned` Phase 5 it-3 |
 | Latency | Search `GET /api/shows` p95 < 150 ms server time; seat hold p95 < 50 ms; checkout p95 < 200 ms excluding the payment provider | Written; optional short measurement | `planned` Phase 5 it-3 |
@@ -114,8 +116,8 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 | Guest link | Unguessable 32-byte token, hashed, single exchange, expiring; resend revokes existing guest sessions (D5) | `planned` Phase 3 it-3 |
 | Log redaction | Pino redacts `Cookie`, `Set-Cookie`, `X-CSRF-Token` and `Authorization`; request bodies (codes, tokens) are never logged | `implemented` Phase 0 it-4: `backend/src/infrastructure/logging/logger-options.ts`, test `backend/src/presentation/http/log-redaction.test.ts` |
 | CORS | Closed: no CORS plugin, one origin for frontend and API (O5) | `implemented` Phase 0 it-4: `backend/src/app.ts`, test `backend/src/app.test.ts` |
-| QR payload | Random 128-bit ticket code (base64url), unique, not derived from ids, so it cannot be guessed or enumerated | `planned` Phase 2 it-5, Phase 3 it-8 |
-| Anonymous holders | Random visitor token cookie, hashed in the database; a holder can only touch their own hold (404 otherwise) | `planned` Phase 2 it-6 |
+| QR payload | Random 128-bit ticket code (base64url), unique, not derived from ids, so it cannot be guessed or enumerated | `implemented` as issuing in Phase 2 it-5: `backend/src/modules/booking/domain/ticket-code.ts` (16 random bytes from Node crypto, base64url), `UNIQUE(code)` on tickets; test `ticket-code.test.ts`. Showing it as a QR is `planned` Phase 3 it-8 |
+| Anonymous holders | Random visitor token cookie, hashed in the database; a holder can only touch their own hold (404 otherwise) | `implemented` Phase 2 it-6 (O59): `booking/presentation/http/hooks/{visitor-token.ts,holder-hooks.ts}`; tests `release-seat.route.integration.test.ts`, `checkout.route.integration.test.ts`, `current-hold.route.integration.test.ts` (another visitor gets 404) |
 | Secrets | None in the repository, images, CI logs or `VITE_*`; production reads them from AWS Secrets Manager or SSM Parameter Store | `planned` Phase 0 it-1, it-3 |
 | Input validation | zod schemas at every HTTP boundary with explicit bounds (grid size, price, page size, date ranges) | `planned` every phase |
 
@@ -189,28 +191,28 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** Hold on click: each click holds that seat at once and adds it to the holder's single active hold for the event; all seats share the expiry set when the hold was created. Holder is a signed-in user or an anonymous visitor cookie.
 - **Options.** Select locally, then hold all at once (conflicts appear late, map stale while choosing); a timer per seat (several countdowns, partial expiry at checkout).
 - **Trade-off.** One write per click; adding a seat late does not extend the timer.
-- **Status.** `planned`: Phase 2 it-3. Decided 2026-11-26.
+- **Status.** `implemented`: Phase 2 it-3 (`hold-seat-service.ts`, `release-seat-service.ts`; tests `hold-and-release.test.ts`, `prisma-hold-repository.hold-concurrency.integration.test.ts`, `prisma-hold-repository.release.integration.test.ts`). Decided 2026-11-26. A seat added later keeps the hold's `expires_at`.
 
 ### O7. Seat cap per hold
 
 - **Choice.** `MAX_SEATS_PER_HOLD`, default 10, enforced in the hold service.
 - **Options.** No limit; a per-buyer-per-show limit now.
 - **Trade-off.** A buyer can still open holds on several events; per-buyer-per-show limits are left as a later change.
-- **Status.** `planned`: Phase 2 it-3. Decided 2026-11-26.
+- **Status.** `implemented`: Phase 2 it-3 (`hold-rules.ts` `assertSeatCapNotExceeded`, config `MAX_SEATS_PER_HOLD`; tests `hold-rules.test.ts`, `prisma-hold-repository.hold-cap.integration.test.ts`). Decided 2026-11-26. The cap race and its fix are in D1.
 
 ### O8. Mock payment
 
-- **Choice.** A `PaymentGateway` port with a mock adapter whose outcome the buyer picks (succeed or fail); authorization outside the database transaction; idempotency key per attempt.
+- **Choice.** A `PaymentGateway` port with a mock adapter whose outcome the buyer picks (succeed or fail); authorization outside the database transaction; idempotency key per hold (`hold:<holdId>`, so a retry after a failed payment reuses and overwrites the same payment row, never a `succeeded` one). The request body field is `paymentOutcome`, `succeed` or `fail`; the mock returns exactly that outcome and stores no card data.
 - **Options.** A provider sandbox such as Stripe test mode (needs an external account and network on a clean Mac); a random success or failure (cannot be demoed on demand); always succeed (cannot show the failure and late-payment paths).
 - **Trade-off.** No card data and no real provider; the port is where a real provider plugs in.
-- **Status.** `planned`: Phase 2 it-5.
+- **Status.** `implemented`: Phase 2 it-5, it-6 (`infrastructure/payment/mock-payment-gateway.ts`, `application/ports/payment-gateway.ts`, `presentation/http/routes/checkout.route.ts`; tests `mock-payment-gateway.test.ts`, `checkout-service.test.ts`, `checkout.route.integration.test.ts`). The known void gap is in D4.
 
 ### O9. Seed data
 
 - **Choice.** Deterministic seed: about 12 venues across about 5 countries and 8 cities, 200 shows across types and genres, one event per show over the next 90 days, each with a generated 10 x 20 grid (200 seats). Seeded users `admin@seathold.local` and `buyer@seathold.local`.
 - **Options.** One venue as in the brief's minimum (venue, city and country filters would have one value).
 - **Trade-off.** 40,000 seat rows on top of the brief's minimum, seeded with batched inserts; the clean-Mac install time is measured in Phase 5. If the seed threatens the 10-minute target, it drops to fewer events with full grids, keeping the venue spread.
-- **Status.** `planned`: Phase 1 it-6 (users), Phase 2 it-1 (catalog). Decided 2026-11-26.
+- **Status.** `implemented`: Phase 1 it-6 (users), Phase 2 it-1 (catalog). Decided 2026-11-26. The catalog seed is O63. The seed prints `catalog inserted venues=<n> shows=<n> events=<n> seats=<n>` (counts of rows created by that run; all zero on a re-run). The 40,000 seat rows are inserted by one `generate_series` statement per run, not by batches; the clean-Mac install time is still measured in Phase 5.
 
 ### O10. Search
 
@@ -259,21 +261,21 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** Integer minor units (`price_minor`), one currency per event (default `EUR`); a booking copies the unit price and total at purchase.
 - **Options.** Decimal or float amounts; multi-currency pricing.
 - **Trade-off.** No multi-currency (out of scope in the brief); later price changes never alter past bookings.
-- **Status.** `planned`: Phase 2 it-1, it-5.
+- **Status.** `implemented`: Phase 2 it-1, it-5 (`booking/domain/money.ts`, `events.price_minor` and `currency`, `bookings.unit_price_minor`, `total_minor`, `currency`, `payments.amount_minor`; tests `money.test.ts`, `checkout-service.test.ts`, `prisma-checkout-repository.integration.test.ts`). `DEFAULT_CURRENCY` (three uppercase letters) is used by the catalog seed; the booking copies the event's unit price and the total at confirm.
 
 ### O17. Event size cap
 
 - **Choice.** 1-200 rows and 1-200 seats per row, at most 20,000 seats per event, enforced by a `CHECK` and by input validation.
 - **Options.** 50 x 50 (2,500 seats, too small for the scale scenario); no cap.
 - **Trade-off.** A 20,000-seat event means a 20,000-row insert in one transaction at creation and a heavy SVG seat map (zoom and pan in Phase 6).
-- **Status.** `planned`: Phase 2 it-1, Phase 4 it-1.
+- **Status.** `implemented` for the database `CHECK` (`events_grid_check`, Phase 2 it-1; test `catalog-schema.integration.test.ts`); input validation at event creation is `planned` Phase 4 it-1. Row labels are generated as letters (`chr(64 + row)`), which is only meaningful up to 26 rows; the seed uses 10. Phase 4 must define labels for larger grids.
 
 ### O18. Visitor hold on login
 
 - **Choice.** With a session, the holder is the user. On the next booking request after login, each active visitor hold moves to the user, unless the user already has an active hold for that event; then the visitor hold's seats are released. Checkout resolves the holder session first, then visitor.
 - **Options.** Keep holds on the visitor (the buyer loses them on login, or buys under the wrong identity); merge seats into the user's existing hold.
 - **Trade-off.** In the rare conflicting case the visitor's seats go back on sale; merging was rejected because expiry and seat cap would need extra rules.
-- **Status.** `planned`: Phase 2 it-6.
+- **Status.** `implemented`: Phase 2 it-6 (`application/adopt-visitor-holds-service.ts`, `hooks/holder-hooks.ts`; tests `adopt-visitor-holds-service.test.ts`, `adopt-visitor-holds.integration.test.ts`, `adopt-visitor-holds.route.integration.test.ts`). Details: O60.
 
 ### O19. Session lifetime
 
@@ -570,6 +572,77 @@ The Phase 1 summary and its open risks are in O56.
 - **Options.** Per-route stripping tolerated (unknown fields silently ignored: hides client bugs); Ajv `removeAdditional: false` app-wide (breaks the auth tests that prove an extra `role` field is ignored); a custom per-route check (duplicates the schema).
 - **Trade-off.** Strict only on this route; other bodies still strip unknown fields.
 - **Status.** `implemented`: `modules/booking/presentation/http/{booking-dto.ts,routes/checkout.route.ts}`; tests `checkout.route.integration.test.ts`, `mutating-routes-guard.test.ts`.
+
+### O58. Error kinds `not_found` (404) and `payment_required` (402)
+
+- **Context.** Phase 2 needs 404 for a missing or foreign hold or event and 402 for a declined payment. O34 had only 400, 401, 403 and 409 business kinds.
+- **Choice.** `NotFoundError` (kind `not_found`, HTTP 404, default code `not_found`) and `PaymentRequiredError` (kind `payment_required`, HTTP 402, default code `payment_required`) in `backend/src/shared/errors/app-error.ts`, mapped in the shared error handler (`presentation/http/hooks/error-handler.ts`). Booking errors extend them and carry a stable `publicCode`: `HOLD_NOT_FOUND`, `EVENT_NOT_FOUND` (404), `PAYMENT_FAILED` (402). Business rules stay 409 `BusinessError` with `SEAT_UNAVAILABLE`, `HOLD_EXPIRED`, `HOLD_LIMIT_REACHED`; `GUEST_EMAIL_INVALID` is a 400 `ValidationError`.
+- **Options.** Reuse `BusinessError` (409) for everything (a missing hold would look like a state conflict); decide the status in each route (duplicates the mapping and leaks HTTP into the domain's intent).
+- **Trade-off.** Two more kinds to keep in the handler's table. Another holder's hold answers 404, the same as a missing one, so a hold id or holder cannot be probed.
+- **Status.** `implemented`: Phase 2 it-2, it-6; tests `booking/domain/errors.test.ts`, `presentation/http/hooks/error-handler.test.ts`.
+
+### O59. Visitor identity: the `vid` cookie
+
+- **Context.** An anonymous visitor must hold seats and check out as a guest without an account.
+- **Choice.** A random 32-byte token (Node `crypto.randomBytes`, base64url, 43 characters) in the cookie `vid`: `HttpOnly`, `SameSite=Lax`, `Path=/api`, `Secure` when `COOKIE_SECURE=true`, max age 30 days. Only the SHA-256 hex of the token is stored (`holds.visitor_hash`); a fast hash is enough for a random 256-bit value. A cookie whose value is not 43 base64url characters is ignored. The cookie is issued only by the hold route (`issueHolder`) to a browser with neither session nor valid cookie; read routes, release and checkout never issue one. The user wins: when a session exists the holder is the user, whatever the cookie says; the `vid` cookie is cleared once adopted (O60). `request.holder` is set by shared hooks in `booking/presentation/http/hooks/holder-hooks.ts`, composed by the routes.
+- **Options.** A server-side visitor row with a session id (more state for a throwaway identity); a signed cookie (a secret to rotate, no gain over a random token); no anonymous holds (forces sign-in before the first click).
+- **Trade-off.** The token is bearer: anyone holding the cookie holds the visitor's seats until expiry; a cleared cookie loses the hold (it expires on its own). 30 days is far longer than a hold; the cookie only needs to outlive it.
+- **Status.** `implemented`: Phase 2 it-6; tests `hooks/holder-hooks.test.ts`, `hold-seat.route.integration.test.ts`, `current-hold.route.integration.test.ts`.
+
+### O60. Adopting visitor holds on login
+
+- **Context.** O18 chose to move a visitor's holds to the user. The mechanism needed a decision.
+- **Choice.** The identity hooks run `AdoptVisitorHoldsService.adopt` on any booking request that carries both a session and a valid `vid` cookie (hold, release, current hold, checkout; not the public seat map). One transaction, one clock read: for each active visitor hold (locked `FOR UPDATE`), expire a stale hold of either side, then `adoptHold` (set `user_id`, clear `visitor_hash`, only if the user has no active hold for that event). The update runs inside a `SAVEPOINT`: a user hold created concurrently violates the partial unique index, the savepoint rolls back and the visitor hold is released instead (its seats freed). The reply then clears the `vid` cookie, also when there was nothing to adopt.
+- **Options.** A dedicated login hook (couples the auth module to booking); adopting only at login (misses holds made after login in another tab); no savepoint (a unique violation aborts the whole transaction).
+- **Trade-off.** An extra transaction on every booking request that still carries a stale cookie until the first reply clears it. A hold held by two tabs is adopted by whichever request arrives first.
+- **Status.** `implemented`: Phase 2 it-6; tests `adopt-visitor-holds-service.test.ts`, `adopt-visitor-holds.integration.test.ts` (including the concurrent-creation fallback), `adopt-visitor-holds.route.integration.test.ts`.
+
+### O61. Public seat map and per-viewer hold route
+
+- **Context.** D3 splits the seat API so the map can be cached while each viewer's hold stays private.
+- **Choice.** `GET /api/events/:eventId/seats` reads no cookie, sets none, and answers `Cache-Control: public, max-age=1` with `{ event: { id, priceMinor, currency }, seats: [{ id, row, number, state }] }`; `state` is `available`, `held` or `sold`, an expired hold shows as `available`, and no hold ids or holder data are selected. `GET /api/events/:eventId/hold` returns `{ seatIds, expiresAt }` for the caller or 404, with `Cache-Control: no-store`; hold, release and checkout answers are also `no-store`. The browser merges the two (Phase 3).
+- **Options.** One personalized seat map (cannot be cached at the edge); `max-age=2` (the plan said 1-2 s; 1 chosen for fresher maps).
+- **Trade-off.** Two requests to render a map. The browser cache max-age of 1 s adds to any edge cache TTL (D3), so staleness can reach about 2 s. The seat map reads one statement with every seat of the event (200 rows now, up to 20,000).
+- **Status.** `implemented`: Phase 2 it-6; tests `seat-map.route.integration.test.ts` (identical for anonymous and signed-in, no cookie, cacheable one second, 404 `EVENT_NOT_FOUND`), `current-hold.route.integration.test.ts`. D3 itself stays `planned` (edge caching is Phase 5).
+
+### O62. Booking routes are registered only with booking and auth dependencies
+
+- **Context.** `buildApp(config, deps)` takes optional module dependencies so unit tests can build a partial app.
+- **Choice.** `backend/src/app.ts` registers the booking plugin under `/api` only when both `deps.booking` and `deps.auth` are given (the plugin needs the auth module's `optionalAuth` for the session lookup). `runtime.ts` passes both.
+- **Options.** Make both dependencies required (every test then builds the full graph); throw at startup when only one is present.
+- **Trade-off.** Known risk: a caller that passes `booking` without `auth` gets no booking routes and no error. The production entry point cannot do this, and `mutating-routes-guard.test.ts` builds the app with both and enumerates the mutating routes, but a future composition mistake would fail silently.
+- **Status.** `implemented`: Phase 2 it-6; `backend/src/app.ts`, `backend/src/runtime.ts`.
+
+### O63. Deterministic, idempotent catalog seed
+
+- **Context.** The demo needs 12 venues, 200 shows and 200 events with 200 seats each (O9), the same on every machine, safe to run twice.
+- **Choice.** `generateCatalogSeed` is a pure function: a fixed `mulberry32` PRNG seed picks titles, genres, venues and prices; ids come from `seedUuid(key)` (SHA-256 of a stable key, version and variant bits set), so a re-run produces the same rows. Only the start times depend on `now` (within 90 days after it). Venues insert `ON CONFLICT (name, city) DO NOTHING`; shows and events `ON CONFLICT (id) DO NOTHING`. Events and their seats are inserted in one transaction: seats are generated in SQL (`generate_series`) only for events inserted by that run, `ON CONFLICT DO NOTHING`, so a re-run adds nothing and never resets a held or sold seat. `npm run db:seed` runs it after the users seed and prints the created counts. It refuses to run with `APP_ENV=production`.
+- **Options.** Random ids and a count check (a re-run duplicates or skips); a SQL fixture file (no typed, tested generator); inserting seats from application code (40,000 round trips).
+- **Trade-off.** An event created by an earlier run keeps its old start time; seeding later does not move it. Seed ids are derived from keys and are not secret.
+- **Status.** `implemented`: Phase 2 it-1; files `backend/src/modules/catalog/domain/{catalog-seed-data.ts,seeded-random.ts}`, `application/seed-catalog-service.ts`, `infrastructure/persistence/prisma-catalog-seed-repository.ts`, `backend/src/scripts/{seed.ts,seed-command.ts}`; tests `catalog-seed-data.test.ts`, `seed-catalog-service.test.ts`, `catalog-seed.integration.test.ts` (200 shows, 200 events, 40,000 seats; unchanged on a second run and with a different `now`; held and sold seats kept).
+
+### O64. Hold sweeper
+
+- **Context.** Lazy expiry (D2) is enough for correctness; stale `held` rows remain until touched.
+- **Choice.** `ExpireHoldsService.sweep({ batchSize })` reads the clock once and runs two bounded batch statements until a batch is short: free seats with `held_until <= $now` (`WHERE id IN (SELECT ... LIMIT n FOR UPDATE SKIP LOCKED)`), then mark empty active holds past `expires_at` `expired`. `SKIP LOCKED` lets several instances and in-flight hold transactions pass over rows someone else is changing. It is idempotent. Nothing calls it: no scheduler exists yet (production would use EventBridge Scheduler, one run).
+- **Options.** A `setInterval` in each instance (runs on every instance, not stateless-safe); a database-side scheduled job (a second place to deploy and monitor); no sweeper.
+- **Trade-off.** Risk: the filter `status = 'held' AND held_until <= $now` across all events has no supporting index (the indexes are `(event_id, status)` and `(hold_id)`), so a sweep scans the seats table. The fix is a partial index on `seats(held_until) WHERE status = 'held'`; it is not needed at 40,000 seats and is left out until a sweep shows up as slow.
+- **Status.** `implemented` (the query and service): Phase 2 it-4; tests `prisma-hold-sweeper.integration.test.ts` (frees only expired seats, idempotent, untouched at `expires_at` minus 1 second), `prisma-hold-sweeper.batches.integration.test.ts` (25 seats in batches of 10; two concurrent sweeps). The scheduler is `planned`, no phase yet.
+
+### O65. Foreign key actions and extra indexes
+
+- **Context.** The Phase 2 plan listed the constraints but not the delete behaviour of each foreign key or every supporting index.
+- **Choice.** `ON DELETE RESTRICT` on `holds.user_id`, `bookings.user_id`, `seats.hold_id` and the other booking foreign keys, so deleting a user, hold or event with history fails instead of erasing it; `seats.event_id` is `CASCADE` (seats belong to the event). `SET NULL` on `seats.hold_id` was rejected: it would leave a `held` seat without a hold and violate `seats_hold_consistency_check`; `SET NULL` on `holds.user_id` would violate the holder CHECK. Indexes beyond the plan, for foreign keys that Prisma and the queries use: `events(show_id)`, `events(venue_id)`, `holds(event_id)`, `holds(user_id)`, `bookings(event_id)`, `tickets(booking_id)`, `payments(hold_id)`.
+- **Options.** `CASCADE` everywhere (deleting a user would delete bookings and tickets); no extra indexes (a foreign key delete or join scans the child table).
+- **Trade-off.** More write cost on those tables; deleting a user or event needs explicit clean-up first (account deletion, if ever built, must handle it).
+- **Status.** `implemented`: Phase 2 it-1; `backend/prisma/migrations/20261126130000_booking_schema/migration.sql`; tests `catalog-booking-schema.integration.test.ts`. The first version of this migration was broken and was fixed before this entry; see `docs/ai-workflow-log.md`.
+
+### O66. Transaction timeouts
+
+- **Choice.** Interactive Prisma transactions for hold, release, adoption and confirm use `maxWait` and `timeout` of 10 s (`PrismaHoldRepository.inTransaction`, `TX_OPTIONS` in `prisma-checkout-repository.ts`). Prisma's default is 5 s for the transaction and 2 s to acquire a connection.
+- **Options.** Prisma defaults (a 100-way contention burst on one row can exceed 2 s of connection wait on a small pool); a longer value (hides stuck transactions).
+- **Trade-off.** A stuck transaction holds a connection and row locks for up to 10 s. The latency targets (hold p95 < 50 ms) are separate and are a Phase 5 measurement, not enforced by this timeout.
+- **Status.** `implemented`: Phase 2 it-3, it-5; the 100-parallel-holds test runs within it.
 
 ---
 

@@ -2,7 +2,7 @@
 
 SeatHolder is a ticketing system for events with numbered seats (the "SeatHold" brief). Buyers pick seats and hold them for a short time, then pay with a mock payment; guests reach their tickets through a link; admins manage events. Seat holds are decided in PostgreSQL so that several backend instances agree. The design is for AWS, but nothing is deployed.
 
-Status: Phase 1 (auth and access) on top of Phase 0 (setup). The backend and frontend start, serve a health check, and log users in by emailed code with buyer and admin roles; the product features arrive in later phases. The plan is in [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md) and every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
+Status: Phase 2 (booking core) on top of Phase 1 (auth and access) and Phase 0 (setup). The backend serves a seeded catalog, holds seats, expires holds and takes a mock payment through an HTTP API, and logs users in by emailed code with buyer and admin roles. There is no booking UI yet (Phase 3). The plan is in [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md) and every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
 
 ## Requirements
 
@@ -58,7 +58,7 @@ Create the role and database named by `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POS
 | `npm run db:generate` | Generates the Prisma client |
 | `npm run db:migrate` | Creates and applies a migration in development |
 | `npm run db:migrate:deploy` | Applies existing migrations |
-| `npm run db:seed` | Creates the local admin and buyer accounts if missing; safe to repeat; refuses to run with `APP_ENV=production` |
+| `npm run db:seed` | Creates the local admin and buyer accounts and the demo catalog (venues, shows, events, seats) if missing; safe to repeat; refuses to run with `APP_ENV=production` |
 | `npm run user:promote -- <email>` | Makes an existing user an admin (the person signs in once first) |
 | `npm run user:demote -- <email>` | Makes an existing admin a buyer again; takes effect on their next request |
 
@@ -94,6 +94,41 @@ Configuration (names and local defaults in `.env.example`; the rules for each ar
 | `HOLD_DURATION_MINUTES` | `10` | no | How long a seat hold lasts (positive integer) |
 | `MAX_SEATS_PER_HOLD` | `10` | no | Most seats in one hold (positive integer) |
 | `DEFAULT_CURRENCY` | `EUR` | no | Three uppercase letters (ISO 4217) |
+
+## Booking
+
+Phase 2 is the backend only: the catalog, the seat hold, expiry and the mock checkout, with no UI. A seat is never sold twice: holding a seat is one conditional `UPDATE` in PostgreSQL (`status = 'available'` or an expired hold), zero rows means 409, and `UNIQUE(seat_id)` on tickets is the backstop. Holds expire lazily: every read and write treats a hold past its `expires_at` as free, so nothing depends on a background job (a sweeper exists but is not scheduled). Time comes from the injected clock, read once per operation. The reasoning is in `DECISIONS.md` (D1, D2, D4, D6, O58 to O66).
+
+**Seed.** `npm run db:seed` prints one line per account and then the catalog line:
+
+```text
+catalog inserted venues=12 shows=200 events=200 seats=40000
+```
+
+The numbers are the rows created by that run, so a second run prints zeros. The catalog is 12 venues in 5 countries, 200 shows and one event per show in the next 90 days, each with a 10 x 20 seat grid (200 seats). It is deterministic apart from the start times.
+
+**Who is booking.** A signed-in user holds seats as the user. Anyone else gets a random `vid` cookie on the first hold (`HttpOnly`, `SameSite=Lax`, scoped to `/api`, 30 days; only its hash is stored). After login, the next booking request moves the visitor's holds to the user and clears the cookie. A person can only release or pay for their own hold; another person's hold answers 404.
+
+| Route | Who | Answers |
+|---|---|---|
+| `GET /api/events/:eventId/seats` | anyone | 200 `{ event: { id, priceMinor, currency }, seats: [{ id, row, number, state }] }`, `state` is `available`, `held` or `sold`; the same for every viewer, `Cache-Control: public, max-age=1`; 404 `EVENT_NOT_FOUND` |
+| `PUT /api/events/:eventId/hold/seats/:seatId` | user or visitor (cookie issued if missing); CSRF | 200 `{ seatIds, expiresAt }`; 409 `SEAT_UNAVAILABLE` or `HOLD_LIMIT_REACHED` |
+| `DELETE /api/events/:eventId/hold/seats/:seatId` | the holder; CSRF | 204; 404 `HOLD_NOT_FOUND` |
+| `GET /api/events/:eventId/hold` | the holder | 200 `{ seatIds, expiresAt }`; 404 `HOLD_NOT_FOUND`; never cached |
+| `POST /api/events/:eventId/hold/checkout` | the holder; CSRF | body `{ paymentOutcome: "succeed" or "fail", guestEmail? }`; 201 the booking with one ticket code per seat; 400 `GUEST_EMAIL_INVALID` (a visitor needs a valid `guestEmail`); 402 `PAYMENT_FAILED` (the hold stays, the buyer can retry); 404 `HOLD_NOT_FOUND`; 409 `HOLD_EXPIRED` (the hold lapsed, also while the payment was authorizing, and the payment is voided) |
+
+Holding a seat adds it to the holder's single hold for the event; all seats share the expiry set at the first click. Mutating routes need the `X-CSRF-Token` header and the allowed `Origin` (see Authentication). Error bodies are `{ "error": { "code", "message" } }`. The mock payment returns whichever outcome the buyer picked in `paymentOutcome`; no card data exists anywhere.
+
+Configuration: `HOLD_DURATION_MINUTES` (10), `MAX_SEATS_PER_HOLD` (10) and `DEFAULT_CURRENCY` (`EUR`) are in the table under Authentication and in `.env.example`.
+
+**The two proof tests** need a database, so run them through the test-database wrapper from the repository root, with PostgreSQL running (`npm run db:start`). The wrapper creates a throwaway database, migrates it, runs the command and drops it:
+
+```sh
+node scripts/test-db.mjs run -- npm run test:integration -w backend -- prisma-hold-repository.hold-concurrency
+node scripts/test-db.mjs run -- npm run test:integration -w backend -- prisma-hold-repository.kpi-expiry
+```
+
+The first runs 100 parallel holds on one seat and expects exactly one winner. The second moves a controlled clock past the hold duration and expects the seat to be on sale again, with no real waiting. Both are in `backend/src/modules/booking/infrastructure/persistence/` and run in `npm run verify`.
 
 ## Tests and verify
 
