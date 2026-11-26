@@ -25,6 +25,17 @@ export class PrismaLoginCodeRepository implements LoginCodeRepository {
     });
   }
 
+  oldestCreatedAtSince(email: string, since: Date): Promise<Date | null> {
+    return guarded("read oldest login code time", async () => {
+      const row = await this.prisma.client.authCode.findFirst({
+        where: { email: normalizeEmail(email), createdAt: { gte: since } },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      });
+      return row?.createdAt ?? null;
+    });
+  }
+
   invalidateUnused(email: string, now: Date): Promise<void> {
     return guarded("invalidate login codes", async () => {
       await this.prisma.client.authCode.updateMany({

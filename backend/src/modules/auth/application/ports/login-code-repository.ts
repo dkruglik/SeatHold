@@ -12,6 +12,8 @@ export interface LoginCodeRepository {
   /** Codes created for the email at or after `since`. */
   countRequestsSince(email: string, since: Date): Promise<number>;
   latestCreatedAt(email: string): Promise<Date | null>;
+  /** When the earliest code created for the email at or after `since` was created; null when there is none. */
+  oldestCreatedAtSince(email: string, since: Date): Promise<Date | null>;
   /** Marks the email's unconsumed, not yet invalidated codes as invalidated. */
   invalidateUnused(email: string, now: Date): Promise<void>;
   create(code: NewLoginCode): Promise<LoginCode>;

@@ -20,7 +20,15 @@ export interface AppConfig {
   readonly smtpUser?: string;
   /** Secret: never log or print. */
   readonly smtpPass?: string;
+  /** Secret: the HMAC key for login codes. Never log or print. */
+  readonly authCodePepper: string;
+  readonly authRequestCodeLimit: number;
+  readonly authRequestCodeWindowMinutes: number;
+  readonly authRequestCodeCooldownSeconds: number;
 }
+
+/** The value `.env.example` carries for local development. Production refuses it (DECISIONS.md O42). */
+export const localPepperPlaceholder = "local-only-pepper-replace-in-production-0000";
 
 // What each variable must look like. Shown instead of zod's messages, which may quote the received value.
 const requirements = {
@@ -38,6 +46,10 @@ const requirements = {
   SMTP_PORT: "must be an integer from 1 to 65535",
   SMTP_USER: "must be set together with SMTP_PASS",
   SMTP_PASS: "must be set together with SMTP_USER",
+  AUTH_CODE_PEPPER: "is required and must be a secret of at least 32 characters (in production, not the local placeholder)",
+  AUTH_REQUEST_CODE_LIMIT: "must be a positive integer",
+  AUTH_REQUEST_CODE_WINDOW_MINUTES: "must be a positive integer",
+  AUTH_REQUEST_CODE_COOLDOWN_SECONDS: "must be a positive integer",
 } as const;
 
 export const configVariableNames = Object.keys(requirements) as ReadonlyArray<keyof typeof requirements>;
@@ -72,6 +84,10 @@ const envSchema = z.object({
   SMTP_PORT: positiveInteger.pipe(z.number().max(65535)).default(1025),
   SMTP_USER: z.string().min(1).optional(),
   SMTP_PASS: z.string().min(1).optional(),
+  AUTH_CODE_PEPPER: z.string().min(32),
+  AUTH_REQUEST_CODE_LIMIT: positiveInteger.default(5),
+  AUTH_REQUEST_CODE_WINDOW_MINUTES: positiveInteger.default(15),
+  AUTH_REQUEST_CODE_COOLDOWN_SECONDS: positiveInteger.default(60),
 });
 
 /** Thrown at startup for invalid configuration. Carries variable names and rules, never values (DATABASE_URL has a password). */
@@ -104,6 +120,9 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>> = p
   if (present.APP_ENV === "production" && present.EMAIL_PROVIDER === "console") {
     invalid.add("EMAIL_PROVIDER");
   }
+  if (present.APP_ENV === "production" && present.AUTH_CODE_PEPPER === localPepperPlaceholder) {
+    invalid.add("AUTH_CODE_PEPPER");
+  }
   // Credentials come as a pair; the missing half is named.
   if ((present.SMTP_USER === undefined) !== (present.SMTP_PASS === undefined)) {
     invalid.add(present.SMTP_USER === undefined ? "SMTP_USER" : "SMTP_PASS");
@@ -125,6 +144,10 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>> = p
     emailFrom: values.EMAIL_FROM,
     smtpHost: values.SMTP_HOST,
     smtpPort: values.SMTP_PORT,
+    authCodePepper: values.AUTH_CODE_PEPPER,
+    authRequestCodeLimit: values.AUTH_REQUEST_CODE_LIMIT,
+    authRequestCodeWindowMinutes: values.AUTH_REQUEST_CODE_WINDOW_MINUTES,
+    authRequestCodeCooldownSeconds: values.AUTH_REQUEST_CODE_COOLDOWN_SECONDS,
     ...(values.SMTP_USER === undefined ? {} : { smtpUser: values.SMTP_USER }),
     ...(values.SMTP_PASS === undefined ? {} : { smtpPass: values.SMTP_PASS }),
   });

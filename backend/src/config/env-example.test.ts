@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { configVariableNames } from "./load-config.js";
+import { configVariableNames, localPepperPlaceholder } from "./load-config.js";
 
 // Variables in .env.example that the backend schema does not read: Docker Compose (docker-compose.yml)
 // and the frontend (frontend/src/app/config, checked by its own test).
@@ -8,6 +8,9 @@ const composeVariables = ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"];
 const frontendVariables = ["VITE_API_BASE_URL"];
 // Schema variables that .env.example intentionally leaves out: SMTP_PASS is a secret (production injects it);
 // SMTP_USER is optional and only meaningful together with SMTP_PASS, so local Mailpit needs neither.
+// The only secret variable .env.example assigns, with a placeholder that is for local development only:
+// loadConfig refuses it when APP_ENV=production (DECISIONS.md O42).
+const secretsWithLocalPlaceholder = ["AUTH_CODE_PEPPER"];
 const intentionallyUndocumented = ["SMTP_USER", "SMTP_PASS"];
 
 function exampleVariables(file: string): string[] {
@@ -31,9 +34,17 @@ describe(".env.example", () => {
     expect(documented.filter((name) => !known.has(name))).toEqual([]);
   });
 
-  it("never documents a secret variable", () => {
+  it("never documents a secret variable, except the one clearly-local placeholder", () => {
     expect(documented).not.toContain("SMTP_PASS");
     expect(intentionallyUndocumented).toContain("SMTP_PASS");
+    expect(secretsWithLocalPlaceholder).toEqual(["AUTH_CODE_PEPPER"]);
+  });
+
+  it("gives AUTH_CODE_PEPPER the local placeholder that production refuses", () => {
+    const text = readFileSync(new URL("../../../.env.example", import.meta.url), "utf8");
+
+    expect(text).toContain(`AUTH_CODE_PEPPER=${localPepperPlaceholder}\n`);
+    expect(localPepperPlaceholder.length).toBeGreaterThanOrEqual(32);
   });
 
   it("keeps the other example files to variables the schema, Docker Compose or the frontend know", () => {

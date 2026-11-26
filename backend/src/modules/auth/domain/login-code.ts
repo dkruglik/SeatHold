@@ -9,3 +9,9 @@ export class LoginCode {
     readonly createdAt: Date,
   ) {}
 }
+
+/** A code is valid for ten minutes after it is created. A domain rule, not configuration (DECISIONS.md O43). */
+export const LOGIN_CODE_TTL_MINUTES = 10;
+
+/** After this many wrong guesses the code is dead, even for the right value. */
+export const MAX_LOGIN_CODE_ATTEMPTS = 5;

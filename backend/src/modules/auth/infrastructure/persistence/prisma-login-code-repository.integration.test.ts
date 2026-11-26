@@ -52,6 +52,20 @@ describe("PrismaLoginCodeRepository: reading codes", () => {
 
 });
 
+describe("PrismaLoginCodeRepository: request times", () => {
+  const { codes, issue } = setup();
+
+  it("reads the oldest request at or after a time, per email, case-insensitively", async () => {
+    await issue("a@x.io", T0);
+    await issue("A@x.io", minutes(T0, 2));
+    await issue("b@x.io", minutes(T0, 3));
+
+    expect(await codes.oldestCreatedAtSince("a@x.io", minutes(T0, -1))).toEqual(T0);
+    expect(await codes.oldestCreatedAtSince("a@x.io", minutes(T0, 1))).toEqual(minutes(T0, 2));
+    expect(await codes.oldestCreatedAtSince("a@x.io", minutes(T0, 3))).toBeNull();
+  });
+});
+
 describe("PrismaLoginCodeRepository: changing codes", () => {
   const { prisma, codes, issue } = setup();
 

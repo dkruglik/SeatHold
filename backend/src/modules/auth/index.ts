@@ -12,3 +12,21 @@ export type { NewSession, SessionRepository } from "./application/ports/session-
 export { PrismaUserRepository } from "./infrastructure/persistence/prisma-user-repository.js";
 export { PrismaLoginCodeRepository } from "./infrastructure/persistence/prisma-login-code-repository.js";
 export { PrismaSessionRepository } from "./infrastructure/persistence/prisma-session-repository.js";
+export type { LoginCodeGenerator } from "./application/ports/login-code-generator.js";
+export type { LoginCodeHasher } from "./application/ports/login-code-hasher.js";
+export {
+  RequestLoginCodeService,
+  type RequestLoginCodeDeps,
+  type RequestLoginCodeInput,
+  type RequestLoginCodeLimits,
+  type RequestLoginCodeResult,
+} from "./application/request-login-code-service.js";
+export {
+  VerifyLoginCodeService,
+  type VerifyLoginCodeDeps,
+  type VerifyLoginCodeInput,
+  type VerifyLoginCodeResult,
+} from "./application/verify-login-code-service.js";
+export { HmacLoginCodeHasher } from "./infrastructure/crypto/hmac-login-code-hasher.js";
+export { RandomLoginCodeGenerator } from "./infrastructure/crypto/random-login-code-generator.js";
+export { isValidEmail } from "./domain/email.js";

@@ -25,6 +25,10 @@ const config: AppConfig = {
   emailFrom: "no-reply@seathold.local",
   smtpHost: "localhost",
   smtpPort: 1025,
+  authCodePepper: "unit-test-pepper-0123456789-abcdefghij",
+  authRequestCodeLimit: 5,
+  authRequestCodeWindowMinutes: 15,
+  authRequestCodeCooldownSeconds: 60,
 };
 
 function capture(): { lines: string[]; stream: Writable; records: () => LogRecord[] } {

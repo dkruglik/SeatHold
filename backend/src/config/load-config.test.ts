@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "./load-config.js";
 
 const databaseUrl = "postgresql://dbuser:s3cr3t-pass@db.internal:5432/seatholder";
-const minimalEnv = { DATABASE_URL: databaseUrl };
-const productionEnv = { APP_ENV: "production", DATABASE_URL: databaseUrl, FRONTEND_ORIGIN: "https://seats.example.com" };
+const pepper = "unit-test-pepper-0123456789-abcdefghij";
+const minimalEnv = { DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper };
+const productionEnv = { APP_ENV: "production", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, FRONTEND_ORIGIN: "https://seats.example.com" };
 
 function failureOf(env: Record<string, string | undefined>): ConfigError {
   try {
@@ -30,6 +31,10 @@ describe("loadConfig defaults", () => {
       emailFrom: "no-reply@seathold.local",
       smtpHost: "localhost",
       smtpPort: 1025,
+      authCodePepper: pepper,
+      authRequestCodeLimit: 5,
+      authRequestCodeWindowMinutes: 15,
+      authRequestCodeCooldownSeconds: 60,
     });
   });
 
@@ -62,12 +67,12 @@ describe("loadConfig defaults", () => {
 
 describe("loadConfig validation", () => {
   it("fails when DATABASE_URL is missing", () => {
-    expect(failureOf({}).variables).toEqual(["DATABASE_URL"]);
+    expect(failureOf({ AUTH_CODE_PEPPER: pepper }).variables).toEqual(["DATABASE_URL"]);
   });
 
   it("fails when DATABASE_URL is not a postgresql URL", () => {
-    expect(failureOf({ DATABASE_URL: "mysql://u:p@h/db" }).variables).toEqual(["DATABASE_URL"]);
-    expect(failureOf({ DATABASE_URL: "not a url" }).variables).toEqual(["DATABASE_URL"]);
+    expect(failureOf({ AUTH_CODE_PEPPER: pepper, DATABASE_URL: "mysql://u:p@h/db" }).variables).toEqual(["DATABASE_URL"]);
+    expect(failureOf({ AUTH_CODE_PEPPER: pepper, DATABASE_URL: "not a url" }).variables).toEqual(["DATABASE_URL"]);
   });
 
   it.each(["0", "65536", "-1", "abc", "30.5", "3001x"])("fails for BACKEND_PORT=%s", (port) => {
@@ -102,7 +107,7 @@ describe("loadConfig validation", () => {
   );
 
   it("lists every invalid variable by name in one error", () => {
-    const error = failureOf({ BACKEND_PORT: "0", APP_ENV: "nope", LOG_LEVEL: "loud" });
+    const error = failureOf({ AUTH_CODE_PEPPER: pepper, BACKEND_PORT: "0", APP_ENV: "nope", LOG_LEVEL: "loud" });
 
     expect(error.variables).toEqual(["APP_ENV", "BACKEND_PORT", "DATABASE_URL", "LOG_LEVEL"]);
     for (const name of error.variables) {
@@ -158,7 +163,7 @@ describe("loadConfig production rule", () => {
   });
 
   it("defaults APP_ENV to local when unset, which skips the production origin rule (DECISIONS.md O32)", () => {
-    const config = loadConfig({ DATABASE_URL: databaseUrl, FRONTEND_ORIGIN: "http://seats.example.com" });
+    const config = loadConfig({ ...minimalEnv, FRONTEND_ORIGIN: "http://seats.example.com" });
 
     expect(config.appEnv).toBe("local");
     expect(config.frontendOrigin).toBe("http://seats.example.com");
