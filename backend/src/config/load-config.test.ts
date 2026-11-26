@@ -26,6 +26,10 @@ describe("loadConfig defaults", () => {
       logLevel: "info",
       shutdownTimeoutMs: 10_000,
       frontendOrigin: "http://localhost:5173",
+      emailProvider: "smtp",
+      emailFrom: "no-reply@seathold.local",
+      smtpHost: "localhost",
+      smtpPort: 1025,
     });
   });
 

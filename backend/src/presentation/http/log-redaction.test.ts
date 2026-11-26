@@ -21,6 +21,10 @@ const config: AppConfig = {
   logLevel: "info",
   shutdownTimeoutMs: 1000,
   frontendOrigin: "http://localhost:5173",
+  emailProvider: "console",
+  emailFrom: "no-reply@seathold.local",
+  smtpHost: "localhost",
+  smtpPort: 1025,
 };
 
 function capture(): { lines: string[]; stream: Writable; records: () => LogRecord[] } {

@@ -406,6 +406,22 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Trade-off.** Phase 1 writes its own generators if it needs them.
 - **Status.** `implemented`: `scripts/verify.mjs`, `.github/workflows/ci.yml`, test `scripts/verify.test.mjs` ("verifyEnv"). Reason: dead template code, YAGNI.
 
+### O38. Phase 1 dependency approvals
+
+- **Context.** Phase 1 (auth and access) needs email delivery, CSRF protection and cookies.
+- **Choice.** Approved at Phase 1 it-0: `nodemailer`, `@types/nodemailer` (dev), `@fastify/csrf-protection` and `@fastify/cookie`, each exact-pinned at the latest stable that works with Fastify 5. Only the nodemailer pair is installed now (it-1): `nodemailer` 10.6.1 in backend `dependencies` (the runtime image installs production dependencies only), `@types/nodemailer` 8.0.2 in `devDependencies`. The two Fastify plugins are installed by the iteration that uses them (it-4, it-5), each recorded here when it lands.
+- **Options.** Hand-written SMTP client or CSRF scheme (rejected by rule 40: no custom crypto or CSRF); installing all four now (unused dependencies until it-4).
+- **Trade-off.** `nodemailer` adds one runtime dependency with no transitive packages; `@types/nodemailer` pulls in type-only packages.
+- **Status.** `implemented` for the nodemailer pair: `backend/package.json`, `package-lock.json`. The Fastify plugins are `planned`: Phase 1 it-4 and it-5.
+
+### O39. Email provider port, adapters and factory
+
+- **Context.** Auth sends login codes by email. Plan section 2: `console` for tests, `smtp` for Mailpit locally and SES SMTP in production; `console` in production must fail.
+- **Choice.** Port `EmailProvider.send({ to, subject, text })` in `backend/src/modules/auth/application/ports/email-provider.ts`; it has no auth-code method (the login-code template belongs to the login service, it-3). `SmtpEmailProvider` takes an injected transporter and sends from `EMAIL_FROM`; a transport failure becomes `InfrastructureError("Email delivery failed (<CODE>)")`, with only a short upper-case error code (for example `EAUTH`) and no cause, because the nodemailer error can quote credentials or the message. `ConsoleEmailProvider` writes the whole message, body included, to an injected writer; it exists so tests can read the code, and the factory never builds it in production. `createEmailProvider(config, deps)` picks by `EMAIL_PROVIDER` and throws for `console` when `APP_ENV=production`; `loadConfig` refuses the same combination first (defense in depth, each tested). Config: `EMAIL_PROVIDER` (`console`|`smtp`, default `smtp`), `EMAIL_FROM` (default `no-reply@seathold.local`, must look like an address), `SMTP_HOST` (`localhost`), `SMTP_PORT` (1-65535, `1025`), `SMTP_USER` and `SMTP_PASS` (optional, set together; the missing half is named). `SMTP_PASS` is a secret: not in `.env.example`, production injects it. `SMTP_USER` is also left out of the example because local Mailpit needs no login. `env-example.test.ts` lists both as intentionally undocumented, and asserts `SMTP_PASS` never appears in the example.
+- **Options.** Default `console` locally (hides misconfiguration; Mailpit is the local default per the plan); keep the transport error as `cause` (leaks risk); an extra production rule on `SMTP_HOST` (kept simple, no rule beyond console refusal and the credential pair); a native SES API adapter (not now, the port allows it later).
+- **Trade-off.** Dropping the cause loses the original SMTP diagnostic; the error code is the only detail kept. Not wired into `runtime.ts` yet: it-3 needs it.
+- **Status.** `implemented`: `backend/src/modules/auth/` (`application/ports/email-provider.ts`, `infrastructure/email/*`, `index.ts`), `backend/src/config/load-config.ts`, `.env.example`; tests `smtp-email-provider.test.ts`, `console-email-provider.test.ts`, `create-email-provider.test.ts`, `load-config-email.test.ts`, `env-example.test.ts`.
+
 ---
 
 ## Back-office capability proposal

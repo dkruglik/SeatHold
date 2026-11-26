@@ -6,6 +6,9 @@ import { configVariableNames } from "./load-config.js";
 // and the frontend (frontend/src/app/config, checked by its own test).
 const composeVariables = ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"];
 const frontendVariables = ["VITE_API_BASE_URL"];
+// Schema variables that .env.example intentionally leaves out: SMTP_PASS is a secret (production injects it);
+// SMTP_USER is optional and only meaningful together with SMTP_PASS, so local Mailpit needs neither.
+const intentionallyUndocumented = ["SMTP_USER", "SMTP_PASS"];
 
 function exampleVariables(file: string): string[] {
   const text = readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
@@ -19,13 +22,18 @@ describe(".env.example", () => {
   const documented = exampleVariables(".env.example");
 
   it("documents every variable the config schema reads", () => {
-    expect(documented).toEqual(expect.arrayContaining([...configVariableNames]));
+    expect(documented).toEqual(expect.arrayContaining(configVariableNames.filter((name) => !intentionallyUndocumented.includes(name))));
   });
 
   it("holds only variables the schema, Docker Compose or the frontend know", () => {
     const known = new Set<string>([...configVariableNames, ...composeVariables, ...frontendVariables]);
 
     expect(documented.filter((name) => !known.has(name))).toEqual([]);
+  });
+
+  it("never documents a secret variable", () => {
+    expect(documented).not.toContain("SMTP_PASS");
+    expect(intentionallyUndocumented).toContain("SMTP_PASS");
   });
 
   it("keeps the other example files to variables the schema, Docker Compose or the frontend know", () => {

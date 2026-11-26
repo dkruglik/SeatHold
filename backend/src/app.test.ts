@@ -13,6 +13,10 @@ const config: AppConfig = {
   logLevel: "silent",
   shutdownTimeoutMs: 1000,
   frontendOrigin: "http://localhost:5173",
+  emailProvider: "console",
+  emailFrom: "no-reply@seathold.local",
+  smtpHost: "localhost",
+  smtpPort: 1025,
 };
 
 describe("GET /api/health", () => {
