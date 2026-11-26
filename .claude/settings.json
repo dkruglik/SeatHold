@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.docker.local)",
+      "Read(./**/.env)",
+      "Read(./**/.env.local)",
+      "Read(./**/.env.*.local)",
+      "Read(./**/.env.docker.local)",
+      "Read(./monitoring/secrets/**)",
+      "Read(./monitoring/backups/**)",
+      "Read(!.env.example)",
+      "Read(!.env.local.example)",
+      "Read(!.env.docker.local.example)",
+      "Bash(cat ./monitoring/secrets/*)",
+      "Bash(head ./monitoring/secrets/*)",
+      "Bash(tail ./monitoring/secrets/*)",
+      "Bash(less ./monitoring/secrets/*)",
+      "Read(!.env.manager)",
+      "Bash(cat ./.env)",
+      "Bash(head ./.env)",
+      "Bash(tail ./.env)",
+      "Bash(less ./.env)",
+      "Bash(cat ./.env.local)",
+      "Bash(head ./.env.local)",
+      "Bash(tail ./.env.local)",
+      "Bash(less ./.env.local)",
+      "Bash(cat ./.env.*.local)",
+      "Bash(head ./.env.*.local)",
+      "Bash(tail ./.env.*.local)",
+      "Bash(less ./.env.*.local)",
+      "Bash(cat ./.env.docker.local)",
+      "Bash(head ./.env.docker.local)",
+      "Bash(tail ./.env.docker.local)",
+      "Bash(less ./.env.docker.local)"
+    ]
+  }
+}
