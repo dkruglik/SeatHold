@@ -16,3 +16,18 @@ How AI was used to build SeatHolder, how it was directed and checked, and where 
 - The arm64 image build could not be proven on the development host (no buildx or QEMU). It is checked only by the CI `image-build` job, and `DECISIONS.md` says so.
 
 **Not yet done.** The workflow has not run on GitHub, and the macOS install skill has not been run on a clean Mac.
+
+## 2026-11-26: Phase 1 (auth and access)
+
+**What the AI did.** The run followed iterations it-1 to it-7 of `plans/phase_1_auth_access.plan.md`, then this documentation step (it-8): the email provider port with console and SMTP adapters (it-1, `a0746e4`), the auth schema, migration and repositories (it-2, `dd41b53`), login code request and verify services (it-3, `6c62d74`), sessions, the `sid` cookie and the auth routes (it-4, `2db1e99`), CSRF token and Origin checks on browser mutations (it-5, `b521d9e`), the admin boundary, role hook, promote and demote scripts and the seed (it-6, `09f7ef2`), and the login screen, auth state and route guards in the frontend (it-7, `49b1104`). The install skill, `DECISIONS.md` security entry (O56) and README "Authentication" section came with it-8.
+
+**How it was directed.** Each iteration was briefed to a Claude Sonnet subagent as a self-contained step: tests first and shown failing, then the minimum code, then the done-when command. The main agent checked every report against the code and a fresh `verify-fast-part` run before committing, one commit per iteration. The approved new dependencies (`nodemailer`, `@types/nodemailer`, `@fastify/cookie`, `@fastify/csrf-protection`) were listed up front; anything else was to be reported, not installed.
+
+**Where it went wrong and how it was caught.**
+
+- In it-1 the subagent reported a passing fast verify, but a fresh run by the main agent failed at the sync allowlist check: stale allowlist entries for path scopes whose files had since arrived. They were removed.
+- Three pieces of work were not test-first. it-3's lifecycle integration test, it-4's runtime test and it-6's admin plugin tests were written after the code. Where red was shown at all, it was shown afterwards by breaking the code; for some of it, not at all. The tests assert the behavior, but the process rule was broken and is recorded here.
+- The frontend `ApiClient` read the wrong error shape (`body.code` instead of `error.code`) until it-7 found it and fixed it test-first.
+- The CSRF and Origin hooks arrived one iteration after the routes they protect, so the branch had a documented unprotected window for mutations between it-4 and it-5. It-5 closed it; nothing was merged or deployed in between.
+
+**Not yet done.** The login flow has not been exercised in a real browser against a real backend, and the CI workflow has not run on GitHub. Open security risks and the before-production list are in `DECISIONS.md` O56.

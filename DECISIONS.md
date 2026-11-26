@@ -94,23 +94,23 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 | Latency | Search `GET /api/shows` p95 < 150 ms server time; seat hold p95 < 50 ms; checkout p95 < 200 ms excluding the payment provider | Written; optional short measurement | `planned` Phase 5 it-3 |
 | Latency threats | The hold transaction itself (clock read, expire a stale hold, insert or reuse the hold, update the seat: about four round trips inside the 50 ms budget), hot seat rows at on-sale, seat-map polling on the writer, connection-pool exhaustion behind RDS Proxy, full-text query plans at larger catalog size | Written | `planned` Phase 5 it-3 |
 | Scale | See Scale section | Written | `planned` Phase 5 it-3 |
-| Security | See Security section | Code + written | `planned` Phase 1 it-8 |
+| Security | See Security section | Code + written | `implemented` Phase 1 (O56) |
 | Own KPI | Hold-to-purchase conversion and hold expiry rate per event: shows whether the 10-minute window and checkout work, and detects seat hoarding. Alternatives considered: p99 click-to-held time; QR fetch success rate | Written | `planned` default; confirm in Phase 5 it-0 |
 
 ---
 
 ## Security
 
-### Implemented controls (planned)
+### Implemented controls
 
 | Control | Decision | Status |
 |---|---|---|
-| Login | Passwordless 6-digit email codes (`crypto.randomInt`), HMAC-SHA256 with a pepper, 10 min, 5 attempts, single use; a new request invalidates older codes | `planned` Phase 1 it-3 |
-| Code request limit | Database-backed: 5 per 15 min per email, 60 s cooldown (holds across instances). Answers 204 for any well-formed email; over the limit 429 with retry time for any email string, so neither response reveals whether an account exists | `planned` Phase 1 it-3 |
-| Sessions | Random 32-byte token in `HttpOnly`, `SameSite=Lax`, `Secure` (production) cookie on `/api`; only the SHA-256 stored; rotated on login; fixed 30-day lifetime, no idle timeout (O19); logout and logout-all revoke immediately | `planned` Phase 1 it-4 |
+| Login | Passwordless 6-digit email codes (`crypto.randomInt`), HMAC-SHA256 with a pepper, 10 min, 5 attempts, single use; a new request invalidates older codes | `implemented` Phase 1 it-3 (O42, O43) |
+| Code request limit | Database-backed: 5 per 15 min per email, 60 s cooldown (holds across instances). Answers 204 for any well-formed email; over the limit 429 with retry time for any email string, so neither response reveals whether an account exists | `implemented` Phase 1 it-3 (O42, O43) |
+| Sessions | Random 32-byte token in `HttpOnly`, `SameSite=Lax`, `Secure` (production) cookie on `/api`; only the SHA-256 stored; rotated on login; fixed 30-day lifetime, no idle timeout (O19); logout and logout-all revoke immediately | `implemented` Phase 1 it-4 (O44, O45) |
 | CSRF | `@fastify/csrf-protection` double-submit token in `X-CSRF-Token`, plus Origin check, on every state-changing browser request; 403 otherwise | `implemented` Phase 1 it-5 (O46, O47, O48) |
-| Back-office authorization | Server-side: one `/api/admin/*` plugin with a prefix hook (`requireAuth` then `requireRole('admin')`), role read from the database per request; 401 anonymous, 403 buyer. One test enumerates every admin route | `planned` Phase 1 it-6 |
-| Admin grant | Only seed or CLI (`npm run user:promote`); sign-up always creates `buyer`; no HTTP route changes roles | `planned` Phase 1 it-6 |
+| Back-office authorization | Server-side: one `/api/admin/*` plugin with a prefix hook (`requireAuth` then `requireRole('admin')`), role read from the database per request; 401 anonymous, 403 buyer. One test enumerates every admin route | `implemented` Phase 1 it-6 (O49) |
+| Admin grant | Only seed or CLI (`npm run user:promote`); sign-up always creates `buyer`; no HTTP route changes roles | `implemented` Phase 1 it-6 (O50, O51) |
 | Guest link | Unguessable 32-byte token, hashed, single exchange, expiring; resend revokes existing guest sessions (D5) | `planned` Phase 3 it-3 |
 | Log redaction | Pino redacts `Cookie`, `Set-Cookie`, `X-CSRF-Token` and `Authorization`; request bodies (codes, tokens) are never logged | `implemented` Phase 0 it-4: `backend/src/infrastructure/logging/logger-options.ts`, test `backend/src/presentation/http/log-redaction.test.ts` |
 | CORS | Closed: no CORS plugin, one origin for frontend and API (O5) | `implemented` Phase 0 it-4: `backend/src/app.ts`, test `backend/src/app.test.ts` |
@@ -121,10 +121,12 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 
 ### Before production (written, not built)
 
+The Phase 1 summary and its open risks are in O56.
+
 - AWS WAF rate rules at the edge (in-process limits do not hold across instances).
 - Idle timeout for admin sessions; a fresh code before destructive admin actions.
 - Audit log of admin actions.
-- Purge jobs for old login codes, expired holds and guest links (bounded batches).
+- Purge jobs for old login codes (rows older than a day, bounded batches, index on `created_at`), expired holds and guest links (bounded batches).
 - Real payment provider: webhook signature checks, idempotency keys, refunds.
 - Dependency and container image scanning in CI.
 
@@ -279,7 +281,7 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Options.** Short sessions with refresh; a sliding idle timeout.
 - **Trade-off.** A stolen cookie stays valid longer; mitigated by `HttpOnly` cookies, logout-all, and an admin idle timeout listed before production.
 - **Status.** `planned`: Phase 1 it-4.
-
+- **Status.** `implemented`: `backend/src/modules/auth/application/session-service.ts`, `backend/src/config/load-config.ts` (`SESSION_TTL_DAYS`), tested in `session-service.test.ts` and `auth-session-routes.integration.test.ts` (Phase 1 it-4, O44).
 ### O20. Phase 0 tooling versions
 
 - **Choice.** Exact pins, Node 24. TypeScript 6.0.3 (typescript-eslint 8.74.0 supports TypeScript below 6.1, so TypeScript 7 waits). Prisma 7.10.1 (the `latest` tag is a release candidate); with Prisma 7 the connection URL lives in `backend/prisma.config.ts`, not in `schema.prisma`. `@types/node` 24.x to match the runtime. Extra packages beyond the Phase 0 list: `pg` and `@types/pg` (`scripts/test-db.mjs` and the integration smoke test), `@eslint/js` (ESLint recommended rules), `@testing-library/dom` (peer of Testing Library React), `@types/react` and `@types/react-dom`. Root `overrides` pins the transitive `effect` to 3.22.5 because Prisma's config package pulls a version with a high-severity advisory (dev-only).
@@ -550,6 +552,16 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Options.** Treating the guard as the control (wrong: the client is untrusted); lazy-loading admin code only for admins (a bundle-size choice for Phase 4, not a security one).
 - **Trade-off.** The role shown to the guard comes from `me` and can be up to 60 seconds stale in the UI.
 - **Status.** `implemented`: `frontend/src/features/auth/components/{require-auth,require-admin,not-allowed-page}.tsx`, `app/router.tsx`; tests `guards.test.tsx`.
+
+### O56. Phase 1 security summary and what remains before production
+
+- **Context.** Phase 1 (auth and access) is built; the brief asks for a security review of the whole. This entry gathers the controls and the open risks; the detail is in the linked entries.
+- **Choice.** *Implemented controls.* Passwordless email codes: six random digits, HMAC-SHA256 with a pepper, 10 minutes, 5 attempts, single use, database-backed request limit and cooldown, no account enumeration (O42, O43). Email transport `console` or `smtp`, `console` refused in production (O39). Schema with case-insensitive unique emails, role CHECK, hashed session tokens, cascade delete, conditional updates (O40, O41). Server-side sessions in the `sid` cookie, hash stored, rotated on login, revoked on logout (O19, O44, O45). CSRF double submit with a signed secret cookie, plus the Origin check, composed on every mutating browser route (O46, O47, O48). `/api/admin/*` as one plugin that requires a session and the admin role, role read per request (O49). Roles changed only by seed and CLI (O50, O51). Frontend guards as UX only (O52 to O55). Log redaction of cookies, CSRF header and bodies (O25). Production refuses the local secret placeholders, `console` email and an insecure cookie (O22, O42, O46). Every row of the Phase 1 "Agreed decisions" table has an entry above (login, code limit and enumeration O43; sign-up O43; admin grant O50, O51; session O19, O44; role freshness O49; CSRF O46, O47; back-office boundary O49; expiry time O4, O43; email transport O39; seeded users O51; secrets and variables O42, O46).
+- **Before production (written, not built).** AWS WAF rate rules at the edge; an idle timeout for admin sessions; an admin audit log; a fresh login code before destructive admin actions; a purge job for old `auth_codes` (rows older than a day, in bounded batches, with an index on `created_at`); SMTP credentials (`SMTP_USER`, `SMTP_PASS`) from the secret store and the SES SMTP wiring, none of it exercised yet.
+- **Open risks recorded during the iterations.** The request limit and the attempt count can overshoot by the number of concurrent racers (O43); the CSRF secret and token are not bound to the user and are not rotated on login (O46); creating the seeded admin is two statements and a crash between them leaves a buyer that `npm run user:promote` repairs (O51); the runtime image has no migration path, so a deployed instance cannot apply migrations until the one-off task of O35 exists (O35 stays `planned`).
+- **Options.** Leave the summary to the Security table only (it lists controls but not the open risks and cross-links); one entry per risk (the risks already sit in their own entries).
+- **Trade-off.** A summary can drift from the entries it links; the linked entries are the source, and this one changes in the same commit as any of them.
+- **Status.** `implemented` as documentation in Phase 1 it-8: this entry, the Security section above and `README.md`, "Authentication". The controls are proven by the tests named in the linked entries; the login flow has not been exercised in a real browser against a real backend, and CI has not run on GitHub.
 
 ---
 
