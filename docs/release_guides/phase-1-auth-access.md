@@ -50,8 +50,8 @@ Production rules enforced at startup:
 | `EMAIL_FROM` | a sender address on a domain verified with the email provider | production env | no (default `no-reply@seathold.local`) | Must look like an email address. The default is a local placeholder and will not deliver in production. `TODO(operator)`: choose the sender address and verify its domain in SES. |
 | `SMTP_HOST` | the SES SMTP endpoint of the production region | production env | no (default `localhost`) | The default only works with the local Mailpit. `TODO(operator)`: the SES SMTP host for the region. |
 | `SMTP_PORT` | the SES SMTP port | production env | no (default `1025`) | Integer 1 to 65535. The default is the local Mailpit port. `TODO(operator)`: the SES SMTP port your network allows. |
-| `SMTP_USER` | the SES SMTP user name | production env | yes in production, with `SMTP_PASS` | Not a secret on its own, but set together with `SMTP_PASS`. `TODO(operator)`: create SES SMTP credentials. |
-| `SMTP_PASS` | the SES SMTP password | secret store (secrets block below) | yes in production, with `SMTP_USER` | Secret. Never in a file. |
+| `SMTP_USER` | the SES SMTP user name | production env | needed for login emails to be delivered; the process starts without it, but if one of the pair is set the other must be too | Not a secret on its own, but set together with `SMTP_PASS`. `TODO(operator)`: create SES SMTP credentials. |
+| `SMTP_PASS` | the SES SMTP password | secret store (secrets block below) | needed for login emails to be delivered; the process starts without it, but if one of the pair is set the other must be too | Secret. Never in a file. |
 | `AUTH_CODE_PEPPER` | generated (secrets block below) | secret store | yes | Secret. Keys the HMAC of login codes. Changing it invalidates every unused code only; sessions stay valid. |
 | `CSRF_SECRET` | generated (secrets block below) | secret store | yes | Secret. Signs the CSRF cookie. Changing it makes existing CSRF cookies invalid; the frontend fetches a new token on its next mutation. |
 | `AUTH_REQUEST_CODE_LIMIT` | `5` | production env | no (default `5`) | Positive integer: code requests per email in the window. |
@@ -184,7 +184,7 @@ curl -s "$SITE/api/health"
 echo
 ```
 
-Expected: `{"status":"ok"}`. If the tasks do not become healthy, read the task log: a line `Invalid configuration: <VARIABLE> ...` names the variable that is wrong or missing (`COOKIE_SECURE`, `EMAIL_PROVIDER`, `AUTH_CODE_PEPPER`, `CSRF_SECRET`, `SMTP_USER` or `SMTP_PASS`). Fix it and redeploy. `TODO(operator)`: the log-group name and the command to tail it (the README has no AWS commands).
+Expected: `{"status":"ok"}`. If the tasks do not become healthy, read the task log: a line `Invalid configuration: <VARIABLE> ...` names the variable that is wrong or missing (`COOKIE_SECURE`, `EMAIL_PROVIDER`, `AUTH_CODE_PEPPER` or `CSRF_SECRET`; `SMTP_USER` and `SMTP_PASS` only when one is set without the other). Missing SMTP credentials do not stop startup: they show as a 500 on `POST /api/auth/request-code`, not on health. Fix it and redeploy. `TODO(operator)`: the log-group name and the command to tail it (the README has no AWS commands).
 
 ### 2. An anonymous visitor is recognized and protected
 
