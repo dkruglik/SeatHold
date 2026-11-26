@@ -1,0 +1,54 @@
+import { useState, type KeyboardEvent } from "react";
+import { markerSize, SeatMarker, stateLook } from "./seat-marker";
+import type { SeatMapSeat } from "./types";
+
+interface SeatButtonProps {
+  readonly seat: SeatMapSeat;
+  readonly x: number;
+  readonly y: number;
+  readonly disabled: boolean;
+  readonly onSelect: (seat: SeatMapSeat) => void;
+}
+
+/** One seat: an SVG element with the button role, focusable, activated by click, Enter or Space. */
+export function SeatButton({ seat, x, y, disabled, onSelect }: SeatButtonProps) {
+  const [focused, setFocused] = useState(false);
+  const look = stateLook[seat.state];
+  const selectable = !disabled && (seat.state === "available" || seat.state === "held_by_me");
+  const toggles = seat.state === "available" || seat.state === "held_by_me";
+
+  function activate() {
+    if (selectable) {
+      onSelect(seat);
+    }
+  }
+
+  function onKeyDown(event: KeyboardEvent<SVGGElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      activate();
+    }
+  }
+
+  return (
+    <g
+      role="button"
+      tabIndex={0}
+      aria-label={`Row ${seat.row}, seat ${seat.number}, ${look.label}`}
+      aria-pressed={toggles ? seat.state === "held_by_me" : undefined}
+      aria-disabled={selectable ? undefined : true}
+      data-marker={look.marker}
+      transform={`translate(${x} ${y})`}
+      style={{ cursor: selectable ? "pointer" : "not-allowed", outline: "none" }}
+      onClick={activate}
+      onKeyDown={onKeyDown}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+    >
+      <SeatMarker state={seat.state} />
+      {focused ? (
+        <rect x={-3} y={-3} width={markerSize + 6} height={markerSize + 6} rx={8} fill="none" stroke="var(--mantine-color-text)" strokeWidth={2} />
+      ) : null}
+    </g>
+  );
+}

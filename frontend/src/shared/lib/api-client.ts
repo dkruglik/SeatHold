@@ -23,6 +23,8 @@ export class ApiNetworkError extends Error {
   }
 }
 
+type Mutation = "POST" | "PUT" | "DELETE";
+
 const csrfPath = "/auth/csrf";
 const csrfInvalidCode = "CSRF_INVALID";
 
@@ -62,17 +64,29 @@ export class ApiClient {
     return this.send<T>("GET", path, undefined, undefined);
   }
 
+  post<T>(path: string, body?: unknown): Promise<T> {
+    return this.mutate<T>("POST", path, body);
+  }
+
+  put<T>(path: string, body?: unknown): Promise<T> {
+    return this.mutate<T>("PUT", path, body);
+  }
+
+  delete<T>(path: string): Promise<T> {
+    return this.mutate<T>("DELETE", path, undefined);
+  }
+
   /** The token is fetched first and cached. One 403 CSRF_INVALID (cookie or secret rotated) refetches it and retries once. */
-  async post<T>(path: string, body?: unknown): Promise<T> {
+  private async mutate<T>(method: Mutation, path: string, body: unknown): Promise<T> {
     assertApiPath(path);
     try {
-      return await this.send<T>("POST", path, body, await this.token());
+      return await this.send<T>(method, path, body, await this.token());
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 403 || error.code !== csrfInvalidCode) {
         throw error;
       }
       this.csrfToken = undefined;
-      return this.send<T>("POST", path, body, await this.token());
+      return this.send<T>(method, path, body, await this.token());
     }
   }
 
@@ -94,10 +108,10 @@ export class ApiClient {
     return this.csrfToken;
   }
 
-  private async send<T>(method: "GET" | "POST", path: string, body: unknown, csrfToken: string | undefined): Promise<T> {
+  private async send<T>(method: "GET" | Mutation, path: string, body: unknown, csrfToken: string | undefined): Promise<T> {
     assertApiPath(path);
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (method === "POST") {
+    if (method !== "GET") {
       headers["X-CSRF-Token"] = csrfToken ?? "";
       // Fastify rejects an empty body when this header says the body is JSON (logout, logout-all).
       if (body !== undefined) {

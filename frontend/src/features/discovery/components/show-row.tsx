@@ -1,6 +1,6 @@
 import { Anchor, Badge, Group, Paper, Stack, Text, Title } from "@mantine/core";
 import { Link } from "react-router";
-import { formatPrice, formatStart, seatsLabel } from "../lib/format";
+import { formatPrice, formatStart, seatsLabel } from "../../../shared/lib/format";
 import type { ShowItem } from "../types";
 
 /** One event of the result list. The link target is the event page. */
