@@ -39,6 +39,8 @@ function workflowCommands() {
 }
 
 const imageBuildCommand = "docker buildx build --platform linux/amd64,linux/arm64 -f backend/Dockerfile .";
+const imageSmokeBuildCommand = "docker build -f backend/Dockerfile -t seatholder-backend:ci .";
+const imageSmokeCommand = "node scripts/image-smoke.mjs seatholder-backend:ci";
 
 function stepCommandLines() {
   return verifySteps().map((step) => step.label);
@@ -54,8 +56,9 @@ describe("verifySteps", () => {
   it("runs exactly the commands the GitHub workflow runs", () => {
     // The workflow starts PostgreSQL as a service (db:start) and installs with npm ci; the security step is
     // one command locally and two in CI (semgrep in its own image, plus the audit check).
-    // The multi-arch image build is a CI-only exception (see "image build job"): it needs buildx and QEMU.
-    const ciOnly = new Set(["npm ci", "node scripts/security-scan.mjs --check audit", imageBuildCommand]);
+    // The multi-arch image build and the image smoke job are CI-only exceptions (see "image build job" and
+    // "image smoke job"): they need buildx and QEMU, or Docker and a database service.
+    const ciOnly = new Set(["npm ci", "node scripts/security-scan.mjs --check audit", imageBuildCommand, imageSmokeBuildCommand, imageSmokeCommand]);
     const expand = (command) => {
       const script = /^npm run (lint|typecheck|test|build)$/.exec(command)?.[1];
       return script ? rootScriptSegments(script) : [command];
@@ -120,6 +123,33 @@ describe("image build job", () => {
   });
 });
 
+describe("image smoke job", () => {
+  const workflow = () => read(".github/workflows/ci.yml");
+  const job = () => /^  image-smoke:\n([\s\S]*?)(?=^  \S)/m.exec(workflow())?.[1] ?? "";
+
+  it("builds the image for amd64 only, tagged for the smoke script, and runs the script; verify does not", () => {
+    assert.ok(job() !== "");
+    const commands = workflowCommands().filter((command) => command.includes("image-smoke") || command.startsWith("docker build "));
+    assert.deepEqual(commands, [imageSmokeBuildCommand, imageSmokeCommand]);
+    assert.ok(stepCommandLines().every((line) => !line.includes("image-smoke") && !line.startsWith("docker build")));
+  });
+
+  it("starts a postgres:17.12 service and passes the script its database URL", () => {
+    assert.match(job(), /image: postgres:17\.12/);
+    assert.match(job(), /IMAGE_SMOKE_DATABASE_URL: postgresql:\/\/seatholder:seatholder@127\.0\.0\.1:5432\/seatholder/);
+  });
+
+  it("pins its actions by full commit SHA", () => {
+    const uses = [...job().matchAll(/uses: (\S+)/g)].map((match) => match[1]);
+    assert.ok(uses.length > 0);
+    for (const action of uses) assert.match(action, /@[0-9a-f]{40}$/);
+  });
+
+  it("never pushes", () => {
+    assert.ok(!/push/.test(job().replace(/Never pushed|never pushed/g, "")));
+  });
+});
+
 describe("timing feature flag", () => {
   it("runs the plain root scripts, one command each, when timings are off", () => {
     assert.deepEqual(
@@ -144,13 +174,17 @@ describe("timing feature flag", () => {
 
 describe("verifyEnv", () => {
   it("builds like CI and fills only the values that are missing", () => {
-    const env = verifyEnv({ LEGAL_CONTACT_EMAIL: "legal@seatholder.example" });
+    const env = verifyEnv({ VITE_API_BASE_URL: "/service/api" });
 
     assert.equal(env.APP_ENV, "production");
-    assert.equal(env.LEGAL_CONTACT_EMAIL, "legal@seatholder.example");
-    assert.equal(env.LEGAL_OPERATOR_NAME, "Local Verify Operator");
+    assert.equal(env.VITE_API_BASE_URL, "/service/api");
     assert.equal(env.DATABASE_URL, "postgresql://seatholder:seatholder@localhost:5432/seatholder");
     assert.ok(!Object.values(env).some((value) => /replace_me/i.test(String(value))));
+  });
+
+  it("sets no LEGAL_ variable, in verify or in CI, because nothing reads one", () => {
+    assert.ok(!Object.keys(verifyEnv({})).some((name) => name.startsWith("LEGAL_")));
+    assert.ok(!/LEGAL_/.test(read(".github/workflows/ci.yml")));
   });
 });
 

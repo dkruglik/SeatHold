@@ -55,7 +55,7 @@ Secrets: the only new secret is `DATABASE_URL` for production. Nothing is deploy
 ### Other requirements
 
 1. The GitHub repository must allow Actions. The workflow needs no secret and no registry: the image is built and never pushed.
-2. The `image-build` job needs QEMU and Buildx, which the workflow sets up itself on the hosted runner.
+2. The `image-build` job needs QEMU and Buildx, which the workflow sets up itself on the hosted runner. The `image-smoke` job needs only Docker and a `postgres:17.12` service container, both on the hosted runner.
 3. TODO(operator): confirm the repository on GitHub has Actions enabled, and who reads the workflow results.
 
 ## Deploy
@@ -173,7 +173,7 @@ Expected: `{"status":"ok"}` (the Vite dev server proxies `/api` to the backend).
 
 Open the Actions tab of the repository, workflow `CI`, and read the run of the pull request.
 
-Expected: all six jobs green: `lint-typecheck`, `test`, `build`, `image-build` (amd64 and arm64), `security-semgrep`, `security-audit`. This has not happened yet: the workflow has never run on GitHub. If a job is red, open it, read the failing step, and fix it before the merge; do not skip it.
+Expected: all seven jobs green: `lint-typecheck`, `test`, `build`, `image-build` (amd64 and arm64), `image-smoke` (boots the amd64 image against PostgreSQL: health, non-root, clean SIGTERM exit, fail-fast on an invalid `BACKEND_PORT`), `security-semgrep`, `security-audit`. This has not happened yet: the workflow has never run on GitHub. If a job is red, open it, read the failing step, and fix it before the merge; do not skip it.
 
 ### SQL checks
 
@@ -209,5 +209,4 @@ Nothing is deployed, so there is nothing to roll back in an environment. To undo
 - TODO(operator): the Agent Manager review of this branch (agent SH-cursor) ended `blocked` (input-required) and was replaced by an in-session review. Decide whether a second review is needed.
 - TODO(operator): decisions O1, O3, O13 and O14 in `DECISIONS.md` stay `planned` until the checks above pass: O14 moves to `implemented` after the first green workflow run; O13 after the install skill runs on a Mac; O3 after the arm64 image build is proven; O1 when the modules arrive from Phase 1.
 - Not verified when this guide was written: `npm ci` on an empty checkout, `npm run verify-slow-part`, and the `curl` step from the host shell. In the writing environment the host loopback could not reach published container ports, so the health response was verified inside the container (`docker exec ... wget`), together with the container health status `healthy`, user `node` and `docker stop` exit 0. `npm run verify-fast-part` and `docker compose up -d` (stack healthy) were run and passed.
-- The CI workflow sets `LEGAL_OPERATOR_NAME`, `LEGAL_OPERATOR_ADDRESS` and `LEGAL_CONTACT_EMAIL` as test values; the Phase 0 backend config does not read them.
 - README sections for these steps: "Run on Windows or Linux (Docker)", "Scripts", "Tests and verify" and "Backend image" in `README.md`.

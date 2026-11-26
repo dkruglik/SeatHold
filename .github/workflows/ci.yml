@@ -18,9 +18,6 @@ env:
   APP_ENV: production
   DATABASE_URL: postgresql://seatholder:seatholder@localhost:5432/seatholder
   VITE_API_BASE_URL: /api
-  LEGAL_OPERATOR_NAME: CI Operator
-  LEGAL_OPERATOR_ADDRESS: ul. Testowa 1, 00-001 Warszawa
-  LEGAL_CONTACT_EMAIL: legal@example.com
 
 jobs:
   lint-typecheck:
@@ -83,6 +80,35 @@ jobs:
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - run: docker buildx build --platform linux/amd64,linux/arm64 -f backend/Dockerfile .
+
+  image-smoke:
+    # Boots the built image (amd64 only, never pushed) against a PostgreSQL service: health, non-root, clean
+    # SIGTERM shutdown, and fail-fast on an invalid BACKEND_PORT. The job's host network (the script's default)
+    # reaches the service on 127.0.0.1. CI-only: scripts/verify.mjs does not run it, scripts/verify.test.mjs asserts the commands.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.12
+        env:
+          POSTGRES_USER: seatholder
+          POSTGRES_PASSWORD: seatholder
+          POSTGRES_DB: seatholder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U seatholder"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      IMAGE_SMOKE_DATABASE_URL: postgresql://seatholder:seatholder@127.0.0.1:5432/seatholder
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: docker build -f backend/Dockerfile -t seatholder-backend:ci .
+      - run: node scripts/image-smoke.mjs seatholder-backend:ci
 
   security-semgrep:
     runs-on: ubuntu-latest

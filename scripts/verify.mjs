@@ -71,9 +71,6 @@ export function verifyEnv(base = process.env) {
     APP_ENV: "production",
     DATABASE_URL: base.DATABASE_URL ?? "postgresql://seatholder:seatholder@localhost:5432/seatholder",
     VITE_API_BASE_URL: base.VITE_API_BASE_URL ?? "/api",
-    LEGAL_OPERATOR_NAME: base.LEGAL_OPERATOR_NAME ?? "Local Verify Operator",
-    LEGAL_OPERATOR_ADDRESS: base.LEGAL_OPERATOR_ADDRESS ?? "ul. Testowa 1, 00-001 Warszawa",
-    LEGAL_CONTACT_EMAIL: base.LEGAL_CONTACT_EMAIL ?? "legal@example.com",
   };
 }
 

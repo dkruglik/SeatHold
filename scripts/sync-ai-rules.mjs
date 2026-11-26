@@ -148,7 +148,6 @@ export const unmatchedGlobAllowlist = [
   { glob: "**/email/**", until: "phase 1: email providers" },
   { glob: "backend/src/modules/auth/presentation/http/**/*service-auth*", until: "phase 1 or later: service auth hook, only if built" },
   { glob: "backend/src/modules/auth/presentation/http/routes/internal-*", until: "phase 1 or later: internal service routes, only if built" },
-  { glob: "backend/src/presentation/http/hooks/**", until: "phase 1: shared browser-state-change hooks" },
   // Never in this repository
   { glob: "**/tests/**", until: "never: tests sit beside their sources, there is no tests/ directory" },
   { glob: "context/**", until: "never: product specifications are not part of this repository" },

@@ -324,10 +324,10 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 
 ### O26. Frontend dependencies and the read-only ApiClient
 
-- **Choice.** Exact pins in `frontend/package.json`: `react-router` 8.5.3, `@tanstack/react-query` 5.108.4, `@mantine/core` 9.8.2 and `@mantine/hooks` 9.8.2 (Mantine peer) are `dependencies`; `react` and `react-dom` stay `devDependencies` because the app ships as a static Vite bundle. `@mantine/dates` and `dayjs` from the Phase 0 list are not installed: no code imports them, so they wait for the first date UI (Phase 3 it-4). `VITE_API_BASE_URL` must be a same-origin path starting with a single `/` (an absolute http(s) or protocol-relative URL is rejected by `loadFrontendConfig`, so the app cannot be pointed at another origin and CORS stays closed); CI and `scripts/verify.mjs` set it to `/api`. `ApiClient` (`frontend/src/shared/lib/api-client.ts`) rejects a request path starting with `//` and sends relative `/api/...` URLs with `credentials: "include"`, maps a non-2xx response to `ApiError` (status, and `code` when the JSON body has a string `code`) and a failed request to `ApiNetworkError`; neither message contains response body text. It has `get` only. State-changing methods and the `X-CSRF-Token` header (rule 42) are added in Phase 1 together with the endpoint that issues the token, so no mutation can be sent without CSRF handling and no dead token code exists meanwhile.
+- **Choice.** Exact pins in `frontend/package.json`: `react-router` 8.5.3, `@tanstack/react-query` 5.108.4, `@mantine/core` 9.8.2 and `@mantine/hooks` 9.8.2 (Mantine peer) are `dependencies`; `react` and `react-dom` stay `devDependencies` because the app ships as a static Vite bundle. `@mantine/dates` and `dayjs` from the Phase 0 list are not installed: no code imports them, so they wait for the first date UI (Phase 3 it-4). `VITE_API_BASE_URL` must be a same-origin path starting with a single `/` (an absolute http(s) or protocol-relative URL is rejected by `loadFrontendConfig`, so the app cannot be pointed at another origin and CORS stays closed); CI and `scripts/verify.mjs` set it to `/api`. The entry point `main.tsx` calls `bootstrap` (`frontend/src/app/bootstrap.tsx`), which loads that config from `import.meta.env` (an invalid value throws at startup, naming the variable), builds the one `ApiClient` and provides it through `ApiClientProvider` and `useApiClient()` (`api-client-context.tsx`); Vite reads `VITE_*` from the repository-root `.env` (`envDir`). `ApiClient` (`frontend/src/shared/lib/api-client.ts`) rejects a request path starting with `//` and sends relative `/api/...` URLs with `credentials: "include"`, maps a non-2xx response to `ApiError` (status, and `code` when the JSON body has a string `code`) and a failed request to `ApiNetworkError`; neither message contains response body text. It has `get` only. State-changing methods and the `X-CSRF-Token` header (rule 42) are added in Phase 1 together with the endpoint that issues the token, so no mutation can be sent without CSRF handling and no dead token code exists meanwhile.
 - **Options.** Add `post`/`put`/`patch`/`delete` now without a token (a footgun against rule 42); invent a token endpoint in Phase 0; install `@mantine/dates` and `dayjs` early (unused dependencies, rule 12).
 - **Trade-off.** Phase 1 extends `ApiClient` (a token provider and mutation methods); the shape of the token endpoint is decided there.
-- **Status.** `implemented`: `frontend/package.json`, `frontend/src/shared/lib/api-client.ts`, test `api-client.test.ts` (Phase 0 it-5). The Phase 1 extension is `planned`.
+- **Status.** `implemented`: `frontend/package.json`, `frontend/src/shared/lib/api-client.ts`, tests `api-client.test.ts`, `bootstrap.test.tsx`, `load-frontend-config.test.ts`, `vite.config.test.ts` (Phase 0 it-5, review fixes). The Phase 1 extension is `planned`.
 
 ### O27. Frontend shell: Mantine theme, router and test setup
 
@@ -352,10 +352,10 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 
 ### O30. No `.env.local.example`
 
-- **Choice.** The plan's it-3 listed `.env.local.example` next to `.env.example`. It was dropped: both workspaces read the single repository-root `.env` (the backend through `--env-file-if-exists=../.env`, the Vite proxy from the repository root), and nothing reads `.env.local`. `.env.example` is the template for host and Docker runs; `.env.docker.local.example` stays for the Compose overrides.
+- **Choice.** The plan's it-3 listed `.env.local.example` next to `.env.example`. It was dropped: both workspaces read the single repository-root `.env` (the backend through `--env-file-if-exists=../.env`; the Vite dev server sets `envDir` to the repository root, so `BACKEND_*` for the proxy and `VITE_*` for the client both come from it), and nothing reads `.env.local`. `.env.example` is the template for host and Docker runs; `.env.docker.local.example` stays for the Compose overrides.
 - **Options.** Keep a second template nothing loads (a trap: copying it does nothing).
 - **Trade-off.** One file serves host and Docker runs, so the host values (`127.0.0.1`) are the example defaults and the image sets its own `BACKEND_HOST`.
-- **Status.** `implemented`: `.env.local.example` deleted; test `scripts/git-hygiene.test.mjs` (it does not exist) (Phase 0 review fixes).
+- **Status.** `implemented`: `.env.local.example` deleted; `frontend/vite.config.ts` `envDir`, test `frontend/vite.config.test.ts` (Phase 0 review fixes).
 
 ### O31. Database pool size
 
@@ -391,6 +391,20 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Options.** Migrate on container start (runs on every instance); ship the CLI in the runtime image (larger image, more attack surface).
 - **Trade-off.** Until Phase 1 there is no schema, so nothing needs migrating.
 - **Status.** `planned`: Phase 1 it-1.
+
+### O36. CI boots the built image
+
+- **Choice.** The CI job `image-smoke` builds the backend image for amd64 (`docker build -f backend/Dockerfile -t seatholder-backend:ci .`, no push) and runs `node scripts/image-smoke.mjs seatholder-backend:ci` with a `postgres:17.12` service. The script starts the image with `APP_ENV=local` and `BACKEND_PORT=3001`, polls `/api/health` for `{"status":"ok"}` (60 s bound), checks `id -u` is not 0, stops it with `docker stop` and asserts exit code 0 and a `shutdown complete` log line. A second container gets `BACKEND_PORT=abc` and a `DATABASE_URL` with a fake password and must exit 1, name `BACKEND_PORT` and print neither `abc` nor the password. The script removes its containers on every path. The Docker network comes from `IMAGE_SMOKE_DOCKER_NETWORK` (default `host`, which reaches the service on GitHub's Linux runners; `container:<id>` inside a container); the database URL from `IMAGE_SMOKE_DATABASE_URL`.
+- **Options.** Rely on the `image-build` job alone (it never runs the image, so a broken entry point or a leaking startup error ships green); publish the port with `-p` (needs a host port and does not work from inside a container).
+- **Trade-off.** One more CI job and a second amd64 build (no layer cache shared with the buildx job). Like `image-build` it is a CI-only exception that `scripts/verify.mjs` does not run; `scripts/verify.test.mjs` asserts its exact commands.
+- **Status.** `implemented`: `scripts/image-smoke.mjs`, `.github/workflows/ci.yml`, tests `scripts/image-smoke.test.mjs` (helpers) and `scripts/verify.test.mjs` ("image smoke job"). The script passed locally against a locally built image; the job has not run on GitHub yet.
+
+### O37. Dead template code removed
+
+- **Choice.** Removed `LEGAL_OPERATOR_NAME`, `LEGAL_OPERATOR_ADDRESS` and `LEGAL_CONTACT_EMAIL` from `.github/workflows/ci.yml` and `verifyEnv`, and deleted `scripts/generate-auth-secrets.mjs`, `scripts/update-disposable-domains.mjs` and its test `scripts/update-disposable-domains.test.mjs` (deleted with its subject). Nothing read the variables or ran the scripts: no plan, config, README or package script referenced them. Phase 1 adds what it needs (auth secrets, a disposable-domain list) with its own tests.
+- **Options.** Keep them for Phase 1 (dead code and untested secrets tooling meanwhile).
+- **Trade-off.** Phase 1 writes its own generators if it needs them.
+- **Status.** `implemented`: `scripts/verify.mjs`, `.github/workflows/ci.yml`, test `scripts/verify.test.mjs` ("verifyEnv"). Reason: dead template code, YAGNI.
 
 ---
 

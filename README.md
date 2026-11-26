@@ -70,7 +70,7 @@ Create the role and database named by `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POS
 docker build -f backend/Dockerfile -t seatholder-backend .
 ```
 
-The build context is the repository root. The image contains no `.env` or secret; configuration comes from environment variables at run time. CI also builds it for `linux/amd64` and `linux/arm64` without pushing.
+The build context is the repository root. The image contains no `.env` or secret; configuration comes from environment variables at run time. CI also builds it for `linux/amd64` and `linux/arm64` without pushing, and its `image-smoke` job boots the amd64 image against PostgreSQL (`node scripts/image-smoke.mjs`, needs `IMAGE_SMOKE_DATABASE_URL`; `IMAGE_SMOKE_DOCKER_NETWORK` defaults to `host`).
 
 ## Repository layout
 
