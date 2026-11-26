@@ -11,6 +11,7 @@ import { adminPingRoute } from "./presentation/http/routes/admin-ping.route.js";
 import { authPlugin, createAuthHooks, type AuthPluginOptions } from "./modules/auth/index.js";
 import { catalogPlugin, type CatalogPluginOptions } from "./modules/catalog/index.js";
 import { bookingPlugin, type BookingPluginOptions } from "./modules/booking/index.js";
+import { guestAccessPlugin, type GuestAccessPluginOptions } from "./modules/guest-access/index.js";
 import type { Clock } from "./shared/time/clock.js";
 
 const SECONDS_PER_DAY = 86_400;
@@ -25,6 +26,8 @@ export interface AppDeps {
   readonly booking?: Pick<BookingPluginOptions, "services">;
   /** The catalog module's services; the public /api/shows routes exist only when given. They need no auth. */
   readonly catalog?: Pick<CatalogPluginOptions, "services">;
+  /** The guest-access module's services; the /api/guest routes exist only when given. They need no auth: the guest session is its own credential. */
+  readonly guestAccess?: Pick<GuestAccessPluginOptions, "services">;
 }
 
 /**
@@ -63,6 +66,14 @@ export function buildApp(config: AppConfig, deps: AppDeps): FastifyInstance {
       ...deps.booking,
       mutationHooks: browserStateChangeHooks(config),
       auth: createAuthHooks(deps.auth.services.sessions),
+      cookie: { secure: config.cookieSecure },
+    });
+  }
+  if (deps.guestAccess !== undefined) {
+    void app.register(guestAccessPlugin, {
+      prefix: "/api",
+      ...deps.guestAccess,
+      mutationHooks: browserStateChangeHooks(config),
       cookie: { secure: config.cookieSecure },
     });
   }

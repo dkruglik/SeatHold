@@ -23,3 +23,4 @@ export {
   type GuestAccessServices,
   type GuestAccessSettings,
 } from "./guest-access-composition.js";
+export { guestAccessPlugin, type GuestAccessPluginOptions } from "./presentation/http/guest-access-plugin.js";

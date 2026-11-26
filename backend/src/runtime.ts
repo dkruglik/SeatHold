@@ -19,9 +19,9 @@ export function createDefaultRuntime(config: AppConfig): Runtime & { readonly ap
   // The app's logger exists only after buildApp; the adapter reads it lazily and warnings before then go nowhere.
   const late: { log?: FastifyInstance["log"] } = {};
   const logger: WarnLogger = { warn: (message, fields) => late.log?.warn(fields ?? {}, message) };
-  const { booking } = createBookingWithGuestAccess(config, { prisma, clock, email, logger });
+  const { booking, guestAccess } = createBookingWithGuestAccess(config, { prisma, clock, email, logger });
   const catalog = createCatalogServices(config, { ...createPrismaCatalogRepositories(prisma), clock });
-  const app = buildApp(config, { clock, auth: { services }, booking: { services: booking }, catalog: { services: catalog } });
+  const app = buildApp(config, { clock, auth: { services }, booking: { services: booking }, guestAccess: { services: guestAccess }, catalog: { services: catalog } });
   late.log = app.log;
   return { prisma, app };
 }
