@@ -133,11 +133,6 @@ function agentReferences(text, from, to) {
 // A glob that is on this list and matches a tracked file fails the check (remove the entry); so does a glob that is
 // not on the list and matches nothing, and an entry that no rule uses.
 export const unmatchedGlobAllowlist = [
-  // Phase 0 it-3 (typed config, .env examples)
-  { glob: "backend/src/config/**", until: "phase 0 it-3: backend loadConfig" },
-  { glob: "frontend/src/app/config/**", until: "phase 0 it-3: frontend VITE_* config" },
-  { glob: ".env.example", until: "phase 0 it-3: .env.example" },
-  { glob: "**/.env.example", until: "phase 0 it-3: .env.example" },
   // Phase 0 it-4 (backend skeleton)
   { glob: "backend/src/server.ts", until: "phase 0 it-4: server entry and graceful shutdown" },
   { glob: "backend/src/app.ts", until: "phase 0 it-4: app factory with health route" },

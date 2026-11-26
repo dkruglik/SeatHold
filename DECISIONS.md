@@ -294,6 +294,20 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Trade-off.** Each phase deletes its entries from the list in the same change, a small chore; in return a typo in a glob cannot hide behind the warning.
 - **Status.** `implemented`: `scripts/sync-ai-rules.mjs`, `scripts/sync-ai-rules.test.mjs` (Phase 0 it-2).
 
+### O22. Production refuses a local-only frontend origin
+
+- **Choice.** `loadConfig` (`backend/src/config/load-config.ts`) fails at startup when `APP_ENV=production` and `FRONTEND_ORIGIN` is not set explicitly, is not `https`, or is a loopback host (`localhost`, `127.0.0.1`, `[::1]`). In `local` the default is `http://localhost:5173`. The error names the variable and its rule, never a value.
+- **Options.** Also refuse the local-example `DATABASE_URL` credentials in production (CI runs with `APP_ENV=production` and that same test URL, so the rule would fail every CI job that loads config); refuse nothing (rule 01 asks that production refuses local-only values); more rules now (nothing else is local-only yet: the console email provider arrives in Phase 1 and adds its own rule).
+- **Trade-off.** A weak production `DATABASE_URL` is not caught by config; it has no default and comes from the secret store. The Origin check from Phase 1 depends on `FRONTEND_ORIGIN`, so a wrong origin is the config mistake that matters most.
+- **Status.** `implemented`: `backend/src/config/load-config.ts`, `backend/src/config/load-config.test.ts` (Phase 0 it-3).
+
+### O23. Mailpit pinned to v1.34.0
+
+- **Choice.** `docker-compose.yml` runs `axllent/mailpit:v1.34.0` (SMTP 1025 and UI 8025, both on 127.0.0.1, health check `/mailpit readyz`). The exact patch tag was the newest stable release on 2026-11-26; `latest`, `edge` and the moving `v1` and `v1.34` tags are not used.
+- **Options.** `latest` (not reproducible, rule 12); a digest pin (unreadable, harder to update).
+- **Trade-off.** The tag is bumped by hand.
+- **Status.** `implemented`: `docker-compose.yml` (Phase 0 it-3).
+
 ---
 
 ## Back-office capability proposal
