@@ -38,7 +38,7 @@ export interface AppConfig {
   readonly defaultCurrency: string;
   /** How long a guest access link stays valid, in hours. */
   readonly guestLinkTtlHours: number;
-  /** The most guest access link resends per booking in the resend window. */
+  /** The most guest access link resends per email address in the resend window. */
   readonly guestResendLimit: number;
   /** The resend window, in minutes. */
   readonly guestResendWindowMinutes: number;

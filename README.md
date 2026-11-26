@@ -2,7 +2,7 @@
 
 SeatHolder is a ticketing system for events with numbered seats (the "SeatHold" brief). Buyers pick seats and hold them for a short time, then pay with a mock payment; guests reach their tickets through a link; admins manage events. Seat holds are decided in PostgreSQL so that several backend instances agree. The design is for AWS, but nothing is deployed.
 
-Status: Phase 2 (booking core) on top of Phase 1 (auth and access) and Phase 0 (setup). The backend serves a seeded catalog, holds seats, expires holds and takes a mock payment through an HTTP API, and logs users in by emailed code with buyer and admin roles. There is no booking UI yet (Phase 3). The plan is in [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md) and every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
+Status: Phase 3 (buyer flow) on top of Phase 2 (booking core), Phase 1 (auth and access) and Phase 0 (setup). The backend serves a seeded catalog with search, holds seats, expires holds, takes a mock payment, issues guest links and logs users in by emailed code with buyer and admin roles. The frontend covers search, the seat map, checkout, My bookings and the guest ticket page. The back office UI is Phase 4. The plan is in [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md) and every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
 
 ## Requirements
 
@@ -97,13 +97,13 @@ Configuration (names and local defaults in `.env.example`; the rules for each ar
 | `MAX_SEATS_PER_HOLD` | `10` | no | Most seats in one hold (positive integer) |
 | `DEFAULT_CURRENCY` | `EUR` | no | Three uppercase letters (ISO 4217) |
 | `GUEST_LINK_TTL_HOURS` | `168` | no | How long a guest access link works (positive integer) |
-| `GUEST_RESEND_LIMIT` | `3` | no | Guest link resends per booking in the window (positive integer) |
+| `GUEST_RESEND_LIMIT` | `3` | no | Guest link resends per email address in the window (positive integer) |
 | `GUEST_RESEND_WINDOW_MINUTES` | `60` | no | The resend window (positive integer) |
 | `VITE_SEAT_POLL_INTERVAL_MS` | `3000` | no (public, frontend) | How often the event page polls seat status (positive integer) |
 
 ## Booking
 
-Phase 2 is the backend only: the catalog, the seat hold, expiry and the mock checkout, with no UI. A seat is never sold twice: holding a seat is one conditional `UPDATE` in PostgreSQL (`status = 'available'` or an expired hold), zero rows means 409, and `UNIQUE(seat_id)` on tickets is the backstop. Holds expire lazily: every read and write treats a hold past its `expires_at` as free, so nothing depends on a background job (a sweeper exists, and `node backend/dist/scripts/sweep-holds.js` runs it once in production, `npm run sweep:holds` in development, but nothing schedules it). Time comes from the injected clock, read once per operation. The reasoning is in `DECISIONS.md` (D1, D2, D4, D6, O58 to O69).
+Phase 2 built the backend: the catalog, the seat hold, expiry and the mock checkout. Phase 3 adds the screens on top (see Buyer flow). A seat is never sold twice: holding a seat is one conditional `UPDATE` in PostgreSQL (`status = 'available'` or an expired hold), zero rows means 409, and `UNIQUE(seat_id)` on tickets is the backstop. Holds expire lazily: every read and write treats a hold past its `expires_at` as free, so nothing depends on a background job (a sweeper exists, and `node backend/dist/scripts/sweep-holds.js` runs it once in production, `npm run sweep:holds` in development, but nothing schedules it). Time comes from the injected clock, read once per operation. The reasoning is in `DECISIONS.md` (D1, D2, D4, D6, O58 to O69; the buyer flow is O70 to O80).
 
 **Seed.** `npm run db:seed` prints one line per account and then the catalog line:
 
@@ -139,6 +139,36 @@ node scripts/test-db.mjs run -- npm run test:integration -w backend -- prisma-ho
 ```
 
 The first runs 100 parallel holds on one seat and expects exactly one winner. The second moves a controlled clock past the hold duration and expects the seat to be on sale again, with no real waiting. Both are in `backend/src/modules/booking/infrastructure/persistence/` and run in `npm run verify`.
+
+## Buyer flow
+
+The flow is search, seat map, hold, pay, ticket. Everything below runs in the browser at http://localhost:5173 after the Docker or Mac setup above.
+
+1. **Search** (`/`). Filter by text, type, genre, country, city, venue and a date-time range. The filters live in the URL, so a search can be shared or reloaded. Only upcoming events are listed unless a range starts earlier.
+2. **Seat map** (`/events/:eventId`). Click free seats to hold them (up to `MAX_SEATS_PER_HOLD`); a countdown shows the rest of the `HOLD_DURATION_MINUTES` window. The map refreshes every `VITE_SEAT_POLL_INTERVAL_MS` while the tab is visible. Click a seat of yours to release it.
+3. **Pay.** The checkout panel pays with the mock gateway: the "Test payment" choice decides whether it succeeds or fails, and no card data exists. A failed payment keeps the hold for a retry; an expired hold shows a message.
+4. **Ticket.** A signed-in buyer finds bookings under My bookings (`/bookings`), each ticket with a QR code (payload `SEATHOLD:<code>`). A guest enters an email instead of signing in; after payment the confirmation says to check the email, and the emailed link opens the tickets once. The link works for `GUEST_LINK_TTL_HOURS` and is exchanged for a session cookie that shows that one booking until the event starts plus one day. A lost link is replaced on the same page with the "send me a new link" form (limited by `GUEST_RESEND_LIMIT` per `GUEST_RESEND_WINDOW_MINUTES`).
+
+Try the guest path locally: `docker compose up -d` (or the Homebrew services) starts Mailpit; buy seats while signed out with any address, open http://localhost:8025, open the message and follow the link. The link ends in `#t=<token>`; the page removes the token from the address bar at once and uses it a single time.
+
+| Route | Who | Answers |
+|---|---|---|
+| `GET /api/shows` | anyone | One row per event with `seatsLeft`; query `q`, `type`, `genre`, `country`, `city`, `venueId`, `from`, `to`, `page`, `pageSize` (max 50, default 20); unknown parameters 400; `{ items, total, page, pageSize, totalPages }`; `public, max-age=1` |
+| `GET /api/shows/facets` | anyone | Values for the filter lists (types, genres, countries, cities, venues) that have an upcoming event; `public, max-age=60` |
+| `GET /api/events/:eventId` | anyone | Show, venue, start and price; 400 for a malformed id, 404 `EVENT_NOT_FOUND`; `public, max-age=1` |
+| `GET /api/me/bookings` | signed in | The caller's confirmed bookings (newest first, at most 100) with ticket codes; 401 `UNAUTHENTICATED`; `no-store` |
+| `POST /api/guest/exchange` | anyone; CSRF | Body `{ token }`; sets the `gsid` cookie and returns the booking; 410 `LINK_USED`, `LINK_EXPIRED` or `LINK_INVALID` |
+| `GET /api/guest/booking` | guest session | The one booking with its tickets; 401 `UNAUTHENTICATED` |
+| `POST /api/guest/resend` | anyone; CSRF | Body `{ email }`; 204 whether or not bookings exist; 429 `RATE_LIMITED` |
+
+| Frontend route | Screen |
+|---|---|
+| `/` | Search and results |
+| `/events/:eventId` | Event page: seat map, hold, checkout |
+| `/bookings` | My bookings with QR codes (sign-in required) |
+| `/guest/access` | Guest ticket page (reads the link fragment) and the lost-link form |
+
+The guest session cookie `gsid` and the user session cookie `sid` are separate and never accepted for each other's routes. The decisions and their trade-offs are `DECISIONS.md` O70 to O80 (and D5). Known limits: the payment is a mock whose outcome the client chooses (do not expose it to real customers), the seat countdown uses the browser clock, search matches whole words and venue substrings only, and rows of used guest links and resend attempts are not purged yet.
 
 ## Tests and verify
 
