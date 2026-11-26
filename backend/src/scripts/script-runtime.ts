@@ -12,6 +12,7 @@ export interface ScriptContext {
   readonly users: UserRepository;
   readonly catalog: CatalogRepositories;
   readonly clock: Clock;
+  readonly prisma: PrismaService;
 }
 
 /**
@@ -29,7 +30,7 @@ export async function runScript(
     const config = loadConfig(env);
     prisma = new PrismaService(config.databaseUrl, config.databasePoolMax);
     await prisma.connect();
-    return await body({ config, users: new PrismaUserRepository(prisma), catalog: createPrismaCatalogRepositories(prisma), clock: new DatabaseClock(prisma) });
+    return await body({ config, prisma, users: new PrismaUserRepository(prisma), catalog: createPrismaCatalogRepositories(prisma), clock: new DatabaseClock(prisma) });
   } catch (error: unknown) {
     io.err(describeFailure(error));
     return 1;
