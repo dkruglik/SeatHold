@@ -30,8 +30,6 @@ describe(".env.example", () => {
 
   it("keeps the other example files to variables the schema, Docker Compose or the frontend know", () => {
     const known = new Set<string>([...configVariableNames, ...composeVariables, ...frontendVariables]);
-    for (const file of [".env.local.example", ".env.docker.local.example"]) {
-      expect(exampleVariables(file).filter((name) => !known.has(name))).toEqual([]);
-    }
+    expect(exampleVariables(".env.docker.local.example").filter((name) => !known.has(name))).toEqual([]);
   });
 });

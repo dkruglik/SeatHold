@@ -11,6 +11,17 @@ export interface ShutdownOptions {
   readonly timeoutMs: number;
 }
 
+export interface SignalSource {
+  on(signal: "SIGTERM" | "SIGINT", listener: () => void): unknown;
+}
+
+/** Uses `on`, not `once`: a second signal must reach the guard in createShutdown instead of killing the process by default. */
+export function bindShutdownSignals(source: SignalSource, shutdown: (signal: string) => Promise<void>): void {
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    source.on(signal, () => void shutdown(signal));
+  }
+}
+
 /**
  * Returns the signal handler. It stops the app (no new connections, in-flight requests finish), then
  * disconnects Prisma, then exits 0. When that takes longer than timeoutMs, or fails, it exits 1.

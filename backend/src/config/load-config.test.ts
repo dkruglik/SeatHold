@@ -22,6 +22,7 @@ describe("loadConfig defaults", () => {
       backendHost: "0.0.0.0",
       backendPort: 3001,
       databaseUrl,
+      databasePoolMax: 10,
       logLevel: "info",
       shutdownTimeoutMs: 10_000,
       frontendOrigin: "http://localhost:5173",
@@ -39,6 +40,11 @@ describe("loadConfig defaults", () => {
     });
 
     expect(config).toMatchObject({ backendHost: "127.0.0.1", backendPort: 8080, logLevel: "debug", shutdownTimeoutMs: 2500, frontendOrigin: "http://localhost:4000" });
+  });
+
+  it("reads DATABASE_POOL_MAX", () => {
+    expect(loadConfig({ ...minimalEnv, DATABASE_POOL_MAX: "25" }).databasePoolMax).toBe(25);
+    expect(loadConfig({ ...minimalEnv, DATABASE_POOL_MAX: "100" }).databasePoolMax).toBe(100);
   });
 
   it("returns a frozen config", () => {
@@ -62,6 +68,14 @@ describe("loadConfig validation", () => {
 
   it.each(["0", "65536", "-1", "abc", "30.5", "3001x"])("fails for BACKEND_PORT=%s", (port) => {
     expect(failureOf({ ...minimalEnv, BACKEND_PORT: port }).variables).toEqual(["BACKEND_PORT"]);
+  });
+
+  it.each(["000", "101", "-1", "abc", "2.5", "10x"])("fails for DATABASE_POOL_MAX=%s, naming the variable and not the value", (value) => {
+    const error = failureOf({ ...minimalEnv, DATABASE_POOL_MAX: value });
+
+    expect(error.variables).toEqual(["DATABASE_POOL_MAX"]);
+    expect(error.message).toContain("DATABASE_POOL_MAX");
+    expect(error.message).not.toContain(value);
   });
 
   it("fails for an unknown APP_ENV", () => {

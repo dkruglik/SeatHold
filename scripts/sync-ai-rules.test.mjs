@@ -209,7 +209,7 @@ describe("repository state", () => {
 
   it("denies secret env files at any depth in Claude and Cursor and keeps the example templates readable", () => {
     const secretNames = [".env", ".env.local", ".env.*.local", ".env.docker.local"];
-    const examples = [".env.example", ".env.local.example", ".env.docker.local.example"];
+    const examples = [".env.example", ".env.docker.local.example"];
     const cursorIgnore = fs.existsSync(path.join(rootDir, ".cursorignore")) ? read(".cursorignore").split(/\r?\n/) : null;
     const claudeDeny = JSON.parse(read(".claude/settings.json")).permissions.deny;
 
@@ -235,7 +235,7 @@ describe("repository state", () => {
       assert.ok(index > lastDeny, `Read(!${example}) must come after the deny rules`);
     }
 
-    // Cursor: still uses the broad pattern, with exactly the three examples after it.
+    // Cursor: still uses the broad pattern, with exactly the example files after it.
     // .cursorignore is Cursor-local and not tracked, so a clean checkout has none.
     if (cursorIgnore === null) {
       return;

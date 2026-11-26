@@ -15,6 +15,7 @@ const config: AppConfig = {
   backendHost: "127.0.0.1",
   backendPort: 3001,
   databaseUrl: "postgresql://unused:unused@127.0.0.1:1/unused",
+  databasePoolMax: 2,
   logLevel: "info",
   shutdownTimeoutMs: 1000,
   frontendOrigin: "http://localhost:5173",

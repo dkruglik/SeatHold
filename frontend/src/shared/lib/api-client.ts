@@ -42,8 +42,8 @@ export class ApiClient {
   ) {}
 
   async get<T>(path: string): Promise<T> {
-    if (!path.startsWith("/")) {
-      throw new TypeError("API path must start with /");
+    if (!path.startsWith("/") || path.startsWith("//")) {
+      throw new TypeError("API path must start with a single /");
     }
     let response: Response;
     try {

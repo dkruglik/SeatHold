@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,6 @@ describe("git hygiene", () => {
     ".claude/skills/install-seathold/SKILL.md",
     "scripts/verify.mjs",
     ".env.example",
-    ".env.local.example",
   ]) {
     it(`tracks ${file} (not ignored)`, () => {
       assert.equal(isIgnored(file), false);
@@ -36,12 +35,17 @@ describe("git hygiene", () => {
     ".claude/settings.local.json",
     ".claude/skills/other/SKILL.md",
     ".cursor/x",
+    "backend/src/generated/x",
     "node_modules/x",
   ]) {
     it(`ignores ${file}`, () => {
       assert.equal(isIgnored(file), true);
     });
   }
+
+  it("has no .env.local.example, because nothing reads .env.local", () => {
+    assert.equal(existsSync(path.join(rootDir, ".env.local.example")), false);
+  });
 
   it("keeps CLAUDE.md standalone, without a pointer to AGENT.md", () => {
     const content = readFileSync(path.join(rootDir, "CLAUDE.md"), "utf8");

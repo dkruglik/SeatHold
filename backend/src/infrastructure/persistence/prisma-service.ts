@@ -5,8 +5,9 @@ import { PrismaClient } from "../../generated/prisma/client.js";
 export class PrismaService {
   readonly client: PrismaClient;
 
-  constructor(databaseUrl: string) {
-    this.client = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
+  /** `poolMax` caps this instance's connections; instances times poolMax must stay under what RDS Proxy and PostgreSQL accept. */
+  constructor(databaseUrl: string, poolMax: number) {
+    this.client = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl, max: poolMax }) });
   }
 
   connect(): Promise<void> {

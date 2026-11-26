@@ -22,7 +22,7 @@ export function generateAuthSecret(byteLength = DEFAULT_BYTE_LENGTH) {
 }
 
 function runCli() {
-  console.log("# Paste into .env.local and .env.docker.local (use different values; do not commit):\n");
+  console.log("# Paste into .env and .env.docker.local (use different values; do not commit):\n");
   console.log(`AUTH_CODE_PEPPER=${generateAuthSecret()}`);
   console.log(`CSRF_SECRET=${generateAuthSecret()}`);
   console.log(`LEGAL_EVIDENCE_HMAC_KEY=${generateAuthSecret()}`);

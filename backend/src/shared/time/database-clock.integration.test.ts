@@ -5,7 +5,7 @@ import { DatabaseClock } from "./database-clock.js";
 
 describe("DatabaseClock", () => {
   const databaseUrl = process.env.DATABASE_URL ?? "";
-  const prisma = new PrismaService(databaseUrl);
+  const prisma = new PrismaService(databaseUrl, 2);
 
   beforeAll(() => prisma.connect());
   afterAll(() => prisma.disconnect());

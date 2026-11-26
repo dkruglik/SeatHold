@@ -12,15 +12,15 @@ describe("loadFrontendConfig", () => {
     expect(loadFrontendConfig({ VITE_API_BASE_URL: "" })).toEqual({ apiBaseUrl: "/api" });
   });
 
-  it.each(["/api", "/service/api", "http://localhost:3001", "https://seats.example.com/api"])("accepts VITE_API_BASE_URL=%s", (value) => {
+  it.each(["/api", "/service/api"])("accepts VITE_API_BASE_URL=%s", (value) => {
     expect(loadFrontendConfig({ VITE_API_BASE_URL: value }).apiBaseUrl).toBe(value);
   });
 
   it("drops a trailing slash so paths join cleanly", () => {
-    expect(loadFrontendConfig({ VITE_API_BASE_URL: "http://localhost:3001/" }).apiBaseUrl).toBe("http://localhost:3001");
+    expect(loadFrontendConfig({ VITE_API_BASE_URL: "/api/" }).apiBaseUrl).toBe("/api");
   });
 
-  it.each(["api", "ftp://example.com", "//example.com/api", "javascript:alert(1)"])("rejects VITE_API_BASE_URL=%s by name only", (value) => {
+  it.each(["api", "ftp://example.com", "//example.com/api", "javascript:alert(1)", "http://localhost:3001", "https://seats.example.com/api"])("rejects VITE_API_BASE_URL=%s by name only", (value) => {
     expect(() => loadFrontendConfig({ VITE_API_BASE_URL: value })).toThrowError(/VITE_API_BASE_URL/);
     expect(() => loadFrontendConfig({ VITE_API_BASE_URL: value })).not.toThrowError(value);
   });

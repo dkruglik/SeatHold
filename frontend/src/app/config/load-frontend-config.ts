@@ -8,12 +8,9 @@ export const frontendVariableNames = ["VITE_API_BASE_URL"] as const;
 
 const defaultApiBaseUrl = "/api";
 
+/** Same origin only (one origin, no CORS): a path starting with a single slash, never an absolute or protocol-relative URL. */
 function isApiBase(value: string): boolean {
-  if (value.startsWith("/")) {
-    return !value.startsWith("//");
-  }
-  const url = URL.parse(value);
-  return url !== null && (url.protocol === "http:" || url.protocol === "https:");
+  return value.startsWith("/") && !value.startsWith("//");
 }
 
 /** Pass `import.meta.env` from the entry point; tests pass plain objects. Names the variable, never its value. */
@@ -23,7 +20,7 @@ export function loadFrontendConfig(env: Readonly<Record<string, unknown>>): Fron
     return Object.freeze({ apiBaseUrl: defaultApiBaseUrl });
   }
   if (typeof raw !== "string" || !isApiBase(raw)) {
-    throw new Error("Invalid configuration: VITE_API_BASE_URL must be a path starting with / or an http(s) URL");
+    throw new Error("Invalid configuration: VITE_API_BASE_URL must be a same-origin path starting with /");
   }
   return Object.freeze({ apiBaseUrl: raw.replace(/\/+$/, "") });
 }

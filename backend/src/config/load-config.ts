@@ -8,6 +8,7 @@ export interface AppConfig {
   readonly backendHost: string;
   readonly backendPort: number;
   readonly databaseUrl: string;
+  readonly databasePoolMax: number;
   readonly logLevel: (typeof logLevels)[number];
   readonly shutdownTimeoutMs: number;
   readonly frontendOrigin: string;
@@ -19,6 +20,7 @@ const requirements = {
   BACKEND_HOST: "must be a non-empty host name or address",
   BACKEND_PORT: "must be an integer from 1 to 65535",
   DATABASE_URL: "is required and must be a postgresql:// URL",
+  DATABASE_POOL_MAX: "must be an integer from 1 to 100",
   LOG_LEVEL: `must be one of ${logLevels.join(", ")}`,
   SHUTDOWN_TIMEOUT_MS: "must be a positive integer",
   FRONTEND_ORIGIN: "must be an http(s) origin: scheme, host and optional port, no path (in production: set, https, not localhost)",
@@ -44,6 +46,7 @@ const envSchema = z.object({
   BACKEND_HOST: z.string().min(1).default("0.0.0.0"),
   BACKEND_PORT: positiveInteger.pipe(z.number().max(65535)).default(3001),
   DATABASE_URL: z.string().refine(isPostgresUrl),
+  DATABASE_POOL_MAX: positiveInteger.pipe(z.number().max(100)).default(10),
   LOG_LEVEL: z.enum(logLevels).default("info"),
   SHUTDOWN_TIMEOUT_MS: positiveInteger.default(10_000),
   FRONTEND_ORIGIN: z.string().refine(isHttpOrigin).optional(),
@@ -85,6 +88,7 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>> = p
     backendHost: values.BACKEND_HOST,
     backendPort: values.BACKEND_PORT,
     databaseUrl: values.DATABASE_URL,
+    databasePoolMax: values.DATABASE_POOL_MAX,
     logLevel: values.LOG_LEVEL,
     shutdownTimeoutMs: values.SHUTDOWN_TIMEOUT_MS,
     frontendOrigin: values.FRONTEND_ORIGIN ?? "http://localhost:5173",

@@ -135,9 +135,8 @@ function agentReferences(text, from, to) {
 // A glob that is on this list and matches a tracked file fails the check (remove the entry); so does a glob that is
 // not on the list and matches nothing, and an entry that no rule uses.
 export const unmatchedGlobAllowlist = [
-  // Phase 0 it-5 (frontend skeleton)
-  { glob: "frontend/src/**/services/**", until: "phase 0 it-5: ApiClient service" },
-  // Phase 1 (auth module, HTTP presentation, email, persistence adapters)
+  // Phase 1 (auth module, HTTP presentation, email, persistence adapters, first frontend feature service)
+  { glob: "frontend/src/**/services/**", until: "phase 1 it-7: AuthApi feature service" },
   { glob: "backend/src/modules/**", until: "phase 1: auth module" },
   { glob: "backend/src/modules/**/application/**", until: "phase 1: auth application services" },
   { glob: "backend/src/modules/*/infrastructure/**", until: "phase 1: auth Prisma and email adapters" },

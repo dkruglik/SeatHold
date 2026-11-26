@@ -1,12 +1,12 @@
 import { buildApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config/load-config.js";
 import { PrismaService } from "./infrastructure/persistence/prisma-service.js";
-import { createShutdown } from "./shutdown.js";
+import { bindShutdownSignals, createShutdown } from "./shutdown.js";
 import { DatabaseClock } from "./shared/time/database-clock.js";
 
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
-  const prisma = new PrismaService(config.databaseUrl);
+  const prisma = new PrismaService(config.databaseUrl, config.databasePoolMax);
   const app = buildApp(config, { clock: new DatabaseClock(prisma) });
   const shutdown = createShutdown({
     app,
@@ -15,8 +15,7 @@ async function main(): Promise<void> {
     exit: (code) => process.exit(code),
     timeoutMs: config.shutdownTimeoutMs,
   });
-  process.once("SIGTERM", () => void shutdown("SIGTERM"));
-  process.once("SIGINT", () => void shutdown("SIGINT"));
+  bindShutdownSignals(process, shutdown);
 
   await prisma.connect();
   await app.listen({ host: config.backendHost, port: config.backendPort });

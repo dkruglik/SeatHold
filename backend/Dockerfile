@@ -29,7 +29,9 @@ RUN npm ci --omit=dev --omit=optional -w backend --ignore-scripts \
 COPY --from=build /app/backend/dist backend/dist
 
 # The listening port is the BACKEND_PORT of the config module (default 3001); pass the same value at run time.
+# The container listens on all interfaces; the host-run example (.env.example) binds 127.0.0.1 instead.
 ARG BACKEND_PORT=3001
+ENV BACKEND_HOST=0.0.0.0
 ENV BACKEND_PORT=${BACKEND_PORT}
 EXPOSE ${BACKEND_PORT}
 

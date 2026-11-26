@@ -45,6 +45,13 @@ describe("ApiClient.get requests", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it("rejects a protocol-relative path, which would leave the API origin", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+
+    await expect(clientWith(fetchImpl).get("//evil.example/x")).rejects.toThrowError(TypeError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("joins the configured base path, including an absolute dev base", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}));
 

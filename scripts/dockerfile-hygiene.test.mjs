@@ -55,6 +55,10 @@ describe("backend/Dockerfile", () => {
     assert.ok(!/\bcurl\b/.test(health));
   });
 
+  it("listens on all interfaces in the container, whatever the .env example says for the host", () => {
+    assert.ok(stages().at(-1).lines.includes("ENV BACKEND_HOST=0.0.0.0"));
+  });
+
   it("starts node directly so it receives SIGTERM, in exec form", () => {
     const cmd = stages().at(-1).lines.find((line) => /^CMD\s/i.test(line));
     assert.match(cmd, /^CMD \["node", /i);

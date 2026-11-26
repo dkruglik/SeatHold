@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type UserConfig } from "vite";
 
@@ -28,4 +30,11 @@ export function createViteConfig(env: Readonly<Record<string, string | undefined
   };
 }
 
-export default defineConfig(({ mode }) => createViteConfig(loadEnv(mode, process.cwd(), "BACKEND_")));
+// The backend reads the repository-root .env, so the proxy does too (not the working directory, which is frontend/).
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+export function loadViteConfig(mode: string, rootDir: string = repositoryRoot): UserConfig {
+  return createViteConfig(loadEnv(mode, rootDir, "BACKEND_"));
+}
+
+export default defineConfig(({ mode }) => loadViteConfig(mode));
