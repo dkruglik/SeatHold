@@ -9,6 +9,7 @@ import {
   BusinessError,
   InfrastructureError,
   NotFoundError,
+  GoneError,
   PaymentRequiredError,
   ValidationError,
 } from "../../../shared/errors/app-error.js";
@@ -72,6 +73,8 @@ describe("HTTP error contract for application errors", () => {
     ["business", new BusinessError("Seat is already held"), 409, "business_rule_violation"],
     ["not_found", new NotFoundError("No such thing"), 404, "not_found"],
     ["payment_required", new PaymentRequiredError("Pay first"), 402, "payment_required"],
+    ["gone", new GoneError("Link used"), 410, "gone"],
+    ["gone with a public code", new GoneError("Link used", { publicCode: "LINK_USED" }), 410, "LINK_USED"],
     ["not_found with a public code", new NotFoundError("No hold", { publicCode: "HOLD_NOT_FOUND" }), 404, "HOLD_NOT_FOUND"],
   ])("maps a %s error to its status and the { error: { code, message } } body", async (_kind, error, status, code) => {
     const built = build();

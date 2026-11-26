@@ -1,4 +1,4 @@
-export type ErrorKind = "validation" | "authentication" | "authorization" | "business" | "not_found" | "payment_required" | "infrastructure";
+export type ErrorKind = "validation" | "authentication" | "authorization" | "business" | "not_found" | "payment_required" | "gone" | "infrastructure";
 
 /** Base of the errors the application distinguishes. Anything else is an unexpected error. */
 export abstract class AppError extends Error {
@@ -38,6 +38,11 @@ export class NotFoundError extends AppError {
 /** A payment was attempted and not accepted: HTTP 402. */
 export class PaymentRequiredError extends AppError {
   readonly kind = "payment_required";
+}
+
+/** The thing existed but is permanently unavailable (a used or expired one-time link): HTTP 410. */
+export class GoneError extends AppError {
+  readonly kind = "gone";
 }
 
 export class InfrastructureError extends AppError {
