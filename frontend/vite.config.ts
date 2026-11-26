@@ -5,6 +5,10 @@ import { defineConfig, loadEnv, type UserConfig } from "vite";
 
 const defaultBackendPort = 3001;
 
+// The backend reads the repository-root .env, so Vite does too: BACKEND_* for the proxy, VITE_* for the client
+// (not the working directory, which is frontend/).
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
 function backendPort(env: Readonly<Record<string, string | undefined>>): number {
   const raw = env.BACKEND_PORT;
   if (raw === undefined || raw === "") {
@@ -18,8 +22,9 @@ function backendPort(env: Readonly<Record<string, string | undefined>>): number 
 }
 
 /** The browser sees one origin: the dev server forwards /api to the backend, as CloudFront does in production. */
-export function createViteConfig(env: Readonly<Record<string, string | undefined>>): UserConfig {
+export function createViteConfig(env: Readonly<Record<string, string | undefined>>, envDir: string = repositoryRoot): UserConfig {
   return {
+    envDir,
     plugins: [react()],
     server: {
       port: 5173,
@@ -30,11 +35,8 @@ export function createViteConfig(env: Readonly<Record<string, string | undefined
   };
 }
 
-// The backend reads the repository-root .env, so the proxy does too (not the working directory, which is frontend/).
-const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
 export function loadViteConfig(mode: string, rootDir: string = repositoryRoot): UserConfig {
-  return createViteConfig(loadEnv(mode, rootDir, "BACKEND_"));
+  return createViteConfig(loadEnv(mode, rootDir, "BACKEND_"), rootDir);
 }
 
 export default defineConfig(({ mode }) => loadViteConfig(mode));

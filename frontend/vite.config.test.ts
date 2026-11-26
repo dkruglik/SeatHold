@@ -27,6 +27,10 @@ describe("vite dev server", () => {
     expect(config.server?.proxy).toMatchObject({ "/api": { target: "http://127.0.0.1:4555" } });
   });
 
+  it("reads VITE_ variables from the repository root, not from frontend/", () => {
+    expect(createViteConfig({}).envDir).toBe(repositoryRoot);
+  });
+
   it.each(["abc", "0", "70000", "3001.5"])("rejects BACKEND_PORT=%s by name only", (value) => {
     expect(() => createViteConfig({ BACKEND_PORT: value })).toThrowError(/BACKEND_PORT/);
     expect(() => createViteConfig({ BACKEND_PORT: value })).not.toThrowError(value);
@@ -39,6 +43,7 @@ describe("vite dev server env file", () => {
   beforeEach(() => {
     rootDir = mkdtempSync(path.join(tmpdir(), "seatholder-vite-"));
     vi.stubEnv("BACKEND_PORT", undefined);
+    vi.stubEnv("VITE_API_BASE_URL", undefined);
   });
 
   afterEach(() => {
@@ -52,6 +57,15 @@ describe("vite dev server env file", () => {
     const config = loadViteConfig("development", rootDir);
 
     expect(config.server?.proxy).toMatchObject({ "/api": { target: "http://127.0.0.1:4777" } });
+  });
+
+  it("exposes a VITE_API_BASE_URL from the root env file to the client", () => {
+    writeFileSync(path.join(rootDir, ".env"), "VITE_API_BASE_URL=/service/api\n");
+
+    const config = loadViteConfig("development", rootDir);
+
+    expect(config.envDir).toBe(rootDir);
+    expect(vite.loadEnv("development", config.envDir ?? "", "VITE_")).toEqual({ VITE_API_BASE_URL: "/service/api" });
   });
 
   it("reads the repository root, not the working directory, in the default export", () => {

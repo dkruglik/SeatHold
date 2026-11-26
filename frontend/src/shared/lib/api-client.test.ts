@@ -52,12 +52,12 @@ describe("ApiClient.get requests", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("joins the configured base path, including an absolute dev base", async () => {
+  it("joins the configured same-origin base path and the request path", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}));
 
-    await clientWith(fetchImpl, "http://localhost:3001").get("/health");
+    await clientWith(fetchImpl, "/service/api").get("/health");
 
-    expect(firstCall(fetchImpl)[0]).toBe("http://localhost:3001/health");
+    expect(firstCall(fetchImpl)[0]).toBe("/service/api/health");
   });
 });
 
