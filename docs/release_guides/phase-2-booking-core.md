@@ -217,7 +217,13 @@ curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" "$SITE/api/events/$EVENT_ID/h
 rm -f "$JAR"
 ```
 
-Expected, in order: `{"seatIds":["<seat-id>"],"expiresAt":"..."}` with `expiresAt` about 10 minutes ahead; the same body from the hold read; `204` for the release; then `404` for the hold read (code `HOLD_NOT_FOUND`). Other answers: `403` means `Origin` differs from `FRONTEND_ORIGIN` or the token is missing (code `CSRF_INVALID`); `409 SEAT_UNAVAILABLE` means the seat was taken, so pick another seat id. A `404` with an HTML body on every call means `/api/*` is not routed to the backend.
+Expected, in order: `{"seatIds":["<seat-id>"],"expiresAt":"..."}` with `expiresAt` about 10 minutes ahead; the same body from the hold read; `204` for the release; then `404` for the hold read (code `HOLD_NOT_FOUND`). The release answer must carry `Cache-Control: no-store`; to check it, repeat the release with headers shown (hold a seat again first):
+
+```bash
+curl -si -b "$JAR" -X DELETE -H "Origin: $SITE" -H "X-CSRF-Token: $CSRF_TOKEN" "$SITE/api/events/$EVENT_ID/hold/seats/$SEAT_ID" | grep -i '^cache-control'
+```
+
+Expected: `cache-control: no-store`. Other answers: `403` means `Origin` differs from `FRONTEND_ORIGIN` or the token is missing (code `CSRF_INVALID`); `409 SEAT_UNAVAILABLE` means the seat was taken, so pick another seat id. A `404` with an HTML body on every call means `/api/*` is not routed to the backend.
 
 Do not run the checkout route as a smoke test in production: it is the client-controlled mock payment (see "Other requirements", item 3).
 
@@ -242,13 +248,27 @@ npm run db:seed
 
 Expected last line on a fresh local database: `catalog inserted venues=12 shows=200 events=200 seats=40000`. A second run prints zeros (`venues=0 shows=0 events=0 seats=0`).
 
+### 7. Sweeping expired holds (optional)
+
+Expiry is lazy, so nothing depends on this. The sweeper only tidies stale `held` rows. **Action:** frees the seats of expired holds and marks those holds `expired`; safe to repeat and to run beside the running app. Run it once as a one-off task with the backend's environment (the same `DATABASE_URL` and configuration as the service):
+
+```bash
+npm run sweep:holds -w backend -- --batch-size=500
+```
+
+Expected: one line `holds swept freedSeats=<n> expiredHolds=<n>` and exit code 0 (`0` and `0` when nothing was stale). A batch size outside 1 to 10000, or any other argument, prints the usage and exits with 2. To check the result, the SQL count of stale seats (after step 2's query) should be 0 right after the run:
+
+```sql
+SELECT count(*) FROM seats WHERE status = 'held' AND held_until <= now();
+```
+
 ### Scheduler checks
 
-None. Phase 2 schedules no background job; the sweeper is not wired to any schedule.
+None. Nothing in this repository schedules the sweeper. TODO(operator): decide whether to run `sweep:holds` on a schedule (for example an EventBridge Scheduler target that starts the one-off task) or skip it, which is safe because expiry is lazy.
 
 ## Rollback
 
-The migration only adds tables, and the previous release does not read them, so it is safe to leave them in place when the application is rolled back. Application rollback: redeploy the previous backend image. The three new variables are ignored by the previous release; leave or remove them. There is no flag to switch booking off: roll back the application.
+The migration only adds tables, and the previous release does not read them, so it is safe to leave them in place when the application is rolled back. Application rollback: redeploy the previous backend image. The three new variables are ignored by the previous release; leave or remove them. There is no flag to switch booking off: roll back the application. The application builds its routes at startup and now refuses to start when booking is wired without the auth services (`buildApp` throws); a task that exits at once with that message in its log is a wiring mistake in the release, not a database problem, and rolling back the image is the fix.
 
 To also remove the schema (only if nothing needs the data): this deletes every hold, booking, ticket and payment record and the whole catalog, and it cannot be undone. Take a database backup first if any of it matters.
 
@@ -274,9 +294,9 @@ Expected: `COMMIT`. The Phase 1 tables and accounts are untouched.
 
 - The mock payment takes the outcome from the client and is the only payment adapter (see the TODO(operator) in "Other requirements").
 - The production catalog has no loader: the seed is local only (see the TODO(operator) in "Other requirements").
-- The sweeper is not scheduled. Stale `held` rows stay until a later hold or read treats them as free; correctness does not depend on it.
+- The sweeper is not scheduled (the one-off `sweep:holds` command exists). Stale `held` rows stay until a later hold or read treats them as free; correctness does not depend on it.
 - No booking UI yet (Phase 3), so nothing in the browser exercises these routes.
 - The backend image has no migration path (DECISIONS.md O35), as in Phase 1.
 - The GitHub Actions workflow has not run on this branch.
 - TODO(operator) lines above: how the production catalog is loaded, how to keep the mock payment away from real customers, the backend release command, the log-group name, and migrating through the direct database endpoint.
-- README: "Booking" in `README.md`. Decisions: DECISIONS.md D1, D2, D4, D6 and O58 to O66.
+- README: "Booking" in `README.md`. Decisions: DECISIONS.md D1, D2, D4, D6 and O58 to O68 (O67 is the checkout price, O68 the external review).
