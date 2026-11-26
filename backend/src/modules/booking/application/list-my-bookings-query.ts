@@ -19,6 +19,10 @@ export interface MyBooking extends StoredMyBooking {
 const bySeat = (a: StoredMyTicket, b: StoredMyTicket): number =>
   a.rowLabel.length - b.rowLabel.length || (a.rowLabel < b.rowLabel ? -1 : a.rowLabel > b.rowLabel ? 1 : 0) || a.seatNumber - b.seatNumber;
 
+/** Tickets in seat order, without the booking id. */
+export const toMyTickets = (tickets: readonly StoredMyTicket[]): MyTicket[] =>
+  [...tickets].sort(bySeat).map((t) => ({ ticketId: t.ticketId, code: t.code, rowLabel: t.rowLabel, seatNumber: t.seatNumber }));
+
 /**
  * The signed-in user's tickets (plan section 3: ownership is filtered in the query). Only `confirmed` bookings are listed;
  * a `rejected` booking never produced a ticket and is not shown. Newest first, at most `MY_BOOKINGS_LIMIT`.
@@ -33,7 +37,7 @@ export class ListMyBookingsQuery {
     return bookings.map((b) => ({
       ...b,
       status: "confirmed",
-      tickets: (byBooking.get(b.bookingId) ?? []).sort(bySeat).map((t) => ({ ticketId: t.ticketId, code: t.code, rowLabel: t.rowLabel, seatNumber: t.seatNumber })),
+      tickets: toMyTickets(byBooking.get(b.bookingId) ?? []),
     }));
   }
 }

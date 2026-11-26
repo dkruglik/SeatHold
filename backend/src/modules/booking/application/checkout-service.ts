@@ -1,15 +1,25 @@
+import type { WarnLogger } from "../../../shared/logging/warn-logger.js";
 import type { Clock } from "../../../shared/time/clock.js";
 import { HoldExpired, HoldNotFound, PaymentFailed } from "../domain/errors.js";
 import { parseGuestEmail } from "../domain/guest-email.js";
 import type { Holder } from "../domain/holder.js";
 import { totalFor } from "../domain/money.js";
 import type { Booking, CheckoutAttempt, CheckoutRepository } from "./ports/checkout-repository.js";
+import type { GuestLinkIssuer } from "./ports/guest-link-issuer.js";
 import type { PaymentGateway, PaymentOutcomeHint } from "./ports/payment-gateway.js";
 
 export interface CheckoutDeps {
   readonly checkout: CheckoutRepository;
   readonly payments: PaymentGateway;
   readonly clock: Clock;
+  /** Set by the composition root; without it a guest checkout issues no link. */
+  readonly guestLinks?: GuestLinkDeps | undefined;
+}
+
+export interface GuestLinkDeps {
+  readonly issuer: GuestLinkIssuer;
+  readonly bookings: { findConfirmedGuestBooking(bookingId: string): Promise<{ readonly event: { readonly title: string; readonly startsAt: Date } } | null> };
+  readonly logger: WarnLogger;
 }
 
 export interface CheckoutInput {
@@ -50,7 +60,25 @@ export class CheckoutService {
       await checkout.recordFailedPayment(confirming);
       throw new PaymentFailed();
     }
-    return this.confirm(confirming);
+    const booking = await this.confirm(confirming);
+    if (guestEmail !== null) await this.issueGuestLink(booking.id, guestEmail);
+    return booking;
+  }
+
+  /**
+   * After the booking is committed, outside its transaction. The booking stays confirmed whatever happens here:
+   * the buyer can use the resend form, so a failure is logged (booking id only) and not rethrown (DECISIONS.md).
+   */
+  private async issueGuestLink(bookingId: string, email: string): Promise<void> {
+    const links = this.deps.guestLinks;
+    if (links === undefined) return;
+    try {
+      const stored = await links.bookings.findConfirmedGuestBooking(bookingId);
+      if (stored === null) throw new Error("confirmed guest booking not readable");
+      await links.issuer.issue({ bookingId, email, eventStartsAt: stored.event.startsAt, eventTitle: stored.event.title });
+    } catch (error) {
+      links.logger.warn("guest link could not be issued; the buyer can request a new link", { bookingId, errorName: error instanceof Error ? error.name : "unknown" });
+    }
   }
 
   private async confirm(attempt: CheckoutAttempt): Promise<Booking> {
