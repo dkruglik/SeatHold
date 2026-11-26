@@ -58,7 +58,7 @@ For production, add the same three lines to the task environment.
 ### Other requirements
 
 1. The Phase 1 requirements still apply: https on `<site-origin>`, `FRONTEND_ORIGIN` equal to the exact browser origin (every booking mutation checks the `Origin` header), and `/api/*` routed to the backend.
-2. TODO(operator): decide how the production catalog is loaded. The `seed` command refuses to run when `APP_ENV=production` (it also creates a well-known admin), so it is not a production path. Until you decide, the production database has no venues, shows or events, and the seat map route has nothing to return.
+2. TODO(operator): decide whether this is a demo deployment or a real one. The `seed` command refuses to run when `APP_ENV=production` (it also creates a well-known admin). The catalog-only command `node backend/dist/scripts/seed-catalog.js` is allowed in production (DECISIONS.md O69) and loads fictional demo data (12 venues, 200 shows, 200 events, 40,000 seats). For a demo deployment run it once after the deploy ("After deploy", section 6). For a real deployment do not run it: real events come from the back office in Phase 4 (`POST /api/admin/events`), and until then the production database has no venues, shows or events and the seat map route has nothing to return.
 3. TODO(operator): the mock payment gateway is the only payment adapter. `POST /api/events/:eventId/hold/checkout` takes `paymentOutcome` (`succeed` or `fail`) from the client, so any caller can mark a payment as paid. Do not expose the booking routes to real customers in production until a real payment adapter replaces it, or block `POST /api/events/*/hold/checkout` at the edge. Decide which, and who owns it.
 4. The expiry sweeper exists (`backend/src/modules/booking/infrastructure/persistence/prisma-hold-sweeper.ts`) but is not scheduled and not needed for correctness: expiry is lazy. Nothing schedules it in this release; the optional one-off sweep command is in section 7, and correctness does not depend on it.
 
@@ -108,7 +108,7 @@ unset DATABASE_URL
 
 Expected: `Database schema is up to date!`
 
-No manual data steps. The catalog is not loaded by this deploy (see "Other requirements", item 2).
+No manual data steps. The deploy does not load the catalog; a demo deployment loads it afterwards with the one-off command in "After deploy", section 6 (see "Other requirements", item 2).
 
 ## After deploy: check the feature
 
@@ -143,7 +143,7 @@ psql "host=<db-host> port=<db-port> dbname=<db-name> user=<db-user> sslmode=requ
 SELECT migration_name, finished_at IS NOT NULL AS finished, rolled_back_at IS NOT NULL AS rolled_back
 FROM _prisma_migrations WHERE migration_name = '20261126130000_booking_schema';
 
--- The eight tables exist with their row counts; expected: 8 rows. After a deploy with no catalog every count is 0.
+-- The eight tables exist with their row counts; expected: 8 rows. After a deploy with no catalog every count is 0; after the demo catalog (section 6) venues=12, shows=200, events=200, seats=40000.
 -- A local seeded database shows venues=12, shows=200, events=200, seats=40000 and 0 for the rest until someone books.
 SELECT 'venues' AS table_name, count(*) AS rows FROM venues
 UNION ALL SELECT 'shows', count(*) FROM shows
@@ -167,7 +167,7 @@ If the first query returns no row, the migration was not applied: go back to "Mi
 
 ### 3. Pick an event and read its seat map
 
-This needs a loaded catalog (see "Other requirements", item 2). In psql, pick the earliest upcoming event that still has a free seat, and one free seat of it:
+This needs a loaded catalog (demo deployment: section 6; see "Other requirements", item 2). In psql, pick the earliest upcoming event that still has a free seat, and one free seat of it:
 
 ```sql
 -- One event id; expected: 1 row. Copy event_id into EVENT_ID.
@@ -238,15 +238,36 @@ node scripts/test-db.mjs run -- npm run test:integration -w backend -- prisma-ho
 
 Expected: both finish with all tests passed. The first runs 100 parallel holds on one seat and expects exactly one winner. The second moves a controlled clock past the hold duration and expects the seat to be on sale again, without real waiting.
 
-### 6. Seeding the local catalog (development only)
+### 6. Loading the catalog
 
-**Action (local, never production):** `db:seed` also loads the catalog. It refuses with exit code 1 when `APP_ENV=production`.
+**Action (demo deployments only):** `db:seed` refuses to run with `APP_ENV=production` (exit code 1, nothing written) because it also creates a well-known admin, so production uses the catalog-only command (DECISIONS.md O69). It never creates or touches a user and loads **fictional demo data**: 12 venues, 200 shows, 200 events starting in the 90 days after the run, and 40,000 seats. Run it once, as a one-off task started from the API image with the same environment as the API (it needs `DATABASE_URL` and the other required variables), working directory `/app` as the Dockerfile sets, command:
 
 ```bash
-npm run db:seed
+node backend/dist/scripts/seed-catalog.js
 ```
 
-Expected last line on a fresh local database: `catalog inserted venues=12 shows=200 events=200 seats=40000`. A second run prints zeros (`venues=0 shows=0 events=0 seats=0`).
+TODO(operator): the AWS command that starts the one-off task (the README gives no AWS commands). For a real deployment skip this section: the catalog comes from the back office in Phase 4, and no import-from-file command exists.
+
+Expected output on the first run, exit code 0:
+
+```text
+catalog inserted venues=12 shows=200 events=200 seats=40000
+```
+
+A second run prints zeros (`catalog inserted venues=0 shows=0 events=0 seats=0`) and exits 0: ids are fixed and inserts are `ON CONFLICT DO NOTHING`, so it is safe to repeat, never resets a held or sold seat and adds no shows. Any argument prints `Usage: npm run seed:catalog -w backend (takes no arguments)` on stderr and exits 2. Event start dates are relative to the first run; a later rerun does not move them.
+
+Check, in psql:
+
+```sql
+-- Expected: venues 12, shows 200, events 200, seats 40000
+SELECT (SELECT count(*) FROM venues) AS venues, (SELECT count(*) FROM shows) AS shows,
+       (SELECT count(*) FROM events) AS events, (SELECT count(*) FROM seats) AS seats;
+
+-- Expected: the same number as before the command (the command creates no user)
+SELECT count(*) FROM users;
+```
+
+In development, `npm run seed:catalog` (or `npm run db:seed`, which also creates the local accounts) does the same; the expected output is identical.
 
 ### 7. Sweeping expired holds (optional)
 
@@ -295,10 +316,10 @@ Expected: `COMMIT`. The Phase 1 tables and accounts are untouched.
 ## Known limits
 
 - The mock payment takes the outcome from the client and is the only payment adapter (see the TODO(operator) in "Other requirements").
-- The production catalog has no loader: the seed is local only (see the TODO(operator) in "Other requirements").
+- The production catalog is fictional demo data loaded by `seed:catalog` (section 6); a real deployment has no loader until the back office (Phase 4), and there is no import from a file. Event start dates stay those of the first run.
 - The sweeper is not scheduled (the one-off command `node backend/dist/scripts/sweep-holds.js` exists). Stale `held` rows stay until a later hold or read treats them as free; correctness does not depend on it.
 - No booking UI yet (Phase 3), so nothing in the browser exercises these routes.
 - The backend image has no migration path (DECISIONS.md O35), as in Phase 1.
 - The GitHub Actions workflow has not run on this branch.
-- TODO(operator) lines above: how the production catalog is loaded, how to keep the mock payment away from real customers, the backend release command, the log-group name, and migrating through the direct database endpoint.
-- README: "Booking" in `README.md`. Decisions: DECISIONS.md D1, D2, D4, D6 and O58 to O68 (O67 is the checkout price, O68 the external review).
+- TODO(operator) lines above: whether this is a demo or a real deployment (and so whether to load the demo catalog), how to keep the mock payment away from real customers, the backend release command, the log-group name, and migrating through the direct database endpoint.
+- README: "Booking" in `README.md`. Decisions: DECISIONS.md D1, D2, D4, D6 and O58 to O69 (O67 is the checkout price, O68 the external review, O69 loading the catalog in production).
