@@ -203,6 +203,7 @@ Nothing is deployed, so there is nothing to roll back in an environment. To undo
 
 ## Known limits
 
+- The runtime image has neither the Prisma CLI nor migrations (DECISIONS.md O35); Phase 1 it-1 must add a one-off migration task or image stage. Deploy sets `APP_ENV=production` explicitly: an unset `APP_ENV` means `local` rules (O32).
 - TODO(operator): the GitHub workflow `.github/workflows/ci.yml` has never run. Its first run must be fully green, especially the multi-arch `image-build` job. The arm64 build is unproven on the development host (no buildx or QEMU there).
 - TODO(operator): the macOS install skill (`.claude/skills/install-seathold/`) is v0 and has not been run on a clean Mac. Run it once and record the result.
 - TODO(operator): the Agent Manager review of this branch (agent SH-cursor) ended `blocked` (input-required) and was replaced by an in-session review. Decide whether a second review is needed.

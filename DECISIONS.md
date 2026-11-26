@@ -319,8 +319,8 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 
 - **Choice.** Fastify's logger writes JSON to stdout. Custom `req` and `res` serializers add the request and response headers to the log entries (Fastify's defaults omit them), and Pino `redact` replaces `req.headers.cookie`, `req.headers["x-csrf-token"]`, `req.headers.authorization` and `res.headers["set-cookie"]` with `[Redacted]` (`authorization` was added after review, because the serializer logs every request header). Request bodies are never logged. Shutdown signals are bound with `on` (`bindShutdownSignals`), not `once`, so a second signal reaches the shutdown guard instead of killing the process. Shutdown logs `shutdown started` and `shutdown complete` (or `shutdown timed out`, exit 1) with the signal.
 - **Options.** Do not log headers (nothing to redact, but less diagnostic detail); redact by allowlisting headers instead of a denylist.
-- **Trade-off.** A denylist: a new secret-bearing header (for example a service API key header in Phase 1) must be added to `redactedPaths`. The logged `url` includes the query string, so a token must never travel in a query string.
-- **Status.** `implemented`: `backend/src/infrastructure/logging/logger-options.ts`, `backend/src/shutdown.ts`, tests `presentation/http/log-redaction.test.ts`, `shutdown.test.ts` (Phase 0 it-4).
+- **Trade-off.** A denylist: a new secret-bearing header (for example a service API key header in Phase 1) must be added to `redactedPaths`. The logged `url` is the path only (the query string is cut off, review fix), so a token in a query string cannot be logged; the diagnostic lost is the query parameters of a failing request (the route and method remain). The error path is covered too: a throwing route logs one error record whose request headers stay `[Redacted]`.
+- **Status.** `implemented`: `backend/src/infrastructure/logging/logger-options.ts`, `backend/src/shutdown.ts`, tests `presentation/http/log-redaction.test.ts`, `shutdown.test.ts` (Phase 0 it-4, query string and error path in the review fixes).
 
 ### O26. Frontend dependencies and the read-only ApiClient
 
@@ -363,6 +363,34 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Options.** The `pg` default (also 10, but implicit and not tunable per environment); no upper bound (a typo could exhaust the database).
 - **Trade-off.** One more variable to size per environment; the bound of 100 is a sanity limit, not a capacity plan.
 - **Status.** `implemented`: `backend/src/config/load-config.ts`, `backend/src/infrastructure/persistence/prisma-service.ts`, `.env.example`; tests `load-config.test.ts`, `prisma-service.test.ts`, `database-clock.test.ts` (Phase 0 review fixes).
+
+### O32. APP_ENV defaults to local
+
+- **Choice.** An unset `APP_ENV` gives `local` (plan section 7), which also skips the production `FRONTEND_ORIGIN` rule (O22). `load-config.test.ts` documents this fail-open default.
+- **Options.** No default, so a missing `APP_ENV` fails at startup (safer, but every local run and test needs the variable); default `production` (wrong for development).
+- **Trade-off.** A production task that forgets `APP_ENV` runs with local rules. Mitigation: the production deploy sets `APP_ENV=production` explicitly and the release guide checks it. The default is not changed.
+- **Status.** `implemented`: `backend/src/config/load-config.ts`, test `load-config.test.ts` (Phase 0 review fixes).
+
+### O33. Startup failures print a class and code, never a message
+
+- **Choice.** `server.ts` is a thin entry; `run(env, io, createRuntime)` in `backend/src/run.ts` holds startup with injected ports (stderr, exit, signals) and a runtime factory (`runtime.ts` builds the real app and Prisma pool). A `ConfigError` prints its message (variable names and rules). Any other failure prints `Startup failed: <ErrorClass>` plus ` (code <code>)` when the error has a string or number `code`; the message is never printed because it can carry the `DATABASE_URL` with its password (rule 13). Exit code 1. A signal that arrives before `listen` runs the shutdown path once, skips `listen`, and does not print a startup failure.
+- **Options.** Print the message (leaks credentials); print nothing (no diagnostics); log through the app logger (not built yet when config fails).
+- **Trade-off.** Less detail on stderr: the cause chain and message are lost, the class and code remain.
+- **Status.** `implemented`: `backend/src/run.ts`, `backend/src/runtime.ts`, `backend/src/server.ts`, test `backend/src/run.test.ts` (Phase 0 review fixes).
+
+### O34. HTTP error body
+
+- **Choice.** `registerErrorHandler` (`presentation/http/hooks/error-handler.ts`, called from `buildApp`) answers every error as `{ "error": { "code", "message" } }`. `ValidationError` 400 `validation_error`, `AuthenticationError` 401 `authentication_required`, `AuthorizationError` 403 `forbidden`, `BusinessError` 409 `business_rule_violation` (their messages are written for the client). Fastify request errors (malformed JSON, schema validation) give 400 `invalid_request` and an oversized body 413 `payload_too_large`, with fixed text because Fastify's messages can quote input. `InfrastructureError` and anything unknown give 500 `internal_error` with a generic message; the real error is logged once with its stack and the request.
+- **Options.** Fastify's default handler (returns the thrown message); 422 for business errors (409 chosen: a rule conflicts with the current state, for example a held seat).
+- **Trade-off.** Clients get no field-level detail for schema failures yet; add it per route when a form needs it.
+- **Status.** `implemented`: `backend/src/presentation/http/hooks/error-handler.ts`, test `error-handler.test.ts` (Phase 0 review fixes).
+
+### O35. Migrations are not in the runtime image
+
+- **Choice.** The runtime image (O28) has neither the Prisma CLI nor the migration files, so it cannot apply migrations. Phase 1 it-1 adds a one-off migration task or image stage, run once per deploy and not at instance startup (rule 01, "Safe on every instance").
+- **Options.** Migrate on container start (runs on every instance); ship the CLI in the runtime image (larger image, more attack surface).
+- **Trade-off.** Until Phase 1 there is no schema, so nothing needs migrating.
+- **Status.** `planned`: Phase 1 it-1.
 
 ---
 
