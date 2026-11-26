@@ -1,0 +1,10 @@
+// Datasource and generator only; the first models arrive in Phase 1.
+// The connection URL comes from DATABASE_URL through prisma.config.ts.
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

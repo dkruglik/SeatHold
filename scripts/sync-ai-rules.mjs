@@ -138,8 +138,16 @@ function trackedFiles(root) {
   return result.stdout.split(/\r?\n/).filter((file) => file !== "");
 }
 
+// .cursor/ and .claude/rules/ are gitignored: a clean checkout (CI) has no canonical files, so there is nothing to mirror or validate.
+export function hasCanonicalRules(root = rootDir) {
+  return fs.existsSync(path.join(root, ".cursor/rules"));
+}
+
 // Returns human-readable errors for canonical rules that would load wrongly or match nothing.
 export function validateRepository(root = rootDir) {
+  if (!hasCanonicalRules(root)) {
+    return [];
+  }
   const errors = [];
   const tracked = trackedFiles(root);
   for (const file of listFiles(path.join(root, ".cursor/rules"), ".mdc")) {
@@ -217,6 +225,9 @@ export function planMirror(root = rootDir) {
 
 // Repo-relative paths whose content differs from the Cursor canonical files, or that should not exist.
 export function findDrift(root = rootDir) {
+  if (!hasCanonicalRules(root)) {
+    return [];
+  }
   const { writes, removals } = planMirror(root);
   const drift = [];
   for (const [file, content] of writes) {
@@ -309,13 +320,22 @@ function main(argv) {
     return 0;
   }
   if (argv.includes("--check")) {
-    const errors = validateRepository(rootDir);
-    const drift = findDrift(rootDir);
-    if (errors.length === 0 && drift.length === 0) {
-      console.log("AI rules: .claude/ mirrors .cursor/ and every path scope matches a tracked file");
+    if (!hasCanonicalRules(rootDir)) {
+      console.log("AI rules: .cursor/rules is not in this checkout, skipping the mirror and path-scope checks");
       return 0;
     }
-    for (const error of errors) console.error(`error: ${error}`);
+    const errors = validateRepository(rootDir);
+    const drift = findDrift(rootDir);
+    // A path scope for code that a later phase adds matches nothing yet. That is a warning until the files exist
+    // (Phase 0 has no application code); drift and a conflicting alwaysApply/globs pair always fail.
+    const unmatched = errors.filter((error) => error.endsWith("matches no tracked file"));
+    const failures = errors.filter((error) => !unmatched.includes(error));
+    for (const warning of unmatched) console.warn(`warning: ${warning}`);
+    if (failures.length === 0 && drift.length === 0) {
+      console.log(`AI rules: .claude/ mirrors .cursor/${unmatched.length > 0 ? ` (${unmatched.length} path scope(s) match no tracked file yet)` : " and every path scope matches a tracked file"}`);
+      return 0;
+    }
+    for (const error of failures) console.error(`error: ${error}`);
     for (const file of drift) console.error(`drift: ${file} (run: node scripts/sync-ai-rules.mjs --write)`);
     return 1;
   }

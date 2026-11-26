@@ -280,6 +280,13 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Trade-off.** A stolen cookie stays valid longer; mitigated by `HttpOnly` cookies, logout-all, and an admin idle timeout listed before production.
 - **Status.** `planned`: Phase 1 it-4.
 
+### O20. Phase 0 tooling versions
+
+- **Choice.** Exact pins, Node 24. TypeScript 6.0.3 (typescript-eslint 8.74.0 supports TypeScript below 6.1, so TypeScript 7 waits). Prisma 7.10.1 (the `latest` tag is a release candidate); with Prisma 7 the connection URL lives in `backend/prisma.config.ts`, not in `schema.prisma`. `@types/node` 24.x to match the runtime. Extra packages beyond the Phase 0 list: `pg` and `@types/pg` (`scripts/test-db.mjs` and the integration smoke test), `@eslint/js` (ESLint recommended rules), `@testing-library/dom` (peer of Testing Library React), `@types/react` and `@types/react-dom`. Root `overrides` pins the transitive `effect` to 3.22.5 because Prisma's config package pulls a version with a high-severity advisory (dev-only).
+- **Options.** TypeScript 7 (not supported by typescript-eslint yet); Prisma 8 release candidate; a dated exception in `scripts/security-scan.mjs` instead of the override.
+- **Trade-off.** The override must be removed once Prisma ships a fixed `effect`.
+- **Status.** `implemented`: `package.json`, `backend/package.json`, `frontend/package.json`, `package-lock.json` (Phase 0 it-2).
+
 ---
 
 ## Back-office capability proposal

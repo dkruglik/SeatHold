@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -107,16 +108,35 @@ describe("splitFrontmatter", () => {
   });
 });
 
+describe("checkout without the local agent tooling", () => {
+  // .cursor/ and .claude/rules/ are gitignored, so a clean checkout (CI) has neither; the check skips cleanly.
+  it("reports no drift and no errors when .cursor/rules does not exist", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "seatholder-clean-"));
+    try {
+      fs.mkdirSync(path.join(root, ".claude/skills/install-seathold"), { recursive: true });
+      fs.writeFileSync(path.join(root, ".claude/skills/install-seathold/SKILL.md"), "# skill\n");
+
+      assert.deepEqual(findDrift(root), []);
+      assert.deepEqual(validateRepository(root), []);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("repository state", () => {
-  it("keeps the Claude tree a faithful mirror of the Cursor canonical files", () => {
+  const hasCursorTree = fs.existsSync(path.join(rootDir, ".cursor/rules"));
+  const localOnly = { skip: hasCursorTree ? false : ".cursor/rules is not in this checkout" };
+
+  it("keeps the Claude tree a faithful mirror of the Cursor canonical files", localOnly, () => {
     assert.deepEqual(findDrift(rootDir), []);
   });
 
-  it("has no rule whose path scope matches no tracked file", () => {
+  it("has no rule whose path scope matches no tracked file", localOnly, () => {
     assert.deepEqual(validateRepository(rootDir), []);
   });
 
-  it("loads only the approved rules on every session", () => {
+  it("loads only the approved rules on every session", localOnly, () => {
     const alwaysOn = fs
       .readdirSync(path.join(rootDir, ".cursor/rules"))
       .filter((file) => file.endsWith(".mdc"))
@@ -129,14 +149,14 @@ describe("repository state", () => {
   it("denies secret env files at any depth in Claude and Cursor and keeps the example templates readable", () => {
     const secretNames = [".env", ".env.local", ".env.*.local", ".env.docker.local"];
     const examples = [".env.example", ".env.local.example", ".env.docker.local.example"];
-    const cursorIgnore = read(".cursorignore").split(/\r?\n/);
+    const cursorIgnore = fs.existsSync(path.join(rootDir, ".cursorignore")) ? read(".cursorignore").split(/\r?\n/) : null;
     const claudeDeny = JSON.parse(read(".claude/settings.json")).permissions.deny;
 
     // Claude: each secret name is denied at the root and at any depth.
     for (const name of secretNames) {
       assert.ok(claudeDeny.includes(`Read(./${name})`), `Read(./${name}) missing`);
       assert.ok(claudeDeny.includes(`Read(./**/${name})`), `Read(./**/${name}) missing`);
-      assert.ok(cursorIgnore.includes(name), `${name} missing from .cursorignore`);
+      assert.ok(cursorIgnore === null || cursorIgnore.includes(name), `${name} missing from .cursorignore`);
     }
 
     // Claude: no broad .env* wildcard, so other files such as .env.manager stay readable.
@@ -155,6 +175,10 @@ describe("repository state", () => {
     }
 
     // Cursor: still uses the broad pattern, with exactly the three examples after it.
+    // .cursorignore is Cursor-local and not tracked, so a clean checkout has none.
+    if (cursorIgnore === null) {
+      return;
+    }
     const broadCursor = cursorIgnore.indexOf("**/.env*");
     assert.ok(broadCursor >= 0);
     assert.deepEqual(

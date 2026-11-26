@@ -1,0 +1,44 @@
+{
+  "name": "seatholder",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently --names backend,frontend --kill-others-on-fail \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "lint": "node scripts/sync-ai-rules.mjs --check && npm run lint -w backend && npm run lint -w frontend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
+    "test": "npm run test -w backend && npm run test -w frontend && node --test scripts/*.test.mjs && node scripts/test-db.mjs run -- npm run test:integration -w backend",
+    "test:integration": "node scripts/test-db.mjs run -- npm run test:integration -w backend",
+    "verify": "node scripts/verify.mjs",
+    "verify-fast-part": "node scripts/verify.mjs --part fast",
+    "verify-slow-part": "node scripts/verify.mjs --part slow",
+    "db:start": "docker compose up -d --wait postgres",
+    "db:stop": "docker compose down",
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:migrate:deploy": "npm run db:migrate:deploy -w backend",
+    "db:generate": "npm run db:generate -w backend",
+    "db:seed": "npm run db:seed -w backend"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.4",
+    "@types/pg": "8.23.1",
+    "concurrently": "10.0.7",
+    "eslint": "10.15.0",
+    "pg": "8.23.1",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.74.0",
+    "vitest": "5.1.2"
+  },
+  "overrides": {
+    "effect": "3.22.5"
+  }
+}

@@ -95,8 +95,8 @@ describe("buildPostgresDatabaseUrl", () => {
 describe("backend test script", () => {
   // test-db.mjs runs its command from the repository root, so a bare `npm run test:integration` would hit the
   // root wrapper, which provisions a second throwaway database.
-  it("runs the integration command in the backend workspace under the throwaway database", () => {
-    const scripts = JSON.parse(readFileSync(new URL("../backend/package.json", import.meta.url), "utf8")).scripts;
+  it("runs the integration command from the root test script, in the backend workspace under the throwaway database", () => {
+    const scripts = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).scripts;
 
     assert.match(scripts.test, /test-db\.mjs run -- npm run test:integration -w backend$/);
   });
