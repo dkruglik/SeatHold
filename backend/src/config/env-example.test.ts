@@ -5,7 +5,7 @@ import { configVariableNames, localCsrfSecretPlaceholder, localPepperPlaceholder
 // Variables in .env.example that the backend schema does not read: Docker Compose (docker-compose.yml)
 // and the frontend (frontend/src/app/config, checked by its own test).
 const composeVariables = ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"];
-const frontendVariables = ["VITE_API_BASE_URL"];
+const frontendVariables = ["VITE_API_BASE_URL", "VITE_SEAT_POLL_INTERVAL_MS"];
 // Schema variables that .env.example intentionally leaves out: SMTP_PASS is a secret (production injects it);
 // SMTP_USER is optional and only meaningful together with SMTP_PASS, so local Mailpit needs neither.
 // The only secret variable .env.example assigns, with a placeholder that is for local development only:

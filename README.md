@@ -96,6 +96,10 @@ Configuration (names and local defaults in `.env.example`; the rules for each ar
 | `HOLD_DURATION_MINUTES` | `10` | no | How long a seat hold lasts (positive integer) |
 | `MAX_SEATS_PER_HOLD` | `10` | no | Most seats in one hold (positive integer) |
 | `DEFAULT_CURRENCY` | `EUR` | no | Three uppercase letters (ISO 4217) |
+| `GUEST_LINK_TTL_HOURS` | `168` | no | How long a guest access link works (positive integer) |
+| `GUEST_RESEND_LIMIT` | `3` | no | Guest link resends per booking in the window (positive integer) |
+| `GUEST_RESEND_WINDOW_MINUTES` | `60` | no | The resend window (positive integer) |
+| `VITE_SEAT_POLL_INTERVAL_MS` | `3000` | no (public, frontend) | How often the event page polls seat status (positive integer) |
 
 ## Booking
 
