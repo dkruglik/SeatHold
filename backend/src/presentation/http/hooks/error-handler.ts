@@ -34,7 +34,7 @@ function handle(error: FastifyError | AppError, request: FastifyRequest, reply: 
   if (error instanceof AppError && error.kind !== "infrastructure") {
     const { status, code } = clientKinds[error.kind];
     void reply.code(status);
-    return body(code, error.message);
+    return body(error.publicCode ?? code, error.message);
   }
   const clientError = error instanceof AppError ? undefined : fastifyClientError(error as FastifyError);
   if (clientError !== undefined) {

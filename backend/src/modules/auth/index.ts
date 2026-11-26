@@ -30,3 +30,10 @@ export {
 export { HmacLoginCodeHasher } from "./infrastructure/crypto/hmac-login-code-hasher.js";
 export { RandomLoginCodeGenerator } from "./infrastructure/crypto/random-login-code-generator.js";
 export { isValidEmail } from "./domain/email.js";
+export { SessionService, type CreatedSession, type SessionServiceDeps } from "./application/session-service.js";
+export { LoginService, type LoginInput, type LoginResult } from "./application/login-service.js";
+export type { SessionTokens } from "./application/ports/session-tokens.js";
+export { CryptoSessionTokens } from "./infrastructure/crypto/crypto-session-tokens.js";
+export { createAuthServices, createPrismaAuthRepositories, type AuthRepositories, type AuthServiceDeps, type AuthServices } from "./auth-composition.js";
+export { authPlugin, type AuthPluginOptions } from "./presentation/http/auth-plugin.js";
+export { createAuthHooks, type AuthHooks } from "./presentation/http/hooks/require-auth.js";

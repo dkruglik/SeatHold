@@ -2,9 +2,12 @@ import { InfrastructureError } from "../../../shared/errors/app-error.js";
 import { emailsEqual } from "../domain/email.js";
 import { LoginCode } from "../domain/login-code.js";
 import type { Role } from "../domain/role.js";
+import { ActiveSession, Session } from "../domain/session.js";
 import { User } from "../domain/user.js";
 import type { EmailMessage, EmailProvider } from "./ports/email-provider.js";
 import type { LoginCodeRepository, NewLoginCode } from "./ports/login-code-repository.js";
+import type { NewSession, SessionRepository } from "./ports/session-repository.js";
+import type { SessionTokens } from "./ports/session-tokens.js";
 import type { UserRepository } from "./ports/user-repository.js";
 
 /** One stored code with the lifecycle columns the real table has. */
@@ -136,4 +139,61 @@ export class RecordingEmailProvider implements EmailProvider {
 
 export function deliveryFailure(): InfrastructureError {
   return new InfrastructureError("Email delivery failed (ECONNREFUSED)");
+}
+
+/** One stored session with its revocation time. */
+export interface StoredSession {
+  session: Session;
+  tokenHash: string;
+  revokedAt: Date | null;
+}
+
+/** In-memory sessions with the same rules as the Prisma repository; the user is read from the users repository on each lookup. */
+export class InMemorySessionRepository implements SessionRepository {
+  readonly rows: StoredSession[] = [];
+
+  constructor(private readonly users: InMemoryUserRepository) {}
+
+  create(input: NewSession): Promise<Session> {
+    const session = new Session(`session-${this.rows.length + 1}`, input.userId, input.now, input.expiresAt);
+    this.rows.push({ session, tokenHash: input.tokenHash, revokedAt: null });
+    return Promise.resolve(session);
+  }
+
+  async findActiveByTokenHash(tokenHash: string, now: Date): Promise<ActiveSession | null> {
+    const row = this.rows.find((candidate) => candidate.tokenHash === tokenHash && candidate.revokedAt === null && candidate.session.expiresAt > now);
+    const user = row === undefined ? null : await this.users.findById(row.session.userId);
+    return row === undefined || user === null ? null : new ActiveSession(row.session.id, row.session.expiresAt, user);
+  }
+
+  revoke(sessionId: string, now: Date): Promise<void> {
+    const row = this.rows.find((candidate) => candidate.session.id === sessionId);
+    if (row !== undefined && row.revokedAt === null) {
+      row.revokedAt = now;
+    }
+    return Promise.resolve();
+  }
+
+  revokeAllForUser(userId: string, now: Date): Promise<void> {
+    for (const row of this.rows) {
+      if (row.session.userId === userId && row.revokedAt === null) {
+        row.revokedAt = now;
+      }
+    }
+    return Promise.resolve();
+  }
+}
+
+/** Predictable tokens ("token-1", "token-2") and a reversible "hash", so a test can tell what was stored from what was handed out. */
+export class SequentialSessionTokens implements SessionTokens {
+  private sequence = 0;
+
+  generate(): string {
+    this.sequence += 1;
+    return `token-${this.sequence}`;
+  }
+
+  hash(token: string): string {
+    return `hash(${token})`;
+  }
 }

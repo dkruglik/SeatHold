@@ -4,7 +4,7 @@ import { ConfigError, loadConfig } from "./load-config.js";
 const databaseUrl = "postgresql://dbuser:s3cr3t-pass@db.internal:5432/seatholder";
 const pepper = "unit-test-pepper-0123456789-abcdefghij";
 const minimalEnv = { DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper };
-const productionEnv = { APP_ENV: "production", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, FRONTEND_ORIGIN: "https://seats.example.com" };
+const productionEnv = { APP_ENV: "production", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, FRONTEND_ORIGIN: "https://seats.example.com", COOKIE_SECURE: "true" };
 
 function failureOf(env: Record<string, string | undefined>): ConfigError {
   try {
@@ -35,6 +35,8 @@ describe("loadConfig defaults", () => {
       authRequestCodeLimit: 5,
       authRequestCodeWindowMinutes: 15,
       authRequestCodeCooldownSeconds: 60,
+      cookieSecure: false,
+      sessionTtlDays: 30,
     });
   });
 

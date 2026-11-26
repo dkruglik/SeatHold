@@ -4,7 +4,7 @@ import { ConfigError, loadConfig, localPepperPlaceholder } from "./load-config.j
 const databaseUrl = "postgresql://dbuser:s3cr3t-pass@db.internal:5432/seatholder";
 const pepper = "unit-test-pepper-0123456789-abcdefghij";
 const localEnv = { DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper };
-const productionEnv = { ...localEnv, APP_ENV: "production", FRONTEND_ORIGIN: "https://seats.example.com" };
+const productionEnv = { ...localEnv, APP_ENV: "production", FRONTEND_ORIGIN: "https://seats.example.com", COOKIE_SECURE: "true" };
 
 function failureOf(env: Record<string, string | undefined>): ConfigError {
   try {

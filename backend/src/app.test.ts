@@ -21,6 +21,8 @@ const config: AppConfig = {
   authRequestCodeLimit: 5,
   authRequestCodeWindowMinutes: 15,
   authRequestCodeCooldownSeconds: 60,
+  cookieSecure: false,
+  sessionTtlDays: 30,
 };
 
 describe("GET /api/health", () => {

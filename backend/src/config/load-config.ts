@@ -25,6 +25,9 @@ export interface AppConfig {
   readonly authRequestCodeLimit: number;
   readonly authRequestCodeWindowMinutes: number;
   readonly authRequestCodeCooldownSeconds: number;
+  /** The session cookie carries the Secure attribute. Required true in production (DECISIONS.md O44). */
+  readonly cookieSecure: boolean;
+  readonly sessionTtlDays: number;
 }
 
 /** The value `.env.example` carries for local development. Production refuses it (DECISIONS.md O42). */
@@ -50,6 +53,8 @@ const requirements = {
   AUTH_REQUEST_CODE_LIMIT: "must be a positive integer",
   AUTH_REQUEST_CODE_WINDOW_MINUTES: "must be a positive integer",
   AUTH_REQUEST_CODE_COOLDOWN_SECONDS: "must be a positive integer",
+  COOKIE_SECURE: "must be true or false (in production it must be true)",
+  SESSION_TTL_DAYS: "must be a positive integer",
 } as const;
 
 export const configVariableNames = Object.keys(requirements) as ReadonlyArray<keyof typeof requirements>;
@@ -88,6 +93,8 @@ const envSchema = z.object({
   AUTH_REQUEST_CODE_LIMIT: positiveInteger.default(5),
   AUTH_REQUEST_CODE_WINDOW_MINUTES: positiveInteger.default(15),
   AUTH_REQUEST_CODE_COOLDOWN_SECONDS: positiveInteger.default(60),
+  COOKIE_SECURE: z.enum(["true", "false"]).transform((value) => value === "true").default(false),
+  SESSION_TTL_DAYS: positiveInteger.default(30),
 });
 
 /** Thrown at startup for invalid configuration. Carries variable names and rules, never values (DATABASE_URL has a password). */
@@ -123,6 +130,9 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>> = p
   if (present.APP_ENV === "production" && present.AUTH_CODE_PEPPER === localPepperPlaceholder) {
     invalid.add("AUTH_CODE_PEPPER");
   }
+  if (present.APP_ENV === "production" && present.COOKIE_SECURE !== "true") {
+    invalid.add("COOKIE_SECURE");
+  }
   // Credentials come as a pair; the missing half is named.
   if ((present.SMTP_USER === undefined) !== (present.SMTP_PASS === undefined)) {
     invalid.add(present.SMTP_USER === undefined ? "SMTP_USER" : "SMTP_PASS");
@@ -148,6 +158,8 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>> = p
     authRequestCodeLimit: values.AUTH_REQUEST_CODE_LIMIT,
     authRequestCodeWindowMinutes: values.AUTH_REQUEST_CODE_WINDOW_MINUTES,
     authRequestCodeCooldownSeconds: values.AUTH_REQUEST_CODE_COOLDOWN_SECONDS,
+    cookieSecure: values.COOKIE_SECURE,
+    sessionTtlDays: values.SESSION_TTL_DAYS,
     ...(values.SMTP_USER === undefined ? {} : { smtpUser: values.SMTP_USER }),
     ...(values.SMTP_PASS === undefined ? {} : { smtpPass: values.SMTP_PASS }),
   });

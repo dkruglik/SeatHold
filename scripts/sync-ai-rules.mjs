@@ -137,7 +137,6 @@ function agentReferences(text, from, to) {
 export const unmatchedGlobAllowlist = [
   // Phase 1 (auth module, HTTP presentation, email, persistence adapters, first frontend feature service)
   { glob: "frontend/src/**/services/**", until: "phase 1 it-7: AuthApi feature service" },
-  { glob: "backend/**/modules/**/http/**", until: "phase 1: auth route modules" },
   { glob: "frontend/**/auth/**", until: "phase 1: frontend auth state" },
   { glob: "backend/src/infrastructure/email/**", until: "phase 1: email providers" },
   { glob: "backend/src/modules/auth/presentation/http/**/*service-auth*", until: "phase 1 or later: service auth hook, only if built" },
