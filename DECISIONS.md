@@ -180,7 +180,7 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Choice.** All routes under `/api`; Vite proxy locally, CloudFront path routing in production. No CORS plugin is installed, so cross-origin browser calls are refused. The health check is `GET /api/health` as well (container check, ALB target group, install skill), so the proxy and CloudFront route one path prefix; there is no separate `/health`.
 - **Options.** Separate API domain with credentialed CORS.
 - **Trade-off.** Needs path routing at the edge; in return session cookies stay first-party with `SameSite=Lax` and CORS stays closed.
-- **Status.** `implemented` for the backend: `backend/src/app.ts` registers every route under `/api` and no CORS plugin; tests `app.test.ts` (`/health` is 404, no CORS headers) (Phase 0 it-4). The Vite proxy follows in it-5, so the entry stays open until then.
+- **Status.** `implemented`: `backend/src/app.ts` registers every route under `/api` and no CORS plugin; tests `app.test.ts` (`/health` is 404, no CORS headers) (Phase 0 it-4). `frontend/vite.config.ts` proxies `/api` to `http://127.0.0.1:${BACKEND_PORT}` (default 3001) with the dev server on 5173; test `frontend/vite.config.test.ts` (Phase 0 it-5).
 
 ### O6. Hold model on the seat map
 
@@ -321,6 +321,20 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Options.** Do not log headers (nothing to redact, but less diagnostic detail); redact by allowlisting headers instead of a denylist.
 - **Trade-off.** A denylist: a new secret-bearing header (for example a service API key header in Phase 1) must be added to `redactedPaths`. The logged `url` includes the query string, so a token must never travel in a query string.
 - **Status.** `implemented`: `backend/src/infrastructure/logging/logger-options.ts`, `backend/src/shutdown.ts`, tests `presentation/http/log-redaction.test.ts`, `shutdown.test.ts` (Phase 0 it-4).
+
+### O26. Frontend dependencies and the read-only ApiClient
+
+- **Choice.** Exact pins in `frontend/package.json`: `react-router` 8.5.3, `@tanstack/react-query` 5.108.4, `@mantine/core` 9.8.2 and `@mantine/hooks` 9.8.2 (Mantine peer) are `dependencies`; `react` and `react-dom` stay `devDependencies` because the app ships as a static Vite bundle. `@mantine/dates` and `dayjs` from the Phase 0 list are not installed: no code imports them, so they wait for the first date UI (Phase 3 it-4). `ApiClient` (`frontend/src/shared/lib/api-client.ts`) sends relative `/api/...` URLs with `credentials: "include"`, maps a non-2xx response to `ApiError` (status, and `code` when the JSON body has a string `code`) and a failed request to `ApiNetworkError`; neither message contains response body text. It has `get` only. State-changing methods and the `X-CSRF-Token` header (rule 42) are added in Phase 1 together with the endpoint that issues the token, so no mutation can be sent without CSRF handling and no dead token code exists meanwhile.
+- **Options.** Add `post`/`put`/`patch`/`delete` now without a token (a footgun against rule 42); invent a token endpoint in Phase 0; install `@mantine/dates` and `dayjs` early (unused dependencies, rule 12).
+- **Trade-off.** Phase 1 extends `ApiClient` (a token provider and mutation methods); the shape of the token endpoint is decided there.
+- **Status.** `implemented`: `frontend/package.json`, `frontend/src/shared/lib/api-client.ts`, test `api-client.test.ts` (Phase 0 it-5). The Phase 1 extension is `planned`.
+
+### O27. Frontend shell: Mantine theme, router and test setup
+
+- **Choice.** `App` takes the router as a prop: `main.tsx` passes `createBrowserRouter(routes)`, tests pass `createMemoryRouter(routes)`. Providers are Mantine (one `theme` object in `app/theme.ts`) and TanStack Query. The home placeholder uses `<header>`, `<main>` and one `<h1>`. Vitest runs under jsdom with `src/test/setup.ts` (stubs `matchMedia` and `ResizeObserver`, which Mantine needs). `vite.config.ts` exports `createViteConfig(env)` so the proxy is testable; `BACKEND_PORT` is read through Vite `loadEnv` and validated by name only.
+- **Options.** A global router singleton (hard to test); `@testing-library/jest-dom` (one more dependency for assertions `getByRole` already makes).
+- **Trade-off.** Setup stubs must be kept in step with what Mantine reads in jsdom.
+- **Status.** `implemented`: `frontend/src/app/`, `frontend/src/features/home/`, `frontend/vite.config.ts`, tests `app.test.tsx`, `vite.config.test.ts` (Phase 0 it-5).
 
 ---
 
