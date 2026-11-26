@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { FastifyInstance, LightMyRequestResponse } from "fastify";
+import type { FastifyInstance, LightMyRequestResponse, RouteOptions } from "fastify";
 import { afterEach, beforeEach } from "vitest";
 import { buildApp } from "../../../../app.js";
 import type { AppConfig } from "../../../../config/load-config.js";
@@ -38,7 +38,14 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   };
 }
 
+export interface RegisteredRoute {
+  readonly method: string;
+  readonly url: string;
+}
+
 export interface AuthHarness {
+  /** Every route the built app registered, collected through `onRoute` before it started. */
+  readonly routes: RegisteredRoute[];
   readonly prisma: PrismaService;
   readonly clock: ControlledClock;
   readonly app: () => FastifyInstance;
@@ -63,15 +70,17 @@ export const cookieHeader = (sid: string): Record<string, string> => ({ cookie: 
 export const sha256Hex = (value: string): string => createHash("sha256").update(value).digest("hex");
 
 /** An app over the real Prisma repositories on the throwaway database, a controlled clock and a console email whose lines are captured. */
-export function useAuthApp(overrides: Partial<AppConfig> = {}): AuthHarness {
+export function useAuthApp(overrides: Partial<AppConfig> = {}, beforeReady?: (app: FastifyInstance) => void): AuthHarness {
   const prisma = useAuthDatabase();
   const clock = new ControlledClock(T0);
   const lines: string[] = [];
+  const routes: RegisteredRoute[] = [];
   let current: FastifyInstance | undefined;
 
   beforeEach(async () => {
     clock.set(T0);
     lines.length = 0;
+    routes.length = 0;
     const config = testConfig(overrides);
     const services = createAuthServices(config, {
       clock,
@@ -79,6 +88,10 @@ export function useAuthApp(overrides: Partial<AppConfig> = {}): AuthHarness {
       ...createPrismaAuthRepositories(prisma),
     });
     current = buildApp(config, { clock, auth: { services } });
+    current.addHook("onRoute", (route: RouteOptions) => {
+      for (const method of [route.method].flat()) routes.push({ method, url: route.url });
+    });
+    beforeReady?.(current);
     await current.ready();
   });
   afterEach(() => current?.close());
@@ -102,5 +115,5 @@ export function useAuthApp(overrides: Partial<AppConfig> = {}): AuthHarness {
     clock.advance(61_000);
     return post("/api/auth/verify", { email, code: await codeFor(email) }, headers);
   };
-  return { prisma, clock, app, codeFor, login, post, postBare, get };
+  return { routes, prisma, clock, app, codeFor, login, post, postBare, get };
 }

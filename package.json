@@ -24,7 +24,9 @@
     "db:migrate": "npm run db:migrate -w backend",
     "db:migrate:deploy": "npm run db:migrate:deploy -w backend",
     "db:generate": "npm run db:generate -w backend",
-    "db:seed": "npm run db:seed -w backend"
+    "db:seed": "npm run seed -w backend",
+    "user:promote": "npm run user:promote -w backend --",
+    "user:demote": "npm run user:demote -w backend --"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

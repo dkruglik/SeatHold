@@ -29,7 +29,7 @@ export interface RunIo {
  * What is safe to print about a startup failure: a ConfigError names variables and rules, never values.
  * Any other error prints its class and `code` only: its message may carry a connection string with the password (rule 13).
  */
-function describeFailure(error: unknown): string {
+export function describeFailure(error: unknown): string {
   if (error instanceof ConfigError) {
     return error.message;
   }

@@ -37,3 +37,4 @@ export { CryptoSessionTokens } from "./infrastructure/crypto/crypto-session-toke
 export { createAuthServices, createPrismaAuthRepositories, type AuthRepositories, type AuthServiceDeps, type AuthServices } from "./auth-composition.js";
 export { authPlugin, type AuthPluginOptions } from "./presentation/http/auth-plugin.js";
 export { createAuthHooks, type AuthHooks } from "./presentation/http/hooks/require-auth.js";
+export { requireRole } from "./presentation/http/hooks/require-role.js";

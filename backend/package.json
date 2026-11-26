@@ -16,7 +16,9 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "prisma db seed"
+    "seed": "tsx --env-file-if-exists=../.env src/scripts/seed.ts",
+    "user:promote": "tsx --env-file-if-exists=../.env src/scripts/user-promote.ts",
+    "user:demote": "tsx --env-file-if-exists=../.env src/scripts/user-demote.ts"
   },
   "devDependencies": {
     "@types/nodemailer": "8.0.2",

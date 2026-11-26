@@ -56,9 +56,11 @@ Create the role and database named by `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POS
 | `npm run db:generate` | Generates the Prisma client |
 | `npm run db:migrate` | Creates and applies a migration in development |
 | `npm run db:migrate:deploy` | Applies existing migrations |
-| `npm run db:seed` | Runs the seed script |
+| `npm run db:seed` | Creates the local admin and buyer accounts if missing; safe to repeat; refuses to run with `APP_ENV=production` |
+| `npm run user:promote -- <email>` | Makes an existing user an admin (the person signs in once first) |
+| `npm run user:demote -- <email>` | Makes an existing admin a buyer again; takes effect on their next request |
 
-`db:migrate` and `db:seed` have nothing to apply until Phase 1 adds the schema.
+Roles never change over HTTP: only `user:promote`, `user:demote` and the seed set them. The scripts print an email and a role, nothing else.
 
 ## Tests and verify
 
