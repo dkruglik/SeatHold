@@ -3,6 +3,7 @@ import { buildApp } from "./app.js";
 import type { AppConfig } from "./config/load-config.js";
 import { createAuthServices, createEmailProvider, createPrismaAuthRepositories } from "./modules/auth/index.js";
 import { createBookingServices } from "./modules/booking/index.js";
+import { createCatalogServices, createPrismaCatalogRepositories } from "./modules/catalog/index.js";
 import { PrismaService } from "./infrastructure/persistence/prisma-service.js";
 import type { Runtime } from "./run.js";
 import { DatabaseClock } from "./shared/time/database-clock.js";
@@ -15,5 +16,6 @@ export function createDefaultRuntime(config: AppConfig): Runtime & { readonly ap
   const email = createEmailProvider(config, { writeLine: (line) => process.stdout.write(`${line}\n`) });
   const services = createAuthServices(config, { clock, email, ...createPrismaAuthRepositories(prisma) });
   const booking = createBookingServices({ prisma, clock, holdDurationMinutes: config.holdDurationMinutes, maxSeatsPerHold: config.maxSeatsPerHold });
-  return { prisma, app: buildApp(config, { clock, auth: { services }, booking: { services: booking } }) };
+  const catalog = createCatalogServices(config, { ...createPrismaCatalogRepositories(prisma), clock });
+  return { prisma, app: buildApp(config, { clock, auth: { services }, booking: { services: booking }, catalog: { services: catalog } }) };
 }

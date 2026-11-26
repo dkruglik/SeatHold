@@ -61,19 +61,23 @@ model Venue {
   events      Event[]
 
   @@unique([name, city])
+  @@index([countryCode, city])
   @@map("venues")
 }
 
 model Show {
-  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String
-  type        String
-  genre       String
-  description String
-  events      Event[]
+  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  type         String
+  genre        String
+  description  String
+  // Generated column (to_tsvector('simple', title)) created in the migration; Prisma never writes it.
+  searchVector Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, title)")) @map("search_vector")
+  events       Event[]
 
   @@index([type])
   @@index([genre])
+  @@index([searchVector], type: Gin)
   @@map("shows")
 }
 

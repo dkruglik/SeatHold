@@ -9,6 +9,7 @@ import { registerErrorHandler } from "./presentation/http/hooks/error-handler.js
 import { healthRoute } from "./presentation/http/routes/health.route.js";
 import { adminPingRoute } from "./presentation/http/routes/admin-ping.route.js";
 import { authPlugin, createAuthHooks, type AuthPluginOptions } from "./modules/auth/index.js";
+import { catalogPlugin, type CatalogPluginOptions } from "./modules/catalog/index.js";
 import { bookingPlugin, type BookingPluginOptions } from "./modules/booking/index.js";
 import type { Clock } from "./shared/time/clock.js";
 
@@ -22,6 +23,8 @@ export interface AppDeps {
   readonly auth?: Pick<AuthPluginOptions, "services">;
   /** The booking module's services; routes under /api/events exist only when given, and they need `auth` for the session lookup. */
   readonly booking?: Pick<BookingPluginOptions, "services">;
+  /** The catalog module's services; the public /api/shows routes exist only when given. They need no auth. */
+  readonly catalog?: Pick<CatalogPluginOptions, "services">;
 }
 
 /**
@@ -36,6 +39,9 @@ export function buildApp(config: AppConfig, deps: AppDeps): FastifyInstance {
   registerErrorHandler(app);
   registerCsrfProtection(app, config);
   void app.register(healthRoute, { prefix: "/api" });
+  if (deps.catalog !== undefined) {
+    void app.register(catalogPlugin, { prefix: "/api", ...deps.catalog });
+  }
   if (deps.auth !== undefined) {
     const mutationHooks = browserStateChangeHooks(config);
     void app.register(authPlugin, {
