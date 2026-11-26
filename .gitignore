@@ -1,7 +1,32 @@
-.cursor
-scripts
-.claude/marketplace
-.claude/rules
-.claude/skills
-.env.manager
+# Dependencies and build output
+node_modules
+dist
+coverage
+perf/
+
+# Environment files (examples stay tracked)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local agent tooling: only CLAUDE.md and the install skill are committed
+.cursor/
+.claude/rules/
+.claude/marketplace/
+.claude/settings.local.json
+.claude/skills/*
+!.claude/skills/install-seathold/
+CLAUDE.local.md
+
+# Agent run and test state
 .agent-db.json
+.agent-run.json
+.test-db.json
+
+# gitlab-ci-local (scripts/verify.mjs)
+.gitlab-ci-local/
+.gitlab-ci-local-variables.yml
+
+# Brief with Part B; only the Part A copy is committed
+plans/Appcharge_AC11_TeamLeader_AI_Test_Task.md
