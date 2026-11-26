@@ -50,7 +50,7 @@ describe("bootstrap", () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockImplementation(() => Promise.resolve(new Response('{"user":null}', { status: 200 }))));
     bootstrap({}, rootElement());
 
-    await screen.findByRole("heading", { level: 1, name: "SeatHolder" });
+    await screen.findByRole("heading", { level: 1, name: "Find a show" });
   });
 
   it("fails fast on an absolute VITE_API_BASE_URL, naming the variable and not the value", () => {
