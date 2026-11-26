@@ -2,6 +2,10 @@
 export { HoldSeatService, type HoldSeatDeps, type HoldSeatResult } from "./application/hold-seat-service.js";
 export { ReleaseSeatService, type ReleaseSeatDeps } from "./application/release-seat-service.js";
 export { ExpireHoldsService, type SweepResult } from "./application/expire-holds-service.js";
+export { CheckoutService, type CheckoutDeps, type CheckoutInput } from "./application/checkout-service.js";
+export type { Booking, BookingTicket, CheckoutRepository } from "./application/ports/checkout-repository.js";
+export type { AuthorizeRequest, AuthorizeResult, PaymentGateway, PaymentOutcomeHint } from "./application/ports/payment-gateway.js";
+export { MockPaymentGateway } from "./infrastructure/payment/mock-payment-gateway.js";
 export { GetCurrentHoldQuery } from "./application/get-current-hold-query.js";
 export { GetSeatMapQuery, type SeatMap, type SeatMapSeat } from "./application/get-seat-map-query.js";
 export type { CurrentHold, CurrentHoldReader } from "./application/ports/current-hold-reader.js";

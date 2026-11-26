@@ -3,6 +3,7 @@ import { ControlledClock } from "../../../../shared/time/controlled-clock.js";
 import { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 
 import { createBookingServices, type BookingServices } from "../../booking-composition.js";
+import type { PaymentGateway } from "../../application/ports/payment-gateway.js";
 import { holderFrom, type Holder } from "../../domain/holder.js";
 
 export const T0 = new Date("2026-01-01T12:00:00Z");
@@ -77,7 +78,12 @@ export function holdRows(prisma: PrismaService, eventId: string): Promise<HoldRo
 export const visitor = (n: number | string): Holder => holderFrom({ visitorHash: `visitor-${n}` });
 
 /** Services over the real database with a controlled clock reset to T0. */
-export function bookingTestServices(prisma: PrismaService, maxSeatsPerHold = 10, clock = new ControlledClock(T0)): BookingServices {
+export function bookingTestServices(
+  prisma: PrismaService,
+  maxSeatsPerHold = 10,
+  clock = new ControlledClock(T0),
+  paymentGateway?: PaymentGateway,
+): BookingServices {
   clock.set(T0);
-  return createBookingServices({ prisma, clock, holdDurationMinutes: 10, maxSeatsPerHold });
+  return createBookingServices({ prisma, clock, holdDurationMinutes: 10, maxSeatsPerHold, ...(paymentGateway ? { paymentGateway } : {}) });
 }

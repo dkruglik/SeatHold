@@ -1,4 +1,4 @@
-import { BusinessError } from "../../../shared/errors/app-error.js";
+import { BusinessError, ValidationError } from "../../../shared/errors/app-error.js";
 
 /**
  * Booking rule violations. Each has a stable `publicCode` the HTTP error handler sends as `error.code`.
@@ -37,5 +37,12 @@ export class PaymentFailed extends BusinessError {
 export class EventNotFound extends BusinessError {
   constructor() {
     super("The event was not found", { publicCode: "EVENT_NOT_FOUND" });
+  }
+}
+
+/** Intended HTTP status 400: a guest checkout needs a syntactically valid email. */
+export class GuestEmailInvalid extends ValidationError {
+  constructor() {
+    super("A valid email address is required for a guest checkout", { publicCode: "GUEST_EMAIL_INVALID" });
   }
 }
