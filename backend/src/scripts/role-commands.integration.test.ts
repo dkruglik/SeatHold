@@ -16,7 +16,8 @@ describe("the user:promote, user:demote and seed commands on the database", () =
   const err: string[] = [];
   const io = { out: (line: string) => out.push(line), err: (line: string) => err.push(line) };
   const role = (email: string) => users.findByEmail(email).then((user) => user?.role ?? null);
-  const seed = () => runSeedCommand({ appEnv: "local", seed: new SeedUsersService({ users, clock: new ControlledClock(NOW) }), io });
+  const catalog = { seed: () => Promise.resolve({ venues: 0, shows: 0, events: 0, seats: 0 }) };
+  const seed = () => runSeedCommand({ appEnv: "local", seed: new SeedUsersService({ users, clock: new ControlledClock(NOW) }), catalog, io });
   const change = (to: "admin" | "buyer", email: string) => runRoleCommand(to, [email], { changeRole: new ChangeUserRoleService({ users }), io });
   const counts = () => prisma.client.user.count();
 

@@ -1,7 +1,20 @@
+import pg from "pg";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 
-export { sqlErrorCode } from "../../../auth/infrastructure/persistence/auth-test-support.js";
+/** Runs a raw statement on its own pg connection and returns the Postgres error code, or null when it succeeded. */
+export async function sqlErrorCode(sql: string, params: unknown[] = []): Promise<string | null> {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL ?? "" });
+  await client.connect();
+  try {
+    await client.query(sql, params);
+    return null;
+  } catch (error) {
+    return (error as { code?: string }).code ?? "unknown";
+  } finally {
+    await client.end();
+  }
+}
 
 export const NOW = new Date("2026-01-01T12:00:00Z");
 export const LATER = new Date("2026-01-01T12:10:00Z");

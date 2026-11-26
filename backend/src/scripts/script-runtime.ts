@@ -1,6 +1,7 @@
 import { loadConfig, type AppConfig } from "../config/load-config.js";
 import { PrismaService } from "../infrastructure/persistence/prisma-service.js";
 import { PrismaUserRepository, type UserRepository } from "../modules/auth/index.js";
+import { createPrismaCatalogRepositories, type CatalogRepositories } from "../modules/catalog/index.js";
 import { describeFailure } from "../run.js";
 import { DatabaseClock } from "../shared/time/database-clock.js";
 import type { Clock } from "../shared/time/clock.js";
@@ -9,6 +10,7 @@ import type { CommandIo } from "./command-io.js";
 export interface ScriptContext {
   readonly config: AppConfig;
   readonly users: UserRepository;
+  readonly catalog: CatalogRepositories;
   readonly clock: Clock;
 }
 
@@ -27,7 +29,7 @@ export async function runScript(
     const config = loadConfig(env);
     prisma = new PrismaService(config.databaseUrl, config.databasePoolMax);
     await prisma.connect();
-    return await body({ config, users: new PrismaUserRepository(prisma), clock: new DatabaseClock(prisma) });
+    return await body({ config, users: new PrismaUserRepository(prisma), catalog: createPrismaCatalogRepositories(prisma), clock: new DatabaseClock(prisma) });
   } catch (error: unknown) {
     io.err(describeFailure(error));
     return 1;
