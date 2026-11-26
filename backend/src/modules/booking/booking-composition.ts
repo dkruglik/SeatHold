@@ -6,12 +6,14 @@ import { HoldSeatService } from "./application/hold-seat-service.js";
 import type { HoldRepository } from "./application/ports/hold-repository.js";
 import { ExpireHoldsService } from "./application/expire-holds-service.js";
 import { GetCurrentHoldQuery } from "./application/get-current-hold-query.js";
+import { ListMyBookingsQuery } from "./application/list-my-bookings-query.js";
 import { GetSeatMapQuery } from "./application/get-seat-map-query.js";
 import { CheckoutService } from "./application/checkout-service.js";
 import type { PaymentGateway } from "./application/ports/payment-gateway.js";
 import { ReleaseSeatService } from "./application/release-seat-service.js";
 import { PrismaCurrentHoldReader } from "./infrastructure/persistence/prisma-current-hold-reader.js";
 import { PrismaHoldSweeper } from "./infrastructure/persistence/prisma-hold-sweeper.js";
+import { PrismaMyBookingsReader } from "./infrastructure/persistence/prisma-my-bookings-reader.js";
 import { PrismaSeatMapReader } from "./infrastructure/persistence/prisma-seat-map-reader.js";
 import { MockPaymentGateway } from "./infrastructure/payment/mock-payment-gateway.js";
 import { PrismaCheckoutRepository } from "./infrastructure/persistence/prisma-checkout-repository.js";
@@ -26,6 +28,7 @@ export interface BookingServices {
   readonly getCurrentHold: GetCurrentHoldQuery;
   readonly expireHolds: ExpireHoldsService;
   readonly checkout: CheckoutService;
+  readonly listMyBookings: ListMyBookingsQuery;
 }
 
 export type BookingSettings = Pick<AppConfig, "holdDurationMinutes" | "maxSeatsPerHold">;
@@ -45,6 +48,7 @@ export function createBookingServices(deps: BookingSettings & { readonly prisma:
     getSeatMap: new GetSeatMapQuery({ reader: new PrismaSeatMapReader(deps.prisma), clock }),
     getCurrentHold: new GetCurrentHoldQuery({ holds: new PrismaCurrentHoldReader(deps.prisma), clock }),
     expireHolds: new ExpireHoldsService({ sweeper: new PrismaHoldSweeper(deps.prisma), clock }),
+    listMyBookings: new ListMyBookingsQuery({ reader: new PrismaMyBookingsReader(deps.prisma) }),
     checkout: new CheckoutService({
       checkout: new PrismaCheckoutRepository(deps.prisma, generateTicketCode),
       payments: deps.paymentGateway ?? new MockPaymentGateway(),

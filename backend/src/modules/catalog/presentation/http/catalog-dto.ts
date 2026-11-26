@@ -1,4 +1,5 @@
 import type { Facets } from "../../application/get-facets-query.js";
+import type { EventDetailRow } from "../../application/ports/event-detail-reader.js";
 import type { EventSearchResult } from "../../application/search-events-query.js";
 
 /** Unknown parameters are rejected with 400 (`propertyNames`), as Ajv would otherwise drop them silently. */
@@ -76,3 +77,26 @@ export const facetsResponseSchema = {
 } as const;
 
 export const toFacetsDto = (facets: Facets): Facets => facets;
+
+export const eventDetailParamsSchema = {
+  type: "object",
+  properties: { eventId: { type: "string", format: "uuid" } },
+  required: ["eventId"],
+} as const;
+
+export const eventDetailSchema = {
+  type: "object",
+  properties: {
+    eventId: str, showId: str, title: str, type: str, genre: str, description: str,
+    venue: {
+      type: "object",
+      properties: { id: str, name: str, city: str, countryCode: str, timezone: str },
+      required: ["id", "name", "city", "countryCode", "timezone"],
+    },
+    startsAt: str, priceMinor: { type: "integer" }, currency: str,
+    rows: { type: "integer" }, seatsPerRow: { type: "integer" }, seatsLeft: { type: "integer" },
+  },
+  required: ["eventId", "showId", "title", "type", "genre", "description", "venue", "startsAt", "priceMinor", "currency", "rows", "seatsPerRow", "seatsLeft"],
+} as const;
+
+export const toEventDetailDto = (event: EventDetailRow) => ({ ...event, startsAt: event.startsAt.toISOString() });

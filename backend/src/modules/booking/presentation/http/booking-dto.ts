@@ -1,5 +1,6 @@
 import type { Booking } from "../../application/ports/checkout-repository.js";
 import type { CurrentHold } from "../../application/ports/current-hold-reader.js";
+import type { MyBooking } from "../../application/list-my-bookings-query.js";
 import type { SeatMap } from "../../application/get-seat-map-query.js";
 
 export const eventParamsSchema = {
@@ -94,3 +95,37 @@ export const toBookingDto = (booking: Booking): Booking => ({
   id: booking.id, status: booking.status, eventId: booking.eventId, seatIds: booking.seatIds,
   tickets: booking.tickets.map((t) => ({ seatId: t.seatId, code: t.code })), totalMinor: booking.totalMinor, currency: booking.currency,
 });
+
+const str = { type: "string" } as const;
+
+export const myBookingsSchema = {
+  type: "array",
+  items: {
+    type: "object",
+    properties: {
+      bookingId: str, status: str, createdAt: str, totalMinor: { type: "integer" }, currency: str,
+      event: {
+        type: "object",
+        properties: { eventId: str, title: str, startsAt: str, venueName: str, city: str, timezone: str },
+        required: ["eventId", "title", "startsAt", "venueName", "city", "timezone"],
+      },
+      tickets: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { ticketId: str, code: str, rowLabel: str, seatNumber: { type: "integer" } },
+          required: ["ticketId", "code", "rowLabel", "seatNumber"],
+        },
+      },
+    },
+    required: ["bookingId", "status", "createdAt", "totalMinor", "currency", "event", "tickets"],
+  },
+} as const;
+
+/** The user's own bookings; ticket codes are shown to their owner only (never logged). */
+export const toMyBookingsDto = (bookings: readonly MyBooking[]) =>
+  bookings.map((b) => ({
+    bookingId: b.bookingId, status: b.status, createdAt: b.createdAt.toISOString(), totalMinor: b.totalMinor, currency: b.currency,
+    event: { eventId: b.event.eventId, title: b.event.title, startsAt: b.event.startsAt.toISOString(), venueName: b.event.venueName, city: b.event.city, timezone: b.event.timezone },
+    tickets: b.tickets,
+  }));

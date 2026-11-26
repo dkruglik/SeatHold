@@ -13,3 +13,6 @@ export { GetFacetsQuery, type Facets } from "./application/get-facets-query.js";
 export type { EventSearchReader, EventSearchCriteria, EventSearchRow } from "./application/ports/event-search-reader.js";
 export type { FacetsReader, StoredFacets } from "./application/ports/facets-reader.js";
 export { catalogPlugin, type CatalogPluginOptions } from "./presentation/http/catalog-plugin.js";
+export { GetEventQuery } from "./application/get-event-query.js";
+export type { EventDetailReader, EventDetailRow } from "./application/ports/event-detail-reader.js";
+export { EventNotFound } from "./domain/errors.js";
