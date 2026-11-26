@@ -98,8 +98,11 @@ export class ApiClient {
     assertApiPath(path);
     const headers: Record<string, string> = { Accept: "application/json" };
     if (method === "POST") {
-      headers["Content-Type"] = "application/json";
       headers["X-CSRF-Token"] = csrfToken ?? "";
+      // Fastify rejects an empty body when this header says the body is JSON (logout, logout-all).
+      if (body !== undefined) {
+        headers["Content-Type"] = "application/json";
+      }
     }
     let response: Response;
     try {
