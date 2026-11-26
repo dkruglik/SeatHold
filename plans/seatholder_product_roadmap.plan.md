@@ -3,8 +3,8 @@ name: SeatHolder product roadmap
 overview: "SeatHolder (brief name: SeatHold) is a ticket-ordering platform: find a show, hold seats on a seat map for a limited time, pay inside the window. Built as the Appcharge AC11 test task in 4-6 hours of Claude-driven work. Phases are ordered by priority: the auth foundation first, because the booking core, the buyer flow and the back office all build on it; then the booking core (a seat is never sold twice, deterministic hold expiry), then a working end-to-end flow, with the written decisions and the install skill growing alongside the code. If time runs out, cut from the last phase backwards."
 todos:
   - id: phase-0-setup
-    content: "Phase 0: scaffold workspaces, local infra (Docker Compose on Windows, Homebrew on Mac), typed config, health, database-time clock, /api origin, backend image, CI; skeletons of install-seathold skill, README, DECISIONS.md and the AI workflow log (plan: plans/phase_0_setup.plan.md)"
-    status: pending
+    content: "Phase 0 built on branch feature/phase-0-ignore-agent-env, 2026-11-26: npm workspaces and tooling, typed config, Docker Compose (Postgres 17, Mailpit), Fastify backend with /api/health, database clock and graceful shutdown, Vite + React + Mantine frontend on /api, backend image and GitHub Actions CI, skeletons of install-seathold skill, README, DECISIONS.md and AI workflow log. Still open: first GitHub Actions run (multi-arch image build, arm64 unproven on the dev host), install-seathold run on a clean Mac, deploy and release-guide checks (plan: plans/phase_0_setup.plan.md)"
+    status: completed
   - id: phase-1-auth
     content: "Phase 1: email-code login, Postgres sessions, roles (buyer default, admin via seed/CLI only), CSRF, /api/admin/* prefix hook with route-wide 401/403 test, seeded admin and buyer, login screen; DECISIONS security entry (plan: plans/phase_1_auth_access.plan.md)"
     status: pending
@@ -34,7 +34,7 @@ Source brief: `plans/Appcharge_AC11_TeamLeader_AI_Test_Task_PartA.md`.
 
 | Phase | Status | Detailed plan |
 |---|---|---|
-| 0 Setup | pending | [phase_0_setup.plan.md](phase_0_setup.plan.md) |
+| 0 Setup | completed (8/8 iterations; open: GitHub Actions run, clean-Mac install, deploy and release-guide checks) | [phase_0_setup.plan.md](phase_0_setup.plan.md) |
 | 1 Auth and access | pending | [phase_1_auth_access.plan.md](phase_1_auth_access.plan.md) |
 | 2 Booking core | pending | [phase_2_booking_core.plan.md](phase_2_booking_core.plan.md) |
 | 3 Buyer flow (end to end) | pending | [phase_3_buyer_flow.plan.md](phase_3_buyer_flow.plan.md) |

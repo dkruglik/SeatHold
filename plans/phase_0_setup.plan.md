@@ -4,28 +4,28 @@ overview: "Scaffold an empty but runnable SeatHolder full stack: npm workspaces,
 todos:
   - id: it-0-approvals
     content: Approve Phase 0 dependencies (exact pins), Node 24, the GitHub Actions decision for verify, and the public CLAUDE.md approach
-    status: pending
+    status: completed
   - id: it-1-git-hygiene
     content: .gitignore (install skill tracked, rules and skills local), standalone public CLAUDE.md, local agent index kept separate
-    status: pending
+    status: completed
   - id: it-2-workspaces-tooling
     content: Root and workspace package.json, tsconfig, ESLint limits, Vitest, verify.mjs aligned with the GitHub Actions workflow
-    status: pending
+    status: completed
   - id: it-3-config-and-local-infra
     content: Typed backend and frontend config with fail-fast tests, docker-compose.yml (Postgres 17, Mailpit), .env examples
-    status: pending
+    status: completed
   - id: it-4-backend-skeleton
     content: app/server bootstrap, Pino JSON logs, /api/health, Prisma service, SIGTERM shutdown, Clock port with database and controlled adapters
-    status: pending
+    status: completed
   - id: it-5-frontend-skeleton
     content: Vite + React + Mantine theme provider, router, TanStack Query, ApiClient on relative /api with dev proxy, placeholder page
-    status: pending
+    status: completed
   - id: it-6-image-and-ci
     content: backend/Dockerfile (multi-stage, non-root, health check, amd64 + arm64) and GitHub Actions workflow
-    status: pending
+    status: completed
   - id: it-7-deliverable-skeletons
     content: install-seathold skill v0, README, DECISIONS.md headings, AI workflow log, full verify
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -119,7 +119,9 @@ Each iteration: tests first (confirm they fail), implementation, `npm run verify
 - **it-4 Backend skeleton.** Tests first: `GET /api/health` returns 200 with the body (route test via `app.inject`); shutdown closes the app and Prisma (unit with fakes); `DatabaseClock` returns a time within 1 s of a separate `SELECT clock_timestamp()` (integration); `ControlledClock` advances deterministically (unit); a logged request shows `Cookie`, `Set-Cookie` and `X-CSRF-Token` as `[Redacted]` (unit with a captured logger).
 - **it-5 Frontend skeleton.** Tests first: app renders the placeholder inside the Mantine provider; `ApiClient` calls relative `/api/...` with `credentials: "include"` and maps non-2xx to a typed error. Vite proxy for `/api`.
 - **it-6 Image and CI.** `backend/Dockerfile` multi-stage (`node:24-alpine`), non-root, `HEALTHCHECK` on `/api/health`, Prisma `binaryTargets` for `linux-musl-openssl-3.0.x` and `linux-musl-arm64-openssl-3.0.x`. `.github/workflows/ci.yml`: install, lint, typecheck, unit and integration tests with a `postgres:17` service, build, `docker buildx build --platform linux/amd64,linux/arm64` without push. Test: `scripts/` checks for Dockerfile hygiene adapted from the existing ones.
+  Still open (2026-11-26): the first GitHub Actions run must be green, especially the multi-arch `image-build` job; arm64 is not proven on the dev host.
 - **it-7 Deliverable skeletons.** `.claude/skills/install-seathold/SKILL.md` v0 (check macOS, install Homebrew non-interactively if missing, `brew install node@24 postgresql@17 mailpit`, start services, create role and database, copy `.env`, `npm ci`, migrate, start backend and frontend, wait for `/api/health`, print URLs). `README.md` (what it is, run on Windows with Docker, run on Mac without the skill). `DECISIONS.md` already exists from planning: move the entries this phase implements (O1, O3, O4, O5, O13, O14, O15) to `implemented` with files and tests. `docs/ai-workflow-log.md` started. Full `npm run verify`; update the roadmap todo.
+  Still open (2026-11-26): the install skill has not run on a clean Mac; the Homebrew path is unproven.
 
 ## 10. Verification summary
 
