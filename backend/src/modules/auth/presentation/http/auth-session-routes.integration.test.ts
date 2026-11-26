@@ -58,6 +58,16 @@ describe("POST /api/auth/logout", () => {
     expect((await harness.get("/api/auth/me", cookieHeader(second))).json()).toMatchObject({ user: { email: "ada@example.io" } });
   });
 
+  it("answers 403 CSRF_INVALID without a token and leaves the session alive", async () => {
+    const sid = sidOf(await harness.login("ada@example.io"));
+
+    const response = await harness.postBare("/api/auth/logout", undefined, { ...cookieHeader(sid), origin: "http://localhost:5173" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({ error: { code: "CSRF_INVALID", message: expect.any(String) } });
+    expect((await harness.get("/api/auth/me", cookieHeader(sid))).json()).toMatchObject({ user: { email: "ada@example.io" } });
+  });
+
   it("answers 401 for a revoked session", async () => {
     const sid = sidOf(await harness.login("ada@example.io"));
     await harness.post("/api/auth/logout", undefined, cookieHeader(sid));

@@ -22,6 +22,8 @@ export interface AppConfig {
   readonly smtpPass?: string;
   /** Secret: the HMAC key for login codes. Never log or print. */
   readonly authCodePepper: string;
+  /** Secret: signs the cookie that holds the CSRF secret (DECISIONS.md O46). Never log or print. */
+  readonly csrfSecret: string;
   readonly authRequestCodeLimit: number;
   readonly authRequestCodeWindowMinutes: number;
   readonly authRequestCodeCooldownSeconds: number;
@@ -32,6 +34,9 @@ export interface AppConfig {
 
 /** The value `.env.example` carries for local development. Production refuses it (DECISIONS.md O42). */
 export const localPepperPlaceholder = "local-only-pepper-replace-in-production-0000";
+
+/** The value `.env.example` carries for the CSRF secret. Production refuses it (DECISIONS.md O46). */
+export const localCsrfSecretPlaceholder = "local-only-csrf-secret-replace-in-production-0000";
 
 // What each variable must look like. Shown instead of zod's messages, which may quote the received value.
 const requirements = {
@@ -50,6 +55,7 @@ const requirements = {
   SMTP_USER: "must be set together with SMTP_PASS",
   SMTP_PASS: "must be set together with SMTP_USER",
   AUTH_CODE_PEPPER: "is required and must be a secret of at least 32 characters (in production, not the local placeholder)",
+  CSRF_SECRET: "is required and must be a secret of at least 32 characters (in production, not the local placeholder)",
   AUTH_REQUEST_CODE_LIMIT: "must be a positive integer",
   AUTH_REQUEST_CODE_WINDOW_MINUTES: "must be a positive integer",
   AUTH_REQUEST_CODE_COOLDOWN_SECONDS: "must be a positive integer",
@@ -90,6 +96,7 @@ const envSchema = z.object({
   SMTP_USER: z.string().min(1).optional(),
   SMTP_PASS: z.string().min(1).optional(),
   AUTH_CODE_PEPPER: z.string().min(32),
+  CSRF_SECRET: z.string().min(32),
   AUTH_REQUEST_CODE_LIMIT: positiveInteger.default(5),
   AUTH_REQUEST_CODE_WINDOW_MINUTES: positiveInteger.default(15),
   AUTH_REQUEST_CODE_COOLDOWN_SECONDS: positiveInteger.default(60),
@@ -115,6 +122,17 @@ function isProductionOrigin(value: string | undefined): boolean {
   return url !== null && url.protocol === "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
 }
 
+/** In production the local placeholders of the secrets are refused (DECISIONS.md O42, O46). */
+function productionRefusedPlaceholders(present: Readonly<Record<string, string | undefined>>): string[] {
+  if (present.APP_ENV !== "production") {
+    return [];
+  }
+  return [
+    ...(present.AUTH_CODE_PEPPER === localPepperPlaceholder ? ["AUTH_CODE_PEPPER"] : []),
+    ...(present.CSRF_SECRET === localCsrfSecretPlaceholder ? ["CSRF_SECRET"] : []),
+  ];
+}
+
 /** Reads, validates and converts the environment once. Pass `process.env` only from the entry point. */
 export function loadConfig(env: Readonly<Record<string, string | undefined>> = process.env): AppConfig {
   const present = Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined && value !== ""));
@@ -127,8 +145,8 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>> = p
   if (present.APP_ENV === "production" && present.EMAIL_PROVIDER === "console") {
     invalid.add("EMAIL_PROVIDER");
   }
-  if (present.APP_ENV === "production" && present.AUTH_CODE_PEPPER === localPepperPlaceholder) {
-    invalid.add("AUTH_CODE_PEPPER");
+  for (const name of productionRefusedPlaceholders(present)) {
+    invalid.add(name);
   }
   if (present.APP_ENV === "production" && present.COOKIE_SECURE !== "true") {
     invalid.add("COOKIE_SECURE");
@@ -155,6 +173,7 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>> = p
     smtpHost: values.SMTP_HOST,
     smtpPort: values.SMTP_PORT,
     authCodePepper: values.AUTH_CODE_PEPPER,
+    csrfSecret: values.CSRF_SECRET,
     authRequestCodeLimit: values.AUTH_REQUEST_CODE_LIMIT,
     authRequestCodeWindowMinutes: values.AUTH_REQUEST_CODE_WINDOW_MINUTES,
     authRequestCodeCooldownSeconds: values.AUTH_REQUEST_CODE_COOLDOWN_SECONDS,

@@ -3,8 +3,8 @@ import { ConfigError, loadConfig } from "./load-config.js";
 
 const databaseUrl = "postgresql://dbuser:s3cr3t-pass@db.internal:5432/seatholder";
 const pepper = "unit-test-pepper-0123456789-abcdefghij";
-const minimalEnv = { DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper };
-const productionEnv = { APP_ENV: "production", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, FRONTEND_ORIGIN: "https://seats.example.com", COOKIE_SECURE: "true" };
+const minimalEnv = { DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef" };
+const productionEnv = { APP_ENV: "production", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef", FRONTEND_ORIGIN: "https://seats.example.com", COOKIE_SECURE: "true" };
 
 function failureOf(env: Record<string, string | undefined>): ConfigError {
   try {
@@ -32,6 +32,7 @@ describe("loadConfig defaults", () => {
       smtpHost: "localhost",
       smtpPort: 1025,
       authCodePepper: pepper,
+      csrfSecret: "unit-test-csrf-secret-0123456789-abcdef",
       authRequestCodeLimit: 5,
       authRequestCodeWindowMinutes: 15,
       authRequestCodeCooldownSeconds: 60,
@@ -69,12 +70,12 @@ describe("loadConfig defaults", () => {
 
 describe("loadConfig validation", () => {
   it("fails when DATABASE_URL is missing", () => {
-    expect(failureOf({ AUTH_CODE_PEPPER: pepper }).variables).toEqual(["DATABASE_URL"]);
+    expect(failureOf({ AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef" }).variables).toEqual(["DATABASE_URL"]);
   });
 
   it("fails when DATABASE_URL is not a postgresql URL", () => {
-    expect(failureOf({ AUTH_CODE_PEPPER: pepper, DATABASE_URL: "mysql://u:p@h/db" }).variables).toEqual(["DATABASE_URL"]);
-    expect(failureOf({ AUTH_CODE_PEPPER: pepper, DATABASE_URL: "not a url" }).variables).toEqual(["DATABASE_URL"]);
+    expect(failureOf({ AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef", DATABASE_URL: "mysql://u:p@h/db" }).variables).toEqual(["DATABASE_URL"]);
+    expect(failureOf({ AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef", DATABASE_URL: "not a url" }).variables).toEqual(["DATABASE_URL"]);
   });
 
   it.each(["0", "65536", "-1", "abc", "30.5", "3001x"])("fails for BACKEND_PORT=%s", (port) => {
@@ -109,7 +110,7 @@ describe("loadConfig validation", () => {
   );
 
   it("lists every invalid variable by name in one error", () => {
-    const error = failureOf({ AUTH_CODE_PEPPER: pepper, BACKEND_PORT: "0", APP_ENV: "nope", LOG_LEVEL: "loud" });
+    const error = failureOf({ AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef", BACKEND_PORT: "0", APP_ENV: "nope", LOG_LEVEL: "loud" });
 
     expect(error.variables).toEqual(["APP_ENV", "BACKEND_PORT", "DATABASE_URL", "LOG_LEVEL"]);
     for (const name of error.variables) {

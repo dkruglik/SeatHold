@@ -1,15 +1,15 @@
-import type { onRequestAsyncHookHandler } from "fastify";
+import type { BrowserStateChangeHooks } from "../../../../presentation/http/hooks/browser-state-change-hooks.js";
 import type { AuthServices } from "../../auth-composition.js";
 import type { AuthHooks } from "./hooks/require-auth.js";
 import type { SessionCookieSettings } from "./session-cookie.js";
 
 /**
- * What every auth route module receives. `mutationHooks` run first on every state-changing route.
- * Phase 1 it-5 fills it with the shared CSRF and Origin hooks; until then it is empty (DECISIONS.md O44).
+ * What every auth route module receives. `mutationHooks` (Origin, then CSRF) run first on every state-changing route.
+ * The type needs at least one hook and `buildApp` always supplies the shared list (DECISIONS.md O44, O46).
  */
 export interface AuthRouteOptions {
   readonly services: AuthServices;
   readonly hooks: AuthHooks;
-  readonly mutationHooks: readonly onRequestAsyncHookHandler[];
+  readonly mutationHooks: BrowserStateChangeHooks;
   readonly cookie: SessionCookieSettings;
 }

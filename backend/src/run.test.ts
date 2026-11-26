@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { run, type RunIo, type Runtime } from "./run.js";
 
 const password = "s3cr3t-pass";
-const env = { AUTH_CODE_PEPPER: "unit-test-pepper-0123456789-abcdefghij", DATABASE_URL: `postgresql://dbuser:${password}@db.internal:5432/seatholder`, BACKEND_HOST: "127.0.0.1", BACKEND_PORT: "4010" };
+const env = { AUTH_CODE_PEPPER: "unit-test-pepper-0123456789-abcdefghij", CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef", DATABASE_URL: `postgresql://dbuser:${password}@db.internal:5432/seatholder`, BACKEND_HOST: "127.0.0.1", BACKEND_PORT: "4010" };
 
 type Handler = () => void;
 

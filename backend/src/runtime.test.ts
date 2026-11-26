@@ -7,11 +7,15 @@ describe("createDefaultRuntime", () => {
     const config = loadConfig({
       DATABASE_URL: "postgresql://unused:unused@127.0.0.1:1/unused",
       AUTH_CODE_PEPPER: "runtime-test-pepper-0123456789-abcdefgh",
+      CSRF_SECRET: "runtime-test-csrf-secret-0123456789-abcd",
       LOG_LEVEL: "silent",
     });
     const { app } = createDefaultRuntime(config);
 
-    const response = await app.inject({ method: "POST", url: "/api/auth/logout" });
+    const csrf = await app.inject({ method: "GET", url: "/api/auth/csrf" });
+    const cookie = `csrf_secret=${csrf.cookies.find((candidate) => candidate.name === "csrf_secret")?.value ?? ""}`;
+    const headers = { origin: "http://localhost:5173", cookie, "x-csrf-token": (csrf.json() as { csrfToken: string }).csrfToken };
+    const response = await app.inject({ method: "POST", url: "/api/auth/logout", headers });
     await app.close();
 
     expect(response.statusCode).toBe(401);

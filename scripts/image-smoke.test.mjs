@@ -93,5 +93,6 @@ describe("smokeEnv", () => {
     assert.equal(env.DATABASE_URL, "postgresql://u:p@h/d");
     assert.equal(env.BACKEND_PORT, "3001");
     assert.ok(env.AUTH_CODE_PEPPER.length >= 32);
+    assert.ok(env.CSRF_SECRET.length >= 32);
   });
 });

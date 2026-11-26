@@ -3,7 +3,7 @@ import { ConfigError, loadConfig, localPepperPlaceholder } from "./load-config.j
 
 const databaseUrl = "postgresql://dbuser:s3cr3t-pass@db.internal:5432/seatholder";
 const pepper = "unit-test-pepper-0123456789-abcdefghij";
-const localEnv = { DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper };
+const localEnv = { DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef" };
 const productionEnv = { ...localEnv, APP_ENV: "production", FRONTEND_ORIGIN: "https://seats.example.com", COOKIE_SECURE: "true" };
 
 function failureOf(env: Record<string, string | undefined>): ConfigError {
@@ -46,7 +46,7 @@ describe("loadConfig login code settings", () => {
 
 describe("loadConfig AUTH_CODE_PEPPER", () => {
   it("is required in every environment", () => {
-    expect(failureOf({ DATABASE_URL: databaseUrl }).variables).toEqual(["AUTH_CODE_PEPPER"]);
+    expect(failureOf({ DATABASE_URL: databaseUrl, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef" }).variables).toEqual(["AUTH_CODE_PEPPER"]);
     expect(failureOf({ ...productionEnv, AUTH_CODE_PEPPER: undefined }).variables).toEqual(["AUTH_CODE_PEPPER"]);
   });
 

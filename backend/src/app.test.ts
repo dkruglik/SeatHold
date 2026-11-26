@@ -18,6 +18,7 @@ const config: AppConfig = {
   smtpHost: "localhost",
   smtpPort: 1025,
   authCodePepper: "unit-test-pepper-0123456789-abcdefghij",
+  csrfSecret: "unit-test-csrf-secret-0123456789-abcdef",
   authRequestCodeLimit: 5,
   authRequestCodeWindowMinutes: 15,
   authRequestCodeCooldownSeconds: 60,

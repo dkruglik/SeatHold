@@ -7,6 +7,7 @@ import type { PrismaService } from "../../../../infrastructure/persistence/prism
 import { ControlledClock } from "../../../../shared/time/controlled-clock.js";
 import { ConsoleEmailProvider } from "../../infrastructure/email/console-email-provider.js";
 import { createAuthServices, createPrismaAuthRepositories } from "../../auth-composition.js";
+import { fetchCsrf } from "./auth-memory-app-test-support.js";
 import { useAuthDatabase } from "../../infrastructure/persistence/auth-test-support.js";
 
 export const T0 = new Date("2030-01-01T10:00:00.000Z");
@@ -27,6 +28,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     smtpHost: "localhost",
     smtpPort: 1025,
     authCodePepper: "route-test-pepper-0123456789-abcdefghij",
+    csrfSecret: "unit-test-csrf-secret-0123456789-abcdef",
     authRequestCodeLimit: 5,
     authRequestCodeWindowMinutes: 15,
     authRequestCodeCooldownSeconds: 60,
@@ -44,7 +46,10 @@ export interface AuthHarness {
   readonly codeFor: (email: string) => Promise<string>;
   /** Full login: request a code, wait out the cooldown, verify. */
   readonly login: (email: string, headers?: Record<string, string>) => Promise<LightMyRequestResponse>;
+  /** A browser-like mutation: carries a valid CSRF token, its cookie and the frontend Origin. Passed headers win; `cookie` values are merged. */
   readonly post: (url: string, payload?: object, headers?: Record<string, string>) => Promise<LightMyRequestResponse>;
+  /** The same request with nothing added: no token, no cookie, no Origin. */
+  readonly postBare: (url: string, payload?: object, headers?: Record<string, string>) => Promise<LightMyRequestResponse>;
   readonly get: (url: string, headers?: Record<string, string>) => Promise<LightMyRequestResponse>;
 }
 
@@ -82,7 +87,12 @@ export function useAuthApp(overrides: Partial<AppConfig> = {}): AuthHarness {
     if (current === undefined) throw new Error("app is built in beforeEach");
     return current;
   };
-  const post: AuthHarness["post"] = (url, payload, headers) => app().inject({ method: "POST", url, ...(payload === undefined ? {} : { payload }), ...(headers === undefined ? {} : { headers }) });
+  const postBare: AuthHarness["postBare"] = (url, payload, headers) => app().inject({ method: "POST", url, ...(payload === undefined ? {} : { payload }), ...(headers === undefined ? {} : { headers }) });
+  const post: AuthHarness["post"] = async (url, payload, headers) => {
+    const csrf = await fetchCsrf(app());
+    const cookies = [csrf.cookie, headers?.cookie].filter((value) => value !== undefined).join("; ");
+    return postBare(url, payload, { origin: testConfig().frontendOrigin, "x-csrf-token": csrf.token, ...headers, cookie: cookies });
+  };
   const get: AuthHarness["get"] = (url, headers) => app().inject({ method: "GET", url, ...(headers === undefined ? {} : { headers }) });
   const codeFor = async (email: string): Promise<string> => {
     await post("/api/auth/request-code", { email });
@@ -92,5 +102,5 @@ export function useAuthApp(overrides: Partial<AppConfig> = {}): AuthHarness {
     clock.advance(61_000);
     return post("/api/auth/verify", { email, code: await codeFor(email) }, headers);
   };
-  return { prisma, clock, app, codeFor, login, post, get };
+  return { prisma, clock, app, codeFor, login, post, postBare, get };
 }

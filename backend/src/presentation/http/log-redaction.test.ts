@@ -33,6 +33,7 @@ const config: AppConfig = {
   smtpHost: "localhost",
   smtpPort: 1025,
   authCodePepper: "unit-test-pepper-0123456789-abcdefghij",
+  csrfSecret: "unit-test-csrf-secret-0123456789-abcdef",
   authRequestCodeLimit: 5,
   authRequestCodeWindowMinutes: 15,
   authRequestCodeCooldownSeconds: 60,
@@ -123,7 +124,7 @@ describe("request logging", () => {
 });
 
 describe("auth route logging", () => {
-  it("never logs the login code, the sid, or the Set-Cookie value, and redacts the cookie header on later requests", async () => {
+  it("never logs the login code, the sid, the CSRF token or its cookie, or the Set-Cookie value, and redacts the cookie header on later requests", async () => {
     const { lines, stream } = capture();
     const clock = new ControlledClock(new Date("2030-01-01T10:00:00.000Z"));
     const users = new InMemoryUserRepository();
@@ -131,15 +132,25 @@ describe("auth route logging", () => {
     const services = createAuthServices(config, { clock, email, users, codes: new InMemoryLoginCodeRepository(), sessions: new InMemorySessionRepository(users) });
     app = buildApp(config, { clock, logStream: stream, auth: { services } });
 
-    await app.inject({ method: "POST", url: "/api/auth/request-code", payload: { email: "ada@example.io" } });
+    const csrf = await app.inject({ method: "GET", url: "/api/auth/csrf" });
+    const csrfToken = (csrf.json() as { csrfToken: string }).csrfToken;
+    const csrfCookie = csrf.cookies.find((cookie) => cookie.name === "csrf_secret")?.value ?? "";
+    const mutation = { origin: "http://localhost:5173", cookie: `csrf_secret=${csrfCookie}`, "x-csrf-token": csrfToken };
+    await app.inject({ method: "POST", url: "/api/auth/request-code", headers: mutation, payload: { email: "ada@example.io" } });
     const code = email.latestCode();
-    const verified = await app.inject({ method: "POST", url: "/api/auth/verify", payload: { email: "ada@example.io", code } });
+    const verified = await app.inject({ method: "POST", url: "/api/auth/verify", headers: mutation, payload: { email: "ada@example.io", code } });
     const sid = verified.cookies.find((cookie) => cookie.name === "sid")?.value ?? "";
-    await app.inject({ method: "GET", url: "/api/auth/me", headers: { cookie: `sid=${sid}` } });
+    await app.inject({ method: "GET", url: "/api/auth/me", headers: { cookie: `sid=${sid}; csrf_secret=${csrfCookie}` } });
+    await app.inject({ method: "POST", url: "/api/auth/request-code", headers: { ...mutation, "x-csrf-token": "rejected-wrong-token" }, payload: { email: "bob@example.io" } });
 
     const output = lines.join("");
     expect(sid).not.toBe("");
     expect(output).not.toContain(sid);
+    expect(csrfCookie).not.toBe("");
+    expect(output).not.toContain(csrfCookie);
+    expect(output).not.toContain(csrfToken);
+    expect(output).not.toContain("rejected-wrong-token");
+    expect(output).not.toContain(config.csrfSecret);
     expect(output).not.toContain(`"${code}"`);
     expect(output).toContain("[Redacted]");
   });

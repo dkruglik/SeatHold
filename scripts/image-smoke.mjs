@@ -29,8 +29,10 @@ export function smokeSettings(env, argv) {
 // A throwaway pepper for the smoke containers (the backend requires one in every environment). Not a secret.
 const smokePepper = "image-smoke-pepper-not-a-secret-0123456789";
 
+const smokeCsrfSecret = "image-smoke-csrf-secret-not-a-secret-0123456789";
+
 export function smokeEnv(databaseUrl, extra) {
-  return { APP_ENV: "local", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: smokePepper, ...extra };
+  return { APP_ENV: "local", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: smokePepper, CSRF_SECRET: smokeCsrfSecret, ...extra };
 }
 
 export function dockerRunArgs({ image, name, network, env }) {
