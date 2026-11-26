@@ -97,11 +97,11 @@ describe("CheckoutService failure paths", () => {
     expect(repo.methods()).toEqual(["find", "authorize", "confirm", "void"]);
   });
 
-  it("throws HoldNotFound and records nothing when another checkout already took the hold", async () => {
+  it("voids the authorized payment and throws HoldNotFound when the hold is gone before confirm", async () => {
     const { service, repo } = setup();
     repo.confirmResult = { kind: "hold_gone" };
 
     await expect(service.checkout({ ...input, holder: user })).rejects.toBeInstanceOf(HoldNotFound);
-    expect(repo.methods()).toEqual(["find", "authorize", "confirm"]);
+    expect(repo.methods()).toEqual(["find", "authorize", "confirm", "void"]);
   });
 });

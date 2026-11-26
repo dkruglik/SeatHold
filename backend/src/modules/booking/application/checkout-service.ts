@@ -66,6 +66,8 @@ export class CheckoutService {
         await checkout.voidPayment(attempt);
         throw new HoldExpired();
       case "hold_gone":
+        // The payment was authorized: keep the audit trail. `voidPayment` never overwrites a `succeeded` row of the winning checkout.
+        await checkout.voidPayment(attempt);
         throw new HoldNotFound();
     }
   }

@@ -29,6 +29,9 @@ export interface AppDeps {
  * frontend and the API share one origin (DECISIONS.md O5).
  */
 export function buildApp(config: AppConfig, deps: AppDeps): FastifyInstance {
+  if (deps.booking !== undefined && deps.auth === undefined) {
+    throw new Error("buildApp: booking routes need the auth services for the session lookup; pass deps.auth with deps.booking");
+  }
   const app = Fastify({ logger: buildLoggerOptions(config, deps.logStream) });
   registerErrorHandler(app);
   registerCsrfProtection(app, config);

@@ -61,6 +61,6 @@ export interface CheckoutRepository {
   confirm(attempt: CheckoutAttempt): Promise<ConfirmResult>;
   /** Own small transaction after a rolled-back confirm: hold expired and its seats freed, booking `rejected`, payment `voided`. */
   recordRejection(attempt: CheckoutAttempt): Promise<void>;
-  /** Records payment `voided` without a booking (backstop conflicts). */
+  /** Records payment `voided` without a booking (backstop conflicts, hold gone after authorize); never overwrites `succeeded`. */
   voidPayment(attempt: CheckoutAttempt): Promise<void>;
 }

@@ -38,6 +38,17 @@ describe("checkout success and payment failure against PostgreSQL", () => {
     expect(await paymentRows(prisma, holdId)).toEqual([{ hold_id: holdId, idempotency_key: `hold:${holdId}`, amount_minor: 10000, outcome: "succeeded" }]);
   });
 
+  it("the booking stores the price in force at checkout, not the price at hold time", async () => {
+    const { services, eventId, holdId } = await holdTwo();
+    await prisma.client.$executeRaw`UPDATE events SET price_minor = 7000 WHERE id = ${eventId}::uuid`;
+
+    const booking = await services.checkout.checkout({ holder: visitor(1), eventId, paymentOutcome: "succeed", guestEmail: "a@b.de" });
+
+    expect(booking.totalMinor).toBe(14000);
+    expect(await bookingRows(prisma, holdId)).toEqual([expect.objectContaining({ unit_price_minor: 7000, total_minor: 14000 })]);
+    expect((await paymentRows(prisma, holdId)).map((p) => p.amount_minor)).toEqual([14000]);
+  });
+
   it("checks out a signed-in user without an email and stores the user id", async () => {
     const userId = await insertUser(prisma, "u@example.com");
     const { services, eventId, holdId } = await holdTwo(holderFrom({ userId }));

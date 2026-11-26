@@ -67,6 +67,27 @@ describe("late payment and concurrent checkout against PostgreSQL", () => {
 
 });
 
+describe("hold gone after authorize against PostgreSQL", () => {
+  it("records the authorized payment as voided and throws HoldNotFound when the hold is released before confirm", async () => {
+    const release: { run: () => Promise<void> } = { run: () => Promise.resolve() };
+    const services = bookingTestServices(prisma, 10, new ControlledClock(T0), new HookedGateway(() => release.run()));
+    const { eventId, seatIds } = await insertSeatedEvent(prisma, 2);
+    for (const seatId of seatIds) await services.holdSeat.hold({ holder: visitor(1), eventId, seatId });
+    const [hold] = await holdRows(prisma, eventId);
+    release.run = async () => {
+      for (const seatId of seatIds) await services.releaseSeat.release({ holder: visitor(1), eventId, seatId });
+    };
+
+    await expect(services.checkout.checkout(guest(eventId))).rejects.toBeInstanceOf(HoldNotFound);
+
+    expect(await paymentRows(prisma, hold?.id as string)).toEqual([
+      { hold_id: hold?.id, idempotency_key: `hold:${hold?.id}`, amount_minor: 10000, outcome: "voided" },
+    ]);
+    expect(await bookingRows(prisma, hold?.id as string)).toEqual([]);
+    expect(await ticketRows(prisma)).toEqual([]);
+  });
+});
+
 describe("ticket backstop against PostgreSQL", () => {
   it("maps a ticket for an already-ticketed seat (UNIQUE seat_id) to HoldExpired and rolls everything back", async () => {
     const services = bookingTestServices(prisma);

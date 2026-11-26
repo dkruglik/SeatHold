@@ -34,6 +34,16 @@ describe("DELETE /api/events/:eventId/hold/seats/:seatId", () => {
     expect((await seatRow(harness.prisma, seatIds[0] as string)).status).toBe("held");
   });
 
+  it("answers 404 HOLD_NOT_FOUND with no-store when there is no identity at all", async () => {
+    const { eventId, seatIds } = await insertSeatedEvent(harness.prisma, 1);
+
+    const response = await harness.mutate("DELETE", holdUrl(eventId, seatIds[0] as string));
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual(notFound);
+    expect(response.headers["cache-control"]).toBe("no-store");
+  });
+
   it("answers 404 without identity and never issues a cookie", async () => {
     const { eventId, seatIds } = await insertSeatedEvent(harness.prisma, 1);
 

@@ -57,3 +57,11 @@ describe("GET /api/health", () => {
     expect(response.headers["access-control-allow-origin"]).toBeUndefined();
   });
 });
+
+describe("buildApp wiring", () => {
+  it("fails at build time when booking services are given without auth services", () => {
+    const booking = { services: {} } as unknown as NonNullable<Parameters<typeof buildApp>[1]["booking"]>;
+
+    expect(() => buildApp(config, { clock: new ControlledClock(new Date()), booking })).toThrow(/booking.*auth/i);
+  });
+});

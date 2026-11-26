@@ -1,5 +1,6 @@
 import type { Prisma } from "../../../../generated/prisma/client.js";
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
+import { InfrastructureError } from "../../../../shared/errors/app-error.js";
 import type { ActiveHold, HoldRepository, HoldTransaction } from "../../application/ports/hold-repository.js";
 import type { Holder } from "../../domain/holder.js";
 import { holderColumns, toActiveHold } from "./hold-mappers.js";
@@ -47,7 +48,7 @@ class PrismaHoldTransaction implements HoldTransaction {
       VALUES (${eventId}::uuid, ${userId}::uuid, ${visitorHash}, ${expiresAt}, 'active', ${now})
       ON CONFLICT DO NOTHING`;
     const hold = await this.findActiveHold(holder, eventId);
-    if (hold === undefined) throw new Error("Active hold missing after get-or-create");
+    if (hold === undefined) throw new InfrastructureError("Invariant broken: no active hold after get-or-create");
     return hold;
   }
 
