@@ -129,6 +129,45 @@ function agentReferences(text, from, to) {
     .replaceAll(from, to);
 }
 
+// Path scopes that may match no tracked file yet: the code they govern arrives in a later phase. One entry per glob.
+// A glob that is on this list and matches a tracked file fails the check (remove the entry); so does a glob that is
+// not on the list and matches nothing, and an entry that no rule uses.
+export const unmatchedGlobAllowlist = [
+  // Phase 0 it-3 (typed config, .env examples)
+  { glob: "backend/src/config/**", until: "phase 0 it-3: backend loadConfig" },
+  { glob: "frontend/src/app/config/**", until: "phase 0 it-3: frontend VITE_* config" },
+  { glob: ".env.example", until: "phase 0 it-3: .env.example" },
+  { glob: "**/.env.example", until: "phase 0 it-3: .env.example" },
+  // Phase 0 it-4 (backend skeleton)
+  { glob: "backend/src/server.ts", until: "phase 0 it-4: server entry and graceful shutdown" },
+  { glob: "backend/src/app.ts", until: "phase 0 it-4: app factory with health route" },
+  { glob: "backend/src/infrastructure/**", until: "phase 0 it-4: clock and Prisma adapters" },
+  // Phase 0 it-5 (frontend skeleton)
+  { glob: "frontend/src/**/services/**", until: "phase 0 it-5: ApiClient service" },
+  { glob: "frontend/src/shared/lib/**", until: "phase 0 it-5: shared API client helpers" },
+  // Phase 0 it-6 and it-7
+  { glob: "**/Dockerfile*", until: "phase 0 it-6: backend/Dockerfile" },
+  { glob: "docs/**", until: "phase 0 it-7: docs/ai-workflow-log.md" },
+  // Phase 1 (auth module, HTTP presentation, email, persistence adapters)
+  { glob: "backend/src/modules/**", until: "phase 1: auth module" },
+  { glob: "backend/src/modules/**/application/**", until: "phase 1: auth application services" },
+  { glob: "backend/src/modules/*/infrastructure/**", until: "phase 1: auth Prisma and email adapters" },
+  { glob: "backend/**/presentation/**", until: "phase 1: route modules and hooks" },
+  { glob: "backend/**/modules/**/http/**", until: "phase 1: auth route modules" },
+  { glob: "backend/**/persistence/**", until: "phase 1: Prisma repositories" },
+  { glob: "backend/**/ports/**", until: "phase 1: UserRepository, EmailProvider ports" },
+  { glob: "backend/**/auth/**", until: "phase 1: backend auth module" },
+  { glob: "frontend/**/auth/**", until: "phase 1: frontend auth state" },
+  { glob: "backend/src/infrastructure/email/**", until: "phase 1: email providers" },
+  { glob: "**/email/**", until: "phase 1: email providers" },
+  { glob: "backend/src/modules/auth/presentation/http/**/*service-auth*", until: "phase 1 or later: service auth hook, only if built" },
+  { glob: "backend/src/modules/auth/presentation/http/routes/internal-*", until: "phase 1 or later: internal service routes, only if built" },
+  { glob: "backend/src/presentation/http/hooks/**", until: "phase 1: shared browser-state-change hooks" },
+  // Never in this repository
+  { glob: "**/tests/**", until: "never: tests sit beside their sources, there is no tests/ directory" },
+  { glob: "context/**", until: "never: product specifications are not part of this repository" },
+];
+
 // Git lists the tracked files; the glob check runs against them, not against the working tree.
 function trackedFiles(root) {
   const result = spawnSync("git", ["ls-files"], { cwd: root, encoding: "utf8", windowsHide: true });
@@ -144,12 +183,14 @@ export function hasCanonicalRules(root = rootDir) {
 }
 
 // Returns human-readable errors for canonical rules that would load wrongly or match nothing.
-export function validateRepository(root = rootDir) {
+export function validateRepository(root = rootDir, allowlist = unmatchedGlobAllowlist) {
   if (!hasCanonicalRules(root)) {
     return [];
   }
   const errors = [];
   const tracked = trackedFiles(root);
+  const allowed = new Set(allowlist.map((entry) => entry.glob));
+  const used = new Set();
   for (const file of listFiles(path.join(root, ".cursor/rules"), ".mdc")) {
     if (cursorOnlyRules.has(file)) {
       continue;
@@ -161,9 +202,18 @@ export function validateRepository(root = rootDir) {
       errors.push(`.cursor/rules/${file}: alwaysApply and globs are both set`);
     }
     for (const glob of globs) {
-      if (!tracked.some((candidate) => path.matchesGlob(candidate, glob))) {
+      used.add(glob);
+      const matches = tracked.some((candidate) => path.matchesGlob(candidate, glob));
+      if (!matches && !allowed.has(glob)) {
         errors.push(`.cursor/rules/${file}: glob "${glob}" matches no tracked file`);
       }
+    }
+  }
+  for (const { glob } of allowlist) {
+    if (!used.has(glob)) {
+      errors.push(`glob "${glob}" is on the unmatched-glob allowlist but no rule uses it; remove the entry`);
+    } else if (tracked.some((candidate) => path.matchesGlob(candidate, glob))) {
+      errors.push(`glob "${glob}" is on the unmatched-glob allowlist but matches a tracked file; remove the entry`);
     }
   }
   return errors;
@@ -326,16 +376,11 @@ function main(argv) {
     }
     const errors = validateRepository(rootDir);
     const drift = findDrift(rootDir);
-    // A path scope for code that a later phase adds matches nothing yet. That is a warning until the files exist
-    // (Phase 0 has no application code); drift and a conflicting alwaysApply/globs pair always fail.
-    const unmatched = errors.filter((error) => error.endsWith("matches no tracked file"));
-    const failures = errors.filter((error) => !unmatched.includes(error));
-    for (const warning of unmatched) console.warn(`warning: ${warning}`);
-    if (failures.length === 0 && drift.length === 0) {
-      console.log(`AI rules: .claude/ mirrors .cursor/${unmatched.length > 0 ? ` (${unmatched.length} path scope(s) match no tracked file yet)` : " and every path scope matches a tracked file"}`);
+    if (errors.length === 0 && drift.length === 0) {
+      console.log("AI rules: .claude/ mirrors .cursor/ and every path scope matches a tracked file or is allowlisted");
       return 0;
     }
-    for (const error of failures) console.error(`error: ${error}`);
+    for (const error of errors) console.error(`error: ${error}`);
     for (const file of drift) console.error(`drift: ${file} (run: node scripts/sync-ai-rules.mjs --write)`);
     return 1;
   }

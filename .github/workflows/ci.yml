@@ -1,0 +1,96 @@
+# The same steps as `npm run verify` (scripts/verify.mjs); scripts/verify.test.mjs keeps the two in sync.
+# Values below are test values only: no secret is used.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_ENV: production
+  DATABASE_URL: postgresql://seatholder:seatholder@localhost:5432/seatholder
+  VITE_API_BASE_URL: http://localhost:3001
+  LEGAL_OPERATOR_NAME: CI Operator
+  LEGAL_OPERATOR_ADDRESS: ul. Testowa 1, 00-001 Warszawa
+  LEGAL_CONTACT_EMAIL: legal@example.com
+
+jobs:
+  lint-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run lint
+      - run: npm run typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.12
+        env:
+          POSTGRES_USER: seatholder
+          POSTGRES_PASSWORD: seatholder
+          POSTGRES_DB: seatholder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U seatholder"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run build
+
+  security-semgrep:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.185.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Scan with Semgrep
+        run: |
+          semgrep scan --metrics=off --error --config p/javascript --config p/typescript --config p/nodejs --config p/react --config p/owasp-top-ten --config p/docker --config p/secrets --exclude node_modules --exclude dist --exclude .npm --exclude backend/src/generated --exclude coverage
+
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/security-scan.mjs --check audit

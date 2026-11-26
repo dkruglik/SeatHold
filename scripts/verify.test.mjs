@@ -7,11 +7,6 @@ import {
   timingsEnabled,
 } from "./verify-timing.mjs";
 import {
-  ciLocalArgs,
-  ciLocalEnv,
-  ciLocalPrerequisiteError,
-  ciLocalJobs,
-  ciLocalVersion,
   formatVerifySummary,
   parseVerifyArgs,
   verifyEnv,
@@ -24,11 +19,23 @@ function read(file) {
   return fs.readFileSync(path.join(rootDir, file), "utf8");
 }
 
-// The script lines (`- npm run ...` / `- node ...`) of one top-level job in .gitlab-ci.yml.
-function ciJobCommands(job) {
-  const block = read(".gitlab-ci.yml").split(new RegExp(`^${job}:\\s*$`, "m"))[1] ?? "";
-  const body = block.split(/^\S/m)[0];
-  return [...body.matchAll(/^\s+- ((?:npm run|node) .+)$/gm)].map((match) => match[1].trim());
+// The commands of every `run:` step in .github/workflows/ci.yml, single-line or block scalar, in file order.
+function workflowCommands() {
+  const lines = read(".github/workflows/ci.yml").split(/\r?\n/);
+  const commands = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const match = /^(\s*)(?:- )?run:\s*(.*)$/.exec(lines[i]);
+    if (!match) continue;
+    if (!/^[|>][+-]?$/.test(match[2])) {
+      commands.push(match[2].trim());
+      continue;
+    }
+    for (i += 1; i < lines.length && (lines[i].trim() === "" || /^\s/.test(lines[i]) && lines[i].search(/\S/) > match[1].length); i += 1) {
+      if (lines[i].trim() !== "") commands.push(lines[i].trim());
+    }
+    i -= 1;
+  }
+  return commands;
 }
 
 function stepCommandLines() {
@@ -42,18 +49,23 @@ function rootScriptSegments(name) {
 }
 
 describe("verifySteps", () => {
-  it("runs every command of the GitLab verify jobs", () => {
-    const lines = stepCommandLines();
-    for (const job of ["lint-typecheck", "test", "build"]) {
-      for (const command of ciJobCommands(job)) {
-        const script = command.split(" ")[2];
-        // Root scripts that verify splits into steps are checked segment by segment; the rest run as one step.
-        const expected = ["lint", "typecheck", "test", "build"].includes(script) ? rootScriptSegments(script) : [command];
-        for (const segment of expected) {
-          assert.ok(lines.includes(segment), `npm run verify is missing "${segment}" from the ${job} job ("${command}")`);
-        }
-      }
-    }
+  it("runs exactly the commands the GitHub workflow runs", () => {
+    // The workflow starts PostgreSQL as a service (db:start) and installs with npm ci; the security step is
+    // one command locally and two in CI (semgrep in its own image, plus the audit check).
+    const ciOnly = new Set(["npm ci", "node scripts/security-scan.mjs --check audit"]);
+    const expand = (command) => {
+      const script = /^npm run (lint|typecheck|test|build)$/.exec(command)?.[1];
+      return script ? rootScriptSegments(script) : [command];
+    };
+    const ci = workflowCommands()
+      .filter((command) => !ciOnly.has(command) && !command.startsWith("semgrep "))
+      .flatMap(expand);
+    const local = stepCommandLines().filter((line) => line !== "npm run db:start");
+
+    assert.deepEqual([...new Set(ci)].sort(), [...new Set(local.filter((line) => line !== "node scripts/security-scan.mjs"))].sort());
+    assert.ok(workflowCommands().includes("npm ci"));
+    assert.ok(workflowCommands().includes("node scripts/security-scan.mjs --check audit"));
+    assert.ok(workflowCommands().some((command) => command.startsWith("semgrep scan ")));
   });
 
   it("times backend and frontend as separate steps, each tagged with its scope", () => {
@@ -70,8 +82,8 @@ describe("verifySteps", () => {
     assert.ok(stepCommandLines().includes("node scripts/test-db.mjs run -- npm run test:integration -w backend"));
   });
 
-  it("runs both security checks, which cover the semgrep and audit jobs", () => {
-    assert.deepEqual(ciJobCommands("security-audit"), ["node scripts/security-scan.mjs --check audit"]);
+  it("runs both security checks, which cover the semgrep and audit steps of CI", () => {
+    assert.ok(workflowCommands().includes("node scripts/security-scan.mjs --check audit"));
     assert.ok(stepCommandLines().includes("node scripts/security-scan.mjs"));
   });
 
@@ -138,72 +150,6 @@ describe("formatVerifySummary", () => {
 
   it("reports success when every step passed", () => {
     assert.match(formatVerifySummary([{ label: "npm run lint", ok: true, seconds: 1 }]), /verify passed/);
-  });
-});
-
-describe("gitlab-ci-local", () => {
-  it("is pinned and runs exactly the verify jobs of .gitlab-ci.yml", () => {
-    const ci = read(".gitlab-ci.yml");
-    const jobs = [...ci.matchAll(/^([a-z][a-z0-9:-]*):\s*$/gm)]
-      .map((match) => match[1])
-      .filter((job) => !["workflow", "default", "variables", "stages"].includes(job));
-
-    assert.deepEqual([...ciLocalJobs].sort(), jobs.filter((job) => !job.startsWith("deploy")).sort());
-    assert.match(ciLocalVersion, /^\d+\.\d+\.\d+$/);
-    assert.deepEqual(ciLocalArgs().slice(0, 2), ["--yes", `gitlab-ci-local@${ciLocalVersion}`]);
-    assert.ok(!ciLocalArgs().some((arg) => arg.startsWith("deploy")));
-  });
-
-  it("explains a missing rsync before starting, because gitlab-ci-local needs it on the host", () => {
-    assert.match(ciLocalPrerequisiteError(() => false), /rsync/);
-    assert.match(ciLocalPrerequisiteError(() => false), /WSL/);
-    assert.equal(ciLocalPrerequisiteError(() => true), null);
-  });
-
-  it("skips only the test job on Windows, where gitlab-ci-local cannot name the service log file", () => {
-    const jobsOn = (platform) => {
-      const args = ciLocalArgs(platform);
-      return args.flatMap((arg, index) => (arg === "--job" ? [args[index + 1]] : []));
-    };
-
-    assert.deepEqual(jobsOn("linux"), ciLocalJobs);
-    assert.deepEqual(jobsOn("win32"), ciLocalJobs.filter((job) => job !== "test"));
-  });
-
-  it("keeps the cache in Docker, leaves the working tree alone, and pins the helper image", () => {
-    const args = ciLocalArgs();
-
-    assert.ok(args.includes("--mount-cache"));
-    assert.ok(args.includes("--no-artifacts-to-source"));
-    assert.match(args[args.indexOf("--helper-image") + 1], /^docker\.io\/firecow\/gitlab-ci-local-util@sha256:[a-f0-9]{64}$/);
-  });
-
-  it("stops Git Bash from rewriting container paths on Windows only", () => {
-    assert.equal(ciLocalEnv({ PATH: "x" }, "win32", () => false).MSYS_NO_PATHCONV, "1");
-    assert.equal(ciLocalEnv({ PATH: "x" }, "win32", () => false).PATH, "x");
-    assert.equal(ciLocalEnv({ PATH: "x" }, "linux").MSYS_NO_PATHCONV, undefined);
-  });
-
-  it("drops the WindowsApps folder from PATH on Windows, where its bash.exe is a WSL launcher that cannot start", () => {
-    const path = "C:\\Tools;C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps\\;C:\\Program Files\\Git\\usr\\bin";
-
-    assert.equal(ciLocalEnv({ Path: path }, "win32", () => false).Path, "C:\\Tools;C:\\Program Files\\Git\\usr\\bin");
-    assert.equal(ciLocalEnv({ PATH: path }, "linux").PATH, path);
-  });
-
-  it("puts Git for Windows' bash first on PATH on Windows, so gitlab-ci-local can start a shell", () => {
-    const gitBash = "C:\\Program Files\\Git\\usr\\bin";
-    const env = ciLocalEnv({ Path: "C:\\Tools", ProgramFiles: "C:\\Program Files" }, "win32", (file) => file === `${gitBash}\\bash.exe`);
-
-    assert.equal(env.Path, `${gitBash};C:\\Tools`);
-    assert.equal(ciLocalEnv({ Path: "C:\\Tools" }, "linux").Path, "C:\\Tools");
-  });
-
-  it("keeps the local variables file out of git", () => {
-    const gitignore = read(".gitignore");
-    assert.match(gitignore, /^\.gitlab-ci-local-variables\.yml$/m);
-    assert.match(gitignore, /^\.gitlab-ci-local\/$/m);
-    assert.ok(fs.existsSync(path.join(rootDir, ".gitlab-ci-local-variables.example.yml")));
   });
 });
 
@@ -289,19 +235,15 @@ describe("slow file naming", () => {
 
 describe("parseVerifyArgs", () => {
   it("defaults to the full verify with a database start", () => {
-    assert.deepEqual(parseVerifyArgs([]), { mode: "verify", part: "full", startDb: true });
+    assert.deepEqual(parseVerifyArgs([]), { part: "full", startDb: true });
   });
 
   it("reads --part and --skip-db-start", () => {
-    assert.deepEqual(parseVerifyArgs(["--part", "fast", "--skip-db-start"]), { mode: "verify", part: "fast", startDb: false });
+    assert.deepEqual(parseVerifyArgs(["--part", "fast", "--skip-db-start"]), { part: "fast", startDb: false });
   });
 
-  it("selects ci-local", () => {
-    assert.equal(parseVerifyArgs(["--ci-local"]).mode, "ci-local");
-  });
-
-  it("rejects --ci-local with --part", () => {
-    assert.throws(() => parseVerifyArgs(["--ci-local", "--part", "fast"]), /--part does not apply to --ci-local: CI always runs the full suite/);
+  it("rejects the removed --ci-local flag instead of ignoring it", () => {
+    assert.throws(() => parseVerifyArgs(["--ci-local"]), /Unknown argument: --ci-local/);
   });
 
   it("rejects --part without a value or with an unknown value", () => {

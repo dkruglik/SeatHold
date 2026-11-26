@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -11,6 +12,7 @@ import {
   splitFrontmatter,
   splitGlobs,
   transformReferences,
+  unmatchedGlobAllowlist,
   validateRepository,
 } from "./sync-ai-rules.mjs";
 
@@ -120,6 +122,65 @@ describe("checkout without the local agent tooling", () => {
       assert.deepEqual(validateRepository(root), []);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("path scopes that match no tracked file", () => {
+  // A throwaway git repository with one canonical rule that has the given globs and these tracked files.
+  function withRepo(globs, files, run) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "seatholder-globs-"));
+    try {
+      fs.mkdirSync(path.join(root, ".cursor/rules"), { recursive: true });
+      fs.writeFileSync(path.join(root, ".cursor/rules/50-x.mdc"), `---\nalwaysApply: false\nglobs: ${globs.join(",")}\n---\n\n# X\n`);
+      for (const file of files) {
+        fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+        fs.writeFileSync(path.join(root, file), "x\n");
+      }
+      spawnSync("git", ["init", "-q"], { cwd: root });
+      spawnSync("git", ["add", "-A", "--force"], { cwd: root });
+      run(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  it("fails a glob that matches nothing and is not on the allowlist", () => {
+    withRepo(["backend/src/nothing/**"], ["README.md"], (root) => {
+      assert.deepEqual(validateRepository(root, []), [
+        '.cursor/rules/50-x.mdc: glob "backend/src/nothing/**" matches no tracked file',
+      ]);
+    });
+  });
+
+  it("accepts an allowlisted glob that matches nothing yet", () => {
+    withRepo(["backend/src/later/**"], ["README.md"], (root) => {
+      assert.deepEqual(validateRepository(root, [{ glob: "backend/src/later/**", until: "phase 9" }]), []);
+    });
+  });
+
+  it("fails an allowlisted glob that now matches a tracked file, so the list shrinks", () => {
+    withRepo(["backend/src/later/**"], ["backend/src/later/a.ts"], (root) => {
+      const errors = validateRepository(root, [{ glob: "backend/src/later/**", until: "phase 9" }]);
+      assert.equal(errors.length, 1);
+      assert.match(errors[0], /"backend\/src\/later\/\*\*" is on the unmatched-glob allowlist but matches a tracked file/);
+    });
+  });
+
+  it("fails an allowlist entry that no rule uses any more", () => {
+    withRepo(["README.md"], ["README.md"], (root) => {
+      const errors = validateRepository(root, [{ glob: "gone/**", until: "phase 9" }]);
+      assert.equal(errors.length, 1);
+      assert.match(errors[0], /"gone\/\*\*" is on the unmatched-glob allowlist but no rule uses it/);
+    });
+  });
+
+  it("keeps the real allowlist explicit: one entry per glob, each naming when its files arrive", () => {
+    const globs = unmatchedGlobAllowlist.map((entry) => entry.glob);
+    assert.equal(new Set(globs).size, globs.length);
+    assert.ok(unmatchedGlobAllowlist.length > 0);
+    for (const entry of unmatchedGlobAllowlist) {
+      assert.match(entry.until, /\S/, `${entry.glob} needs a reason`);
     }
   });
 });

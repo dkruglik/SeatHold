@@ -287,6 +287,13 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Trade-off.** The override must be removed once Prisma ships a fixed `effect`.
 - **Status.** `implemented`: `package.json`, `backend/package.json`, `frontend/package.json`, `package-lock.json` (Phase 0 it-2).
 
+### O21. Path-scope check with an explicit allowlist
+
+- **Choice.** `node scripts/sync-ai-rules.mjs --check` (part of `npm run lint`) fails on a rule path scope that matches no tracked file, except the globs listed in `unmatchedGlobAllowlist` in `scripts/sync-ai-rules.mjs`. Each entry is one glob with a note naming the phase or iteration that adds its files (auth and email globs: Phase 1; config, `.env.example`: it-3; backend skeleton: it-4; frontend client: it-5; `Dockerfile*`: it-6; `docs/**`: it-7; `context/**` and `**/tests/**`: never in this repository). An allowlisted glob that matches a tracked file fails, and so does an entry no rule uses, so the list only shrinks.
+- **Options.** Warn only while the code does not exist (silently lets a mistyped glob pass for good); remove the globs from the rules until the code exists (rule files differ per phase); require every glob to match now (fails Phase 0, where there is no application code yet).
+- **Trade-off.** Each phase deletes its entries from the list in the same change, a small chore; in return a typo in a glob cannot hide behind the warning.
+- **Status.** `implemented`: `scripts/sync-ai-rules.mjs`, `scripts/sync-ai-rules.test.mjs` (Phase 0 it-2).
+
 ---
 
 ## Back-office capability proposal

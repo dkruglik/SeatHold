@@ -92,12 +92,12 @@ describe("security scan", () => {
     ]);
   });
 
-  it("keeps the GitLab semgrep job on the same scan args", () => {
-    const expected = `- semgrep ${semgrepScanArgs().join(" ")}`;
-    const ci = readFileSync(path.join(repoRoot, ".gitlab-ci.yml"), "utf8");
+  it("keeps the GitHub workflow semgrep step on the same scan args", () => {
+    const expected = `semgrep ${semgrepScanArgs().join(" ")}`;
+    const ci = readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
     assert.ok(
       ci.split("\n").some((line) => line.trim() === expected),
-      `.gitlab-ci.yml must contain the line: ${expected}`,
+      `.github/workflows/ci.yml must contain the line: ${expected}`,
     );
   });
 });

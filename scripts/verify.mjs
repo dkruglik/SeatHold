@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveNpmJsCli, spawnFailureMessage } from "./spawn-command-line.mjs";
+import { resolveNpmJsCli } from "./spawn-command-line.mjs";
 import {
   appendTimingRecord,
   currentRunMeta,
@@ -25,7 +25,7 @@ export function rootScriptSegments(name, scripts = packageScripts) {
   return scripts[name].split("&&").map((segment) => segment.trim());
 }
 
-// The same commands as the GitLab verify jobs; verify.test.mjs keeps the two in sync.
+// The same commands as the GitHub Actions workflow (.github/workflows/ci.yml); verify.test.mjs keeps the two in sync.
 // startDb: false is for a database that is already running (scripts/agent-db.mjs).
 // part "fast" skips the *.slow.test.ts integration files, part "slow" runs only those (see perf/README.md).
 export const verifyParts = ["full", "fast", "slow"];
@@ -85,78 +85,6 @@ export function formatVerifySummary(results, part = "full") {
   const name = part === "full" ? "verify" : `verify-${part}-part`;
   const verdict = failed ? `${name} failed at: ${failed.label}` : `${name} passed`;
   return ["", "=== verify summary ===", ...lines, verdict].join("\n");
-}
-
-export const ciLocalVersion = "4.76.1";
-
-// Every job of .gitlab-ci.yml except deploy:frontend, which must never run locally.
-export const ciLocalJobs = ["install", "lint-typecheck", "test", "build", "security-semgrep", "security-audit"];
-
-// gitlab-ci-local otherwise pulls this helper by the floating tag "latest".
-export const ciLocalHelperImage =
-  "docker.io/firecow/gitlab-ci-local-util@sha256:1dc43cf4d8a4637a7da45eb95e14a97c750fbc9f1d45099bbd9f8ad6f0830778";
-
-// On Windows gitlab-ci-local crashes in the test job: it names the service log file after the
-// image ("pgvector/pgvector:0.8.7-pg16@sha256:..."), and ":" is not allowed in Windows file names.
-// npm run verify runs the same test commands against the same image.
-export function ciLocalJobsFor(platform = process.platform) {
-  return platform === "win32" ? ciLocalJobs.filter((job) => job !== "test") : [...ciLocalJobs];
-}
-
-export function ciLocalArgs(platform = process.platform) {
-  return [
-    "--yes",
-    `gitlab-ci-local@${ciLocalVersion}`,
-    ...ciLocalJobsFor(platform).flatMap((job) => ["--job", job]),
-    // The npm cache holds symlinks, which Windows cannot create without admin rights or Developer Mode.
-    "--mount-cache",
-    // Keep build artifacts such as frontend/dist inside .gitlab-ci-local instead of the working tree.
-    "--no-artifacts-to-source",
-    "--helper-image",
-    ciLocalHelperImage,
-  ];
-}
-
-// gitlab-ci-local calls docker through Git Bash on Windows, which would rewrite container paths
-// such as /builds/... into C:/Program Files/Git/builds/...
-// It also runs `bash` from PATH. The WindowsApps folder holds a WSL launcher named bash.exe that
-// cannot start without a WSL shell distro, so it is dropped from PATH and Git for Windows' bash
-// is put first instead.
-export function ciLocalEnv(base = process.env, platform = process.platform, fileExists = fs.existsSync) {
-  if (platform !== "win32") {
-    return { ...base };
-  }
-  const env = { ...base, MSYS_NO_PATHCONV: "1" };
-  const pathKey = Object.keys(env).find((key) => key.toUpperCase() === "PATH") ?? "PATH";
-  const dirs = (env[pathKey] ?? "")
-    .split(";")
-    .filter((dir) => dir !== "" && !/[\\/]WindowsApps$/i.test(dir.replace(/[\\/]+$/, "")));
-  const gitBash = gitForWindowsBashDir(env, fileExists);
-  env[pathKey] = [...(gitBash ? [gitBash] : []), ...dirs].join(";");
-  return env;
-}
-
-function gitForWindowsBashDir(env, fileExists) {
-  const programFiles = env.ProgramFiles ?? "C:\\Program Files";
-  const dir = `${programFiles}\\Git\\usr\\bin`;
-  return fileExists(`${dir}\\bash.exe`) ? dir : null;
-}
-
-// gitlab-ci-local copies the repo into its build folder with rsync, which Git Bash on Windows lacks.
-export function ciLocalPrerequisiteError(hasCommand = commandExists) {
-  if (hasCommand("rsync")) {
-    return null;
-  }
-  return [
-    "npm run verify:ci-local needs rsync on the host (gitlab-ci-local copies the repo with it).",
-    "Install rsync on the host (on Windows, from an administrator PowerShell: choco install rsync --version 6.5.0 -y;",
-    "running inside WSL with Docker Desktop's WSL integration is an alternative). npm run verify does not need it.",
-  ].join("\n");
-}
-
-function commandExists(command) {
-  const probe = process.platform === "win32" ? "where" : "which";
-  return spawnSync(probe, [command], { stdio: "ignore", windowsHide: true }).status === 0;
 }
 
 function npmStep(script, ...extra) {
@@ -224,53 +152,27 @@ function recordTimings(results, part) {
   }
 }
 
-function runCiLocal() {
-  const missing = ciLocalPrerequisiteError();
-  if (missing) {
-    console.error(missing);
-    return 1;
-  }
-  if (process.platform === "win32") {
-    console.log("Windows: skipping the test job (gitlab-ci-local cannot write its service log here); npm run verify covers it.");
-  }
-  const variablesFile = path.join(rootDir, ".gitlab-ci-local-variables.yml");
-  if (!fs.existsSync(variablesFile)) {
-    fs.copyFileSync(path.join(rootDir, ".gitlab-ci-local-variables.example.yml"), variablesFile);
-    console.log("Created .gitlab-ci-local-variables.yml from the example (test values only).");
-  }
-  const result = spawnSync(process.execPath, [resolveNpmJsCli("npx"), ...ciLocalArgs()], {
-    cwd: rootDir,
-    stdio: "inherit",
-    env: ciLocalEnv(),
-    windowsHide: true,
-  });
-  const failure = spawnFailureMessage("gitlab-ci-local", result);
-  if (failure !== null) console.error(failure);
-  return result.status ?? 1;
-}
-
 const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
-/** Reads the command line into a mode, a part and whether to start the database; throws on a bad combination. */
+/** Reads the command line into a part and whether to start the database; throws on a bad argument. */
 export function parseVerifyArgs(args) {
+  const known = new Set(["--part", "--skip-db-start"]);
   const index = args.indexOf("--part");
-  if (args.includes("--ci-local")) {
-    if (index !== -1) {
-      throw new Error("--part does not apply to --ci-local: CI always runs the full suite");
-    }
-    return { mode: "ci-local", part: "full", startDb: true };
+  const unknown = args.find((arg, i) => arg.startsWith("--") && !known.has(arg) && (index === -1 || i !== index + 1));
+  if (unknown !== undefined) {
+    throw new Error(`Unknown argument: ${unknown}`);
   }
   const part = index === -1 ? "full" : (args[index + 1] ?? "");
   if (!verifyParts.includes(part)) {
     throw new Error(`Unknown verify part "${part}"; use --part ${verifyParts.join("|")}`);
   }
-  return { mode: "verify", part, startDb: !args.includes("--skip-db-start") };
+  return { part, startDb: !args.includes("--skip-db-start") };
 }
 
 if (isDirectRun) {
   try {
-    const { mode, part, startDb } = parseVerifyArgs(process.argv.slice(2));
-    process.exitCode = mode === "ci-local" ? runCiLocal() : runVerify({ startDb, part });
+    const { part, startDb } = parseVerifyArgs(process.argv.slice(2));
+    process.exitCode = runVerify({ startDb, part });
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
