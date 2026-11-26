@@ -13,6 +13,8 @@ const cursorOnlyRules = new Set(["review.mdc"]);
 
 // The Claude side of review-suite is the plugin command, so the Cursor skill is not mirrored.
 const cursorOnlySkills = new Set(["review-suite"]);
+// Committed Claude skills with no .cursor/ original: tracked by hand, never generated or removed.
+const claudeOnlySkills = new Set(["install-seathold"]);
 
 // The plugin's agent frontmatter. Model, color, and tools are Claude settings, not shared text.
 export const claudeAgentFields = {
@@ -135,8 +137,6 @@ function agentReferences(text, from, to) {
 export const unmatchedGlobAllowlist = [
   // Phase 0 it-5 (frontend skeleton)
   { glob: "frontend/src/**/services/**", until: "phase 0 it-5: ApiClient service" },
-  // Phase 0 it-7
-  { glob: "docs/**", until: "phase 0 it-7: docs/ai-workflow-log.md" },
   // Phase 1 (auth module, HTTP presentation, email, persistence adapters)
   { glob: "backend/src/modules/**", until: "phase 1: auth module" },
   { glob: "backend/src/modules/**/application/**", until: "phase 1: auth application services" },
@@ -241,7 +241,7 @@ export function planMirror(root = rootDir) {
     }
   }
   for (const name of listDirs(path.join(root, ".claude/skills"))) {
-    if (!skillNames.includes(name)) {
+    if (!skillNames.includes(name) && !claudeOnlySkills.has(name)) {
       removals.push(`.claude/skills/${name}`);
     }
   }

@@ -152,7 +152,7 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Choice.** Backend: Node 24, TypeScript, Fastify, Prisma, PostgreSQL. Frontend: React, TypeScript, Vite. Tests: Vitest. npm workspaces. A modular monolith with explicit modules (`auth`, `catalog`, `booking`, `guest-access`, `backoffice`).
 - **Options.** Microservices; NestJS; Next.js full stack.
 - **Trade-off.** One deployable is simpler and fits 4-6 hours; module boundaries keep later extraction possible.
-- **Status.** `planned`: Phase 0.
+- **Status.** `planned`: Phase 0 to Phase 4. In place after Phase 0: npm workspaces, Fastify, Prisma, React, Vite and Vitest (`package.json`, `backend/package.json`, `frontend/package.json`; run by `npm run verify-fast-part`). Missing: the `auth`, `catalog`, `booking`, `guest-access` and `backoffice` modules, which arrive from Phase 1, so no test proves the module layout yet.
 
 ### O2. Authentication model
 
@@ -166,7 +166,7 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Choice.** Designed for AWS: S3 + CloudFront (frontend, `/api/*` routed to the ALB), ECS Fargate behind an ALB (backend), RDS or Aurora PostgreSQL 17 with RDS Proxy, SES, Secrets Manager or SSM, CloudWatch, WAF. Invariants enforced by the rules: no request, session, hold, cache or rate-limit state in process memory; the API always under `/api` on the frontend origin; database time for expiry; startup work and scheduled jobs idempotent or run once; configuration only from environment.
 - **Options.** No named target, hosting-agnostic only (the scale answer would stay vague); a single virtual machine with Docker Compose (simplest, but no horizontal scaling or managed database story); serverless functions behind API Gateway (cold starts and many short-lived PostgreSQL connections on the hot hold path).
 - **Trade-off.** Some local conveniences are off the table (in-memory caches, per-process counters). Deployment itself is out of scope.
-- **Status.** `planned`: Phase 0 it-3, it-4, it-6.
+- **Status.** `planned`: Phase 0 it-3, it-4, it-6. In place: configuration only from environment (`backend/src/config/load-config.ts`, test `load-config.test.ts`), database time (O4), everything under `/api` (O5), the stateless backend image (O28, `scripts/dockerfile-hygiene.test.mjs`). Missing: the arm64 image build is checked only by the CI `image-build` job and is not proven on the development host; the no-in-memory-state invariant has no test until Phase 1 and later add state; the AWS target itself is documentation only.
 
 ### O4. Clock source
 
@@ -236,21 +236,21 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 - **Choice.** Development, tests and verify run on Docker Compose (PostgreSQL 17, Mailpit). The macOS install skill uses Homebrew services with the same versions and `.env` keys.
 - **Options.** Docker on the Mac too; Homebrew everywhere.
 - **Trade-off.** Two local setups to keep in line (a review check enforces it); in return the clean-Mac run avoids Docker Desktop's GUI install and fits under 10 minutes.
-- **Status.** `planned`: Phase 0 it-3, it-7.
+- **Status.** `planned`: Phase 0 it-3, it-7. In place: `docker-compose.yml` (PostgreSQL 17.12, Mailpit v1.34.0; checked by `docker compose config -q`), `.env.example` (test `backend/src/config/env-example.test.ts`), `README.md` (test `scripts/readme-commands.test.mjs`), `.claude/skills/install-seathold/SKILL.md` (tracked, test `scripts/git-hygiene.test.mjs`). Missing: the install skill is v0 and has not been run on a Mac, so the Homebrew path is unproven.
 
 ### O14. CI
 
 - **Choice.** GitHub Actions: lint, typecheck, unit and integration tests with a PostgreSQL 17 service, build, and a multi-architecture backend image build (not pushed). `scripts/verify.mjs` runs the same steps locally.
 - **Options.** GitLab CI (the repository is on GitHub, so it would need a mirror); no CI, local `verify` only (no visible evidence in the public repository).
 - **Trade-off.** Image is built but never deployed.
-- **Status.** `planned`: Phase 0 it-2, it-6. The workflow and its `image-build` job (QEMU and Buildx, no push) exist; the entry moves to `implemented` in it-7 once CI has run.
+- **Status.** `planned`: Phase 0 it-2, it-6. The workflow and its `image-build` job (QEMU and Buildx, no push) exist, and `scripts/verify.test.mjs` asserts that `scripts/verify.mjs` runs the commands of `.github/workflows/ci.yml`. Missing: the workflow has not run on GitHub yet, so the PostgreSQL service and the multi-architecture build are unproven; the entry moves to `implemented` after the first green run.
 
 ### O15. Committed AI setup
 
 - **Choice.** `CLAUDE.md` (standalone) and the install skill are committed; the full rule and skill set stays local.
 - **Options.** Commit the full rule and skill set (complete picture, but large and partly generic); commit only the install skill (the brief also requires `CLAUDE.md`).
 - **Trade-off.** Reviewers see the working rules in summary in `CLAUDE.md`, not the full rule files.
-- **Status.** `planned`: Phase 0 it-1.
+- **Status.** `implemented` (Phase 0 it-1, it-7): `CLAUDE.md` is standalone and tracked, the install skill is tracked and not ignored, and the rule and skill set stays ignored; tests `scripts/git-hygiene.test.mjs` and `scripts/sync-ai-rules.test.mjs` (the generated-skill sync leaves `install-seathold` alone). The skill content is v0 and unproven on a Mac (see O13).
 
 ### O16. Money
 
