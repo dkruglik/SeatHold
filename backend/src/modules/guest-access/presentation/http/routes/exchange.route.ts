@@ -10,10 +10,9 @@ export const exchangeRoute: FastifyPluginAsync<GuestRouteOptions> = async (app, 
     { schema: { body: exchangeBodySchema, response: { 200: guestBookingSchema } }, onRequest: [...options.mutationHooks] },
     async (request, reply) => {
       const session = await options.services.exchange.exchange({ token: request.body.token });
-      const booking = await options.services.getBooking.get({ sessionToken: session.sessionToken });
       setGuestSessionCookie(reply, session.sessionToken, session.expiresAt, options.cookie);
       void reply.header("cache-control", "no-store");
-      return toGuestBookingDto(booking);
+      return toGuestBookingDto(session.booking);
     },
   );
 };

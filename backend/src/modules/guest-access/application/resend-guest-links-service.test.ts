@@ -56,6 +56,6 @@ describe("ResendGuestLinksService", () => {
     expect(sessions.rows[0]?.revokedAt).not.toBeNull();
     expect(links.rows.filter((r) => r.invalidatedAt === null && r.consumedAt === null)).toHaveLength(2);
     const fresh = tokenIn(email.sent[0]?.text ?? "");
-    expect((await exchange.exchange({ token: fresh })).bookingId).toBe("b1");
+    expect((await exchange.exchange({ token: fresh })).booking.bookingId).toBe("b1");
   });
 });

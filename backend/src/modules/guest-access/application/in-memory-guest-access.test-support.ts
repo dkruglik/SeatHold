@@ -1,7 +1,7 @@
 import { GuestAccessLink } from "../domain/guest-access-link.js";
 import type { GuestLinkState } from "../domain/guest-link-state.js";
 import { GuestSession } from "../domain/guest-session.js";
-import type { GuestLinkRepository, NewGuestLink } from "./ports/guest-link-repository.js";
+import type { ConsumeAndCreateSession, GuestLinkRepository, NewGuestLink } from "./ports/guest-link-repository.js";
 import type { GuestResendLimiter } from "./ports/guest-resend-limiter.js";
 import type { GuestSessionRepository, NewGuestSession } from "./ports/guest-session-repository.js";
 import type { GuestBookings } from "./ports/guest-bookings.js";
@@ -21,6 +21,10 @@ interface StoredLink { id: string; bookingId: string; tokenHash: string; expires
 
 export class InMemoryGuestLinks implements GuestLinkRepository {
   readonly rows: StoredLink[] = [];
+  /** Makes the next consumes fail as a database error would, leaving the link consumable. */
+  failConsume = false;
+
+  constructor(private readonly sessions: GuestSessionRepository) {}
 
   create(link: NewGuestLink): Promise<GuestAccessLink> {
     const row = { id: `l${this.rows.length + 1}`, bookingId: link.bookingId, tokenHash: link.tokenHash, expiresAt: link.expiresAt, createdAt: link.now, consumedAt: null, invalidatedAt: null };
@@ -28,11 +32,22 @@ export class InMemoryGuestLinks implements GuestLinkRepository {
     return Promise.resolve(new GuestAccessLink(row.id, row.bookingId, row.expiresAt, row.createdAt));
   }
 
-  consumeByTokenHash(tokenHash: string, now: Date): Promise<string | null> {
-    const row = this.rows.find((r) => r.tokenHash === tokenHash && r.consumedAt === null && r.invalidatedAt === null && r.expiresAt > now);
+  findUsableBookingIdByTokenHash(tokenHash: string, now: Date): Promise<string | null> {
+    return Promise.resolve(this.usable(tokenHash, now)?.bookingId ?? null);
+  }
+
+  /** Consume and session insert together, like the single SQL statement: a failure leaves the link untouched. */
+  consumeAndCreateSession(input: ConsumeAndCreateSession): Promise<string | null> {
+    if (this.failConsume) return Promise.reject(new InfrastructureError("consume failed"));
+    const row = this.usable(input.tokenHash, input.now);
     if (row === undefined) return Promise.resolve(null);
-    row.consumedAt = now;
+    row.consumedAt = input.now;
+    void this.sessions.create({ bookingId: row.bookingId, tokenHash: input.sessionTokenHash, expiresAt: input.sessionExpiresAt, now: input.now });
     return Promise.resolve(row.bookingId);
+  }
+
+  private usable(tokenHash: string, now: Date): StoredLink | undefined {
+    return this.rows.find((r) => r.tokenHash === tokenHash && r.consumedAt === null && r.invalidatedAt === null && r.expiresAt > now);
   }
 
   findStateByTokenHash(tokenHash: string, now: Date): Promise<GuestLinkState> {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MS_PER_DAY, EVENT_STARTS_AT, useGuestApp } from "./guest-route-test-support.js";
 
 const harness = useGuestApp();
@@ -23,6 +23,19 @@ describe("POST /api/guest/exchange", () => {
     expect(booking.headers["cache-control"]).toBe("no-store");
     expect(booking.headers.vary).toBe("Cookie");
     expect(booking.json()).toEqual(response.json());
+  });
+
+  it("answers from the booking the exchange itself read: no second lookup that could fail after the session exists", async () => {
+    const { token, bookingId } = await harness.bookingWithLink();
+    const lookup = vi.spyOn(harness.guest().getBooking, "get").mockRejectedValue(new Error("must not be called"));
+
+    const response = await harness.post("/api/guest/exchange", { token });
+
+    expect(lookup).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(200);
+    expect(gsidOf(response)).not.toBe("");
+    expect(response.json()).toMatchObject({ bookingId });
+    expect(await harness.prisma.client.guestSession.count()).toBe(1);
   });
 
   it("answers 410 LINK_USED for the second exchange of the same link", async () => {

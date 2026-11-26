@@ -114,6 +114,6 @@ describe("guest link exchange against PostgreSQL", () => {
     expect(mail.sent).toHaveLength(2);
     await expect(guestAccess.getBooking.get({ sessionToken: first.sessionToken })).rejects.toThrow();
     const fresh = /#t=([A-Za-z0-9_-]+)/.exec(mail.sent[1]?.text ?? "")?.[1] ?? "";
-    expect((await guestAccess.exchange.exchange({ token: fresh })).bookingId).toBe(made.id);
+    expect((await guestAccess.exchange.exchange({ token: fresh })).booking.bookingId).toBe(made.id);
   });
 });

@@ -56,7 +56,7 @@ export function createGuestAccessServices(config: GuestAccessSettings, deps: Gue
   });
   return {
     issue,
-    exchange: new ExchangeGuestLinkService({ clock, links, sessions, tokens, bookings }),
+    exchange: new ExchangeGuestLinkService({ clock, links, tokens, bookings }),
     resend: new ResendGuestLinksService({
       clock, links, sessions, tokens, bookings, issue, limiter: deps.resendLimiter, limit: config.guestResendLimit, windowMinutes: config.guestResendWindowMinutes,
     }),

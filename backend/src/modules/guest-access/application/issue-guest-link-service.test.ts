@@ -23,16 +23,29 @@ describe("IssueGuestLinkService", () => {
     expect(JSON.stringify(links.rows)).not.toContain(token);
   });
 
-  it("does not throw when sending fails, keeps the link row, and logs only the booking id", async () => {
+  it("does not throw when sending fails, invalidates the undelivered link, and logs only the booking id", async () => {
     const { issue, email, logger, links } = setup();
     email.fail = true;
 
     await expect(issue.issue(input)).resolves.toBeUndefined();
 
     expect(links.rows).toHaveLength(1);
+    expect(links.rows[0]?.invalidatedAt).toEqual(T0);
     expect(logger.lines).toHaveLength(1);
     expect(logger.lines[0]?.fields).toMatchObject({ bookingId: "b1" });
     expect(logger.text()).not.toContain("example.com");
     expect(logger.text()).not.toContain("#t=");
+  });
+
+  it("still does not throw when invalidating the undelivered link fails too, and logs the booking id only", async () => {
+    const { issue, email, logger, links } = setup();
+    email.fail = true;
+    links.invalidateUnusedForBookings = () => Promise.reject(new Error("db down for g@example.com"));
+
+    await expect(issue.issue(input)).resolves.toBeUndefined();
+
+    expect(logger.lines).toHaveLength(2);
+    expect(logger.lines.every((l) => l.fields?.bookingId === "b1")).toBe(true);
+    expect(logger.text()).not.toContain("example.com");
   });
 });

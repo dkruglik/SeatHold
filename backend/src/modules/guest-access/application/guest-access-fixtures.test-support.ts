@@ -12,15 +12,15 @@ export const ORIGIN = "https://seats.example.org";
 export function setup() {
   trace.length = 0;
   const clock = new ControlledClock(T0);
-  const links = new InMemoryGuestLinks();
   const sessions = new InMemoryGuestSessions();
+  const links = new InMemoryGuestLinks(sessions);
   const limiter = new FakeLimiter();
   const email = new RecordingEmail();
   const logger = new RecordingLogger();
   const bookings = new FakeGuestBookings();
   const tokens = new CryptoGuestTokens();
   const issue = new IssueGuestLinkService({ clock, links, email, tokens, logger, frontendOrigin: ORIGIN, linkTtlHours: 168 });
-  const exchange = new ExchangeGuestLinkService({ clock, links, sessions, tokens, bookings });
+  const exchange = new ExchangeGuestLinkService({ clock, links, tokens, bookings });
   const resend = new ResendGuestLinksService({ clock, links, sessions, limiter, bookings, tokens, issue, limit: 3, windowMinutes: 60 });
   const getBooking = new GetGuestBookingQuery({ clock, sessions, tokens, bookings });
   return { clock, links, sessions, limiter, email, logger, bookings, tokens, issue, exchange, resend, getBooking };

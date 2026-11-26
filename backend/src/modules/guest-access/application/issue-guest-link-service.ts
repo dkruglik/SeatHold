@@ -28,7 +28,7 @@ const MS_PER_HOUR = 3_600_000;
 /**
  * Stores the hash of a new one-time token and emails the link `<origin>/guest/access#t=<token>` (a fragment, so the token
  * stays out of server logs and Referer). A send failure never fails the caller: the booking is already confirmed and the
- * buyer can request a new link, so it is logged with the booking id only.
+ * buyer can request a new link, so it is logged with the booking id only and the undelivered link is invalidated.
  */
 export class IssueGuestLinkService {
   constructor(private readonly deps: IssueGuestLinkDeps) {}
@@ -44,7 +44,19 @@ export class IssueGuestLinkService {
     try {
       await email.send(message);
     } catch (error) {
-      logger.warn("guest link email was not sent; the buyer can request a new link", { bookingId: input.bookingId, errorName: error instanceof Error ? error.name : "unknown" });
+      logger.warn("guest link email was not sent; the buyer can request a new link", { bookingId: input.bookingId, errorName: errorName(error) });
+      await this.invalidateUndelivered(input.bookingId, now);
+    }
+  }
+
+  /** The stored link was never delivered, so it must not stay usable. A failure here is logged and never thrown. */
+  private async invalidateUndelivered(bookingId: string, now: Date): Promise<void> {
+    try {
+      await this.deps.links.invalidateUnusedForBookings([bookingId], now);
+    } catch (error) {
+      this.deps.logger.warn("undelivered guest link could not be invalidated", { bookingId, errorName: errorName(error) });
     }
   }
 }
+
+const errorName = (error: unknown): string => (error instanceof Error ? error.name : "unknown");
