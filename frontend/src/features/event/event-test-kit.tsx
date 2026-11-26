@@ -30,6 +30,8 @@ export interface FakeServer {
   holdFailure: Failure | null;
   holdTtlMs: number;
   calls: string[];
+  /** A feature test kit's hook: answers the routes the event page itself does not know (checkout, auth). */
+  intercept?: (request: { readonly method: string; readonly path: string; readonly body: unknown; readonly headers: Headers }) => Response | undefined;
 }
 
 const seatIds = ["a1", "a2", "a3", "b1", "b2", "b3"];
@@ -119,9 +121,21 @@ export function handle(server: FakeServer, method: string, path: string, csrfTok
 
 export const count = (server: FakeServer, call: string) => server.calls.filter((c) => c === call).length;
 
+function answer(server: FakeServer, path: string, init: RequestInit | undefined): Response {
+  const method = init?.method ?? "GET";
+  const headers = new Headers(init?.headers);
+  const body: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+  const custom = server.intercept?.({ method, path, body, headers });
+  if (custom !== undefined) {
+    server.calls.push(`${method} ${path}`);
+    return custom;
+  }
+  return handle(server, method, path, headers.get("x-csrf-token"));
+}
+
 /** Renders the event page at /events/:eventId against the in-memory server, through the real ApiClient. */
 export function renderEvent(server: FakeServer, props: EventPageProps = {}, fakeTimers = false) {
-  const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input, init) => Promise.resolve(handle(server, init?.method ?? "GET", String(input), new Headers(init?.headers).get("x-csrf-token"))));
+  const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input, init) => Promise.resolve(answer(server, String(input), init)));
   const router = createMemoryRouter([{ path: "/events/:eventId", element: <EventPage {...props} /> }], { initialEntries: [`/events/${eventId}`] });
   const view = render(
     <MantineProvider theme={theme} env="test">

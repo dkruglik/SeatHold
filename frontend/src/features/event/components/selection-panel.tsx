@@ -11,6 +11,8 @@ interface SelectionPanelProps {
   readonly mySeats: readonly SeatMapSeat[];
   readonly session: HoldSession;
   readonly onContinue: ((hold: HoldSummary) => void) | undefined;
+  /** True while the checkout panel is open: the buyer is already continuing. */
+  readonly checkingOut?: boolean;
 }
 
 const oneMinute = 60;
@@ -20,7 +22,7 @@ function announcement(remaining: number | null): string {
   return remaining !== null && remaining > 0 && remaining <= oneMinute ? "One minute left on your hold." : "";
 }
 
-export function SelectionPanel({ event, mySeats, session, onContinue }: SelectionPanelProps) {
+export function SelectionPanel({ event, mySeats, session, onContinue, checkingOut = false }: SelectionPanelProps) {
   const { summary, remainingSeconds, expired } = session;
   return (
     <Paper component="section" aria-label="Your selection" withBorder p="md">
@@ -45,8 +47,7 @@ export function SelectionPanel({ event, mySeats, session, onContinue }: Selectio
         {expired ? <Alert role="status" color="orange" title="Your hold expired">The seats were released. Pick them again to continue.</Alert> : null}
         <VisuallyHidden role="status" aria-live="polite" data-testid="hold-announcer">{announcement(remainingSeconds)}</VisuallyHidden>
         {session.failed ? <Text c="red" size="sm">Could not load your selection.</Text> : null}
-        {/* The next step (checkout) plugs in through onContinue. */}
-        <Button disabled={summary === null} onClick={() => summary !== null && onContinue?.(summary)}>
+        <Button disabled={summary === null || checkingOut} onClick={() => summary !== null && onContinue?.(summary)}>
           Continue to payment
         </Button>
       </Stack>

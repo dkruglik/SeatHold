@@ -1,14 +1,17 @@
 import { Alert, Anchor, Container, Group, Stack } from "@mantine/core";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError } from "../../shared/lib/api-client";
 import { SeatMap } from "../../shared/ui/seat-map";
+import { CheckoutPanel, type OrderSummary } from "../checkout";
 import { EventHeader } from "./components/event-header";
 import { EventLoadError, EventLoading, EventNotFound } from "./components/event-states";
 import { SelectionPanel } from "./components/selection-panel";
-import { useEventDetail, useSeatMap } from "./hooks/event-queries";
+import { eventKeys, useEventDetail, useSeatMap } from "./hooks/event-queries";
 import { useHoldSession } from "./hooks/use-hold-session";
 import { useSeatToggle } from "./hooks/use-seat-toggle";
-import { toMapSeats } from "./lib/seats";
+import { seatLabel, toMapSeats } from "./lib/seats";
 import type { EventDetail, HoldSummary } from "./types";
 
 export interface EventPageProps {
@@ -40,7 +43,18 @@ function EventScreen({ event, onContinue }: { readonly event: EventDetail; reado
   const seatMap = useSeatMap(event.eventId);
   const session = useHoldSession(event.eventId);
   const seatToggle = useSeatToggle(event.eventId);
+  const queryClient = useQueryClient();
+  const [order, setOrder] = useState<OrderSummary | null>(null);
   const seats = seatMap.data === undefined ? [] : toMapSeats(seatMap.data, session.seatIds);
+  const mySeats = seats.filter((s) => s.state === "held_by_me");
+  const startCheckout = (hold: HoldSummary) => {
+    setOrder({ eventId: event.eventId, eventTitle: event.title, priceMinor: event.priceMinor, currency: event.currency, seats: mySeats.map((s) => ({ id: s.id, label: seatLabel(s) })) });
+    onContinue?.(hold);
+  };
+  const refetchSeats = () => {
+    void queryClient.invalidateQueries({ queryKey: eventKeys.hold(event.eventId) });
+    void queryClient.invalidateQueries({ queryKey: eventKeys.seats(event.eventId) });
+  };
   const seatsLeft = seatMap.data === undefined ? event.seatsLeft : seats.filter((s) => s.state === "available").length;
 
   return (
@@ -50,7 +64,7 @@ function EventScreen({ event, onContinue }: { readonly event: EventDetail; reado
       <Group align="flex-start" wrap="wrap" gap="xl">
         <div style={{ flex: "1 1 24rem", minWidth: 0 }}>
           {seatMap.data !== undefined ? (
-            <SeatMap rows={event.rows} seatsPerRow={event.seatsPerRow} seats={seats} onSelect={seatToggle.toggle} disabled={seatToggle.pending} />
+            <SeatMap rows={event.rows} seatsPerRow={event.seatsPerRow} seats={seats} onSelect={seatToggle.toggle} disabled={seatToggle.pending || order !== null} />
           ) : seatMap.isError ? (
             <EventLoadError message="Could not load the seat map." onRetry={() => void seatMap.refetch()} />
           ) : (
@@ -58,7 +72,10 @@ function EventScreen({ event, onContinue }: { readonly event: EventDetail; reado
           )}
         </div>
         <div style={{ flex: "0 1 20rem", minWidth: "16rem" }}>
-          <SelectionPanel event={event} mySeats={seats.filter((s) => s.state === "held_by_me")} session={session} onContinue={onContinue} />
+          <Stack gap="md">
+            <SelectionPanel event={event} mySeats={mySeats} session={session} onContinue={startCheckout} checkingOut={order !== null} />
+            {order !== null ? <CheckoutPanel order={order} holdLive={session.summary !== null} onSettled={refetchSeats} onClose={() => setOrder(null)} /> : null}
+          </Stack>
         </div>
       </Group>
     </>
