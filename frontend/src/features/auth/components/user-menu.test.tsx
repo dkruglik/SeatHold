@@ -13,6 +13,14 @@ describe("UserMenu on the home layout", () => {
     expect(router.state.location.pathname).toBe("/login");
   });
 
+  it("links a signed-in user to My bookings", async () => {
+    renderRoutes("/", { user: buyer });
+
+    const link = await screen.findByRole("link", { name: "My bookings" });
+
+    expect(link.getAttribute("href")).toBe("/bookings");
+  });
+
   it("shows the email and logs out: calls the API with the CSRF token, goes anonymous and stays on home", async () => {
     const { user, backend, router } = renderRoutes("/", { user: buyer });
     await screen.findByText("buyer@example.com");

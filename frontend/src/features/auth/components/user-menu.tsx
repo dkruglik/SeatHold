@@ -19,6 +19,27 @@ function AccountError({ onRetry }: { readonly onRetry: () => void }) {
   );
 }
 
+function SignedIn({ email, failed, onLogout }: { readonly email: string; readonly failed: boolean; readonly onLogout: () => void }) {
+  return (
+    <Group gap="sm" wrap="wrap" justify="flex-end">
+      <Text size="sm" style={{ overflowWrap: "anywhere" }}>
+        {email}
+      </Text>
+      <Button component={Link} to="/bookings" variant="subtle" size="compact-md">
+        My bookings
+      </Button>
+      <Button variant="default" size="compact-md" onClick={onLogout}>
+        Log out
+      </Button>
+      {failed ? (
+        <Alert color="red" role="alert" w="100%">
+          Could not log out. Please try again.
+        </Alert>
+      ) : null}
+    </Group>
+  );
+}
+
 /** Header area: Sign in for a visitor; the email and Log out for a signed-in user. Renders nothing while `me` loads; if it failed, an alert with Retry. */
 export function UserMenu() {
   const me = useMe();
@@ -54,19 +75,5 @@ export function UserMenu() {
       </Button>
     );
   }
-  return (
-    <Group gap="sm" wrap="wrap" justify="flex-end">
-      <Text size="sm" style={{ overflowWrap: "anywhere" }}>
-        {me.data.email}
-      </Text>
-      <Button variant="default" size="compact-md" onClick={() => void logout()}>
-        Log out
-      </Button>
-      {failed ? (
-        <Alert color="red" role="alert" w="100%">
-          Could not log out. Please try again.
-        </Alert>
-      ) : null}
-    </Group>
-  );
+  return <SignedIn email={me.data.email} failed={failed} onLogout={() => void logout()} />;
 }
