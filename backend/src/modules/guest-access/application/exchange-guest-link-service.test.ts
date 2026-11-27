@@ -72,6 +72,19 @@ describe("ExchangeGuestLinkService failures before the session exists", () => {
     expect(sessions.rows).toHaveLength(1);
   });
 
+  it("leaves the link consumable and creates no session when the session insert fails, like the single SQL statement", async () => {
+    const { exchange, links, sessions, token } = await issued();
+    sessions.failCreate = true;
+
+    expect(await exchange.exchange({ token }).catch((e: unknown) => e)).toBeInstanceOf(InfrastructureError);
+
+    expect(links.rows[0]?.consumedAt).toBeNull();
+    expect(sessions.rows).toHaveLength(0);
+    sessions.failCreate = false;
+    await expect(exchange.exchange({ token })).resolves.toMatchObject({ booking: { bookingId: "b1" } });
+    expect(sessions.rows).toHaveLength(1);
+  });
+
   it("answers LINK_USED to a concurrent loser, with exactly one session in total", async () => {
     const { exchange, sessions, token } = await issued();
 

@@ -37,13 +37,19 @@ export class InMemoryGuestLinks implements GuestLinkRepository {
   }
 
   /** Consume and session insert together, like the single SQL statement: a failure leaves the link untouched. */
-  consumeAndCreateSession(input: ConsumeAndCreateSession): Promise<string | null> {
-    if (this.failConsume) return Promise.reject(new InfrastructureError("consume failed"));
+  async consumeAndCreateSession(input: ConsumeAndCreateSession): Promise<string | null> {
+    if (this.failConsume) throw new InfrastructureError("consume failed");
     const row = this.usable(input.tokenHash, input.now);
-    if (row === undefined) return Promise.resolve(null);
+    if (row === undefined) return null;
+    // Reserve synchronously so a concurrent exchange loses, then restore if the insert fails: both effects or neither.
     row.consumedAt = input.now;
-    void this.sessions.create({ bookingId: row.bookingId, tokenHash: input.sessionTokenHash, expiresAt: input.sessionExpiresAt, now: input.now });
-    return Promise.resolve(row.bookingId);
+    try {
+      await this.sessions.create({ bookingId: row.bookingId, tokenHash: input.sessionTokenHash, expiresAt: input.sessionExpiresAt, now: input.now });
+    } catch (error) {
+      row.consumedAt = null;
+      throw error;
+    }
+    return row.bookingId;
   }
 
   private usable(tokenHash: string, now: Date): StoredLink | undefined {
@@ -69,8 +75,11 @@ interface StoredSession { session: GuestSession; tokenHash: string; revokedAt: D
 
 export class InMemoryGuestSessions implements GuestSessionRepository {
   readonly rows: StoredSession[] = [];
+  /** Makes the next inserts fail as a database error would, storing nothing. */
+  failCreate = false;
 
   create(s: NewGuestSession): Promise<GuestSession> {
+    if (this.failCreate) return Promise.reject(new InfrastructureError("session insert failed"));
     const session = new GuestSession(`s${this.rows.length + 1}`, s.bookingId, s.expiresAt, s.now);
     this.rows.push({ session, tokenHash: s.tokenHash, revokedAt: null });
     return Promise.resolve(session);
