@@ -4,28 +4,28 @@ overview: "Operator screens and routes inside the /api/admin plugin from Phase 1
 todos:
   - id: it-0-approvals
     content: Approve the back-office defaults below (no new dependencies)
-    status: pending
+    status: completed
   - id: it-1-create-event
     content: CreateEventService (new or existing show and venue, grid generation in one transaction) and POST /api/admin/events
-    status: pending
+    status: completed
   - id: it-2-admin-lists
     content: Admin event list, venues and shows lookups for the form
-    status: pending
+    status: completed
   - id: it-3-open-tickets
     content: Open tickets per event (available and currently held, lazy expiry applied), paginated
-    status: pending
+    status: completed
   - id: it-4-bought-tickets
     content: Bought tickets per event with buyer (user or guest email), purchase time and status, paginated
-    status: pending
+    status: completed
   - id: it-5-admin-screens
     content: /admin screens - event list, create event form, event detail with open and bought tabs
-    status: pending
+    status: completed
   - id: it-6-manual-release-optional
     content: Optional - manual release of a held seat by an operator (the proposed capability)
-    status: pending
+    status: completed
   - id: it-7-docs-verify
-    content: Proposed capability written up, README, manual check as buyer and admin, full verify, roadmap status
-    status: pending
+    content: "Proposed capability written up, README, manual check as buyer and admin, full verify, roadmap status. Open: manual browser check (only jsdom and integration tests run), second review round, full npm run verify on the final commit, GitHub Actions run"
+    status: in_progress
 isProject: false
 ---
 
