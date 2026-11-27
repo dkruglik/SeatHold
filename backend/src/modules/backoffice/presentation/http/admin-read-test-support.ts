@@ -76,3 +76,21 @@ async function upsertUser(prisma: PrismaService, email: string): Promise<string>
     ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id`;
   return user?.id ?? "";
 }
+
+export async function seatState(prisma: PrismaService, seatId: string): Promise<{ status: string; hold_id: string | null; held_until: Date | null }> {
+  const [row] = await prisma.client.$queryRaw<{ status: string; hold_id: string | null; held_until: Date | null }[]>`
+    SELECT status, hold_id, held_until FROM seats WHERE id = ${seatId}::uuid`;
+  return row ?? { status: "missing", hold_id: null, held_until: null };
+}
+
+export interface ReleaseLogRow {
+  readonly seat_id: string;
+  readonly event_id: string;
+  readonly hold_id: string | null;
+  readonly admin_user_id: string;
+  readonly reason: string;
+  readonly created_at: Date;
+}
+
+export const releaseLogRows = (prisma: PrismaService): Promise<ReleaseLogRow[]> =>
+  prisma.client.$queryRaw<ReleaseLogRow[]>`SELECT seat_id, event_id, hold_id, admin_user_id, reason, created_at FROM seat_release_log ORDER BY created_at, id`;

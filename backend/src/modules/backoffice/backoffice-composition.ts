@@ -5,9 +5,11 @@ import { CreateEventService } from "./application/create-event-service.js";
 import { GetLookupsQuery } from "./application/get-lookups-query.js";
 import { ListAdminEventsQuery } from "./application/list-admin-events-query.js";
 import { ListBoughtTicketsQuery } from "./application/list-bought-tickets-query.js";
+import { ReleaseHeldSeatService } from "./application/release-held-seat-service.js";
 import { ListOpenTicketsQuery } from "./application/list-open-tickets-query.js";
 import { PrismaAdminEventListReader } from "./infrastructure/persistence/prisma-admin-event-list-reader.js";
 import { PrismaAdminLookupsReader } from "./infrastructure/persistence/prisma-admin-lookups-reader.js";
+import { PrismaSeatReleaser } from "./infrastructure/persistence/prisma-seat-releaser.js";
 import { PrismaEventTicketsReader } from "./infrastructure/persistence/prisma-event-tickets-reader.js";
 
 export interface BackofficeServices {
@@ -16,6 +18,7 @@ export interface BackofficeServices {
   readonly lookups: GetLookupsQuery;
   readonly listOpenTickets: ListOpenTicketsQuery;
   readonly listBoughtTickets: ListBoughtTicketsQuery;
+  readonly releaseHeldSeat: ReleaseHeldSeatService;
 }
 
 export interface BackofficeDeps {
@@ -33,5 +36,6 @@ export function createBackofficeServices(deps: BackofficeDeps): BackofficeServic
     lookups: new GetLookupsQuery({ reader: new PrismaAdminLookupsReader(deps.prisma) }),
     listOpenTickets: new ListOpenTicketsQuery({ reader: tickets, clock: deps.clock }),
     listBoughtTickets: new ListBoughtTicketsQuery({ reader: tickets }),
+    releaseHeldSeat: new ReleaseHeldSeatService({ releaser: new PrismaSeatReleaser(deps.prisma), clock: deps.clock }),
   };
 }

@@ -14,13 +14,14 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email     String    @unique @db.Citext
-  role      String    @default("buyer")
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3)
-  sessions  Session[]
-  holds     Hold[]
-  bookings  Booking[]
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String           @unique @db.Citext
+  role         String           @default("buyer")
+  createdAt    DateTime         @map("created_at") @db.Timestamptz(3)
+  sessions     Session[]
+  holds        Hold[]
+  bookings     Booking[]
+  seatReleases SeatReleaseLog[]
 
   @@map("users")
 }
@@ -82,19 +83,20 @@ model Show {
 }
 
 model Event {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  showId      String    @map("show_id") @db.Uuid
-  venueId     String    @map("venue_id") @db.Uuid
-  startsAt    DateTime  @map("starts_at") @db.Timestamptz(3)
-  priceMinor  Int       @map("price_minor")
-  currency    String    @db.Char(3)
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  showId      String           @map("show_id") @db.Uuid
+  venueId     String           @map("venue_id") @db.Uuid
+  startsAt    DateTime         @map("starts_at") @db.Timestamptz(3)
+  priceMinor  Int              @map("price_minor")
+  currency    String           @db.Char(3)
   rows        Int
-  seatsPerRow Int       @map("seats_per_row")
-  show        Show      @relation(fields: [showId], references: [id])
-  venue       Venue     @relation(fields: [venueId], references: [id])
+  seatsPerRow Int              @map("seats_per_row")
+  show        Show             @relation(fields: [showId], references: [id])
+  venue       Venue            @relation(fields: [venueId], references: [id])
   seats       Seat[]
   holds       Hold[]
   bookings    Booking[]
+  releaseLog  SeatReleaseLog[]
 
   @@index([startsAt])
   @@index([showId])
@@ -103,16 +105,17 @@ model Event {
 }
 
 model Seat {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventId    String    @map("event_id") @db.Uuid
-  rowLabel   String    @map("row_label")
-  seatNumber Int       @map("seat_number")
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId    String           @map("event_id") @db.Uuid
+  rowLabel   String           @map("row_label")
+  seatNumber Int              @map("seat_number")
   status     String
-  holdId     String?   @map("hold_id") @db.Uuid
-  heldUntil  DateTime? @map("held_until") @db.Timestamptz(3)
-  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  hold       Hold?     @relation(fields: [holdId], references: [id], onDelete: Restrict)
+  holdId     String?          @map("hold_id") @db.Uuid
+  heldUntil  DateTime?        @map("held_until") @db.Timestamptz(3)
+  event      Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  hold       Hold?            @relation(fields: [holdId], references: [id], onDelete: Restrict)
   ticket     Ticket?
+  releaseLog SeatReleaseLog[]
 
   @@unique([eventId, rowLabel, seatNumber])
   @@index([eventId, status])
@@ -123,18 +126,19 @@ model Seat {
 // Partial unique indexes (event_id, user_id) and (event_id, visitor_hash) WHERE status = 'active'
 // live only in the migration.
 model Hold {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventId     String    @map("event_id") @db.Uuid
-  userId      String?   @map("user_id") @db.Uuid
-  visitorHash String?   @map("visitor_hash")
-  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId     String           @map("event_id") @db.Uuid
+  userId      String?          @map("user_id") @db.Uuid
+  visitorHash String?          @map("visitor_hash")
+  expiresAt   DateTime         @map("expires_at") @db.Timestamptz(3)
   status      String
-  createdAt   DateTime  @map("created_at") @db.Timestamptz(3)
-  event       Event     @relation(fields: [eventId], references: [id])
-  user        User?     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt   DateTime         @map("created_at") @db.Timestamptz(3)
+  event       Event            @relation(fields: [eventId], references: [id])
+  user        User?            @relation(fields: [userId], references: [id], onDelete: Restrict)
   seats       Seat[]
   booking     Booking?
   payments    Payment[]
+  releaseLog  SeatReleaseLog[]
 
   @@index([eventId])
   @@index([userId])
@@ -142,19 +146,19 @@ model Hold {
 }
 
 model Booking {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  holdId         String   @unique @map("hold_id") @db.Uuid
-  eventId        String   @map("event_id") @db.Uuid
-  userId         String?  @map("user_id") @db.Uuid
-  guestEmail     String?  @map("guest_email") @db.Citext
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  holdId         String            @unique @map("hold_id") @db.Uuid
+  eventId        String            @map("event_id") @db.Uuid
+  userId         String?           @map("user_id") @db.Uuid
+  guestEmail     String?           @map("guest_email") @db.Citext
   status         String
-  unitPriceMinor Int      @map("unit_price_minor")
-  totalMinor     Int      @map("total_minor")
-  currency       String   @db.Char(3)
-  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
-  hold           Hold     @relation(fields: [holdId], references: [id])
-  event          Event    @relation(fields: [eventId], references: [id])
-  user           User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  unitPriceMinor Int               @map("unit_price_minor")
+  totalMinor     Int               @map("total_minor")
+  currency       String            @db.Char(3)
+  createdAt      DateTime          @map("created_at") @db.Timestamptz(3)
+  hold           Hold              @relation(fields: [holdId], references: [id])
+  event          Event             @relation(fields: [eventId], references: [id])
+  user           User?             @relation(fields: [userId], references: [id], onDelete: Restrict)
   tickets        Ticket[]
   guestLinks     GuestAccessLink[]
   guestSessions  GuestSession[]
@@ -229,4 +233,24 @@ model GuestResendAttempt {
 
   @@index([emailHash, attemptedAt])
   @@map("guest_resend_attempts")
+}
+
+// Audit trail of manual seat releases by an operator (Phase 4 it-6). The reason CHECK (3..500 characters)
+// lives only in the migration.
+model SeatReleaseLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seatId      String   @map("seat_id") @db.Uuid
+  eventId     String   @map("event_id") @db.Uuid
+  holdId      String?  @map("hold_id") @db.Uuid
+  adminUserId String   @map("admin_user_id") @db.Uuid
+  reason      String
+  createdAt   DateTime @map("created_at") @db.Timestamptz(3)
+  seat        Seat     @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  hold        Hold?    @relation(fields: [holdId], references: [id], onDelete: Restrict)
+  adminUser   User     @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
+
+  @@index([seatId])
+  @@index([eventId, createdAt])
+  @@map("seat_release_log")
 }

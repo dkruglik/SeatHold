@@ -5,6 +5,7 @@ import { boughtTicketsRoute } from "./presentation/http/routes/bought-tickets.ro
 import { createEventRoute } from "./presentation/http/routes/create-event.route.js";
 import { listEventsRoute } from "./presentation/http/routes/list-events.route.js";
 import { lookupsRoute } from "./presentation/http/routes/lookups.route.js";
+import { releaseHeldSeatRoute } from "./presentation/http/routes/release-held-seat.route.js";
 import { openTicketsRoute } from "./presentation/http/routes/open-tickets.route.js";
 
 export { createBackofficeServices, type BackofficeDeps, type BackofficeServices } from "./backoffice-composition.js";
@@ -18,4 +19,5 @@ export const backofficeRoutes = (services: BackofficeServices): FastifyPluginAsy
   lookupsRoute(services),
   openTicketsRoute(services),
   boughtTicketsRoute(services),
+  releaseHeldSeatRoute(services),
 ];

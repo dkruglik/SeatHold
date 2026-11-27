@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 import { PrismaUserRepository } from "../../modules/auth/index.js";
-import { seedEvent } from "../../modules/backoffice/presentation/http/admin-read-test-support.js";
+import { holdSeat, seedEvent } from "../../modules/backoffice/presentation/http/admin-read-test-support.js";
 import {
   cookieHeader,
   sidOf,
@@ -18,6 +18,7 @@ const adminRoutes = (harness: AuthHarness): RegisteredRoute[] => harness.routes.
 
 /** The body a route needs to reach its handler, so the admin answer is a 2xx. Routes not listed take an empty body. */
 const SAMPLE_BODIES: Readonly<Record<string, object>> = {
+  "POST /api/admin/events/:eventId/seats/:seatId/release": { reason: "Access check release" },
   "POST /api/admin/events": {
     show: { new: { title: "Access check", type: "concert", genre: "rock", description: "d" } },
     venue: { new: { name: "Access hall", city: "Berlin", countryCode: "DE", timezone: "Europe/Berlin" } },
@@ -29,17 +30,22 @@ const SAMPLE_BODIES: Readonly<Record<string, object>> = {
   },
 };
 
-/** A route's path with its parameters filled in: `:eventId` names an event that exists, so the admin answer is a 2xx rather than 404. */
-const withParams = (url: string, eventId: string): string => url.replace(":eventId", eventId);
+/** A route's path with its parameters filled in: `:eventId` names an event and `:seatId` a held seat that exist, so the admin answer is a 2xx rather than 404. */
+const withParams = (url: string, eventId: string, seatId: string): string => url.replace(":eventId", eventId).replace(":seatId", seatId);
+
+interface Target {
+  readonly eventId: string;
+  readonly seatId: string;
+}
 
 interface Credentials {
   readonly sid: string;
 }
 
 /** One request as a browser would send it: mutating methods carry valid CSRF credentials so only the role decides. */
-async function call(harness: AuthHarness, route: RegisteredRoute, who: Credentials | null, eventId: string): Promise<{ status: number; code: string | undefined }> {
+async function call(harness: AuthHarness, route: RegisteredRoute, who: Credentials | null, target: Target): Promise<{ status: number; code: string | undefined }> {
   const headers = who === null ? {} : cookieHeader(who.sid);
-  const url = withParams(route.url, eventId);
+  const url = withParams(route.url, target.eventId, target.seatId);
   const response = SAFE_METHODS.has(route.method)
     ? await harness.get(url, headers)
     : await harness.post(url, SAMPLE_BODIES[`${route.method} ${route.url}`] ?? {}, headers);
@@ -50,11 +56,13 @@ async function call(harness: AuthHarness, route: RegisteredRoute, who: Credentia
 /** The routes under /api/admin that do not answer anonymous 401, buyer 403 FORBIDDEN_ROLE and admin 2xx. Empty means the boundary holds. */
 async function accessViolations(harness: AuthHarness, buyer: Credentials, admin: Credentials): Promise<string[]> {
   const violations: string[] = [];
-  const { eventId } = await seedEvent(harness.prisma, { seats: [["A", 1]] });
+  const { eventId, seat } = await seedEvent(harness.prisma, { seats: [["A", 1]] });
+  await holdSeat(harness.prisma, eventId, seat.A1 as string, new Date("2030-01-01T10:30:00Z"));
+  const target = { eventId, seatId: seat.A1 as string };
   for (const route of adminRoutes(harness)) {
-    const anonymous = await call(harness, route, null, eventId);
-    const asBuyer = await call(harness, route, buyer, eventId);
-    const asAdmin = await call(harness, route, admin, eventId);
+    const anonymous = await call(harness, route, null, target);
+    const asBuyer = await call(harness, route, buyer, target);
+    const asAdmin = await call(harness, route, admin, target);
     if (anonymous.status !== 401 || anonymous.code !== "UNAUTHENTICATED") violations.push(`${route.method} ${route.url} anonymous -> ${anonymous.status}`);
     if (asBuyer.status !== 403 || asBuyer.code !== "FORBIDDEN_ROLE") violations.push(`${route.method} ${route.url} buyer -> ${asBuyer.status}`);
     if (asAdmin.status < 200 || asAdmin.status > 299) violations.push(`${route.method} ${route.url} admin -> ${asAdmin.status}`);
@@ -79,6 +87,7 @@ describe("every route under /api/admin (the real app)", () => {
       "GET /api/admin/events/:eventId/open-tickets",
       "GET /api/admin/lookups",
       "POST /api/admin/events",
+      "POST /api/admin/events/:eventId/seats/:seatId/release",
     ]);
   });
 
