@@ -1,5 +1,5 @@
-import type { RouteObject } from "react-router";
-import { AdminPage } from "../features/admin";
+import { Outlet, type RouteObject } from "react-router";
+import { adminRoutes } from "../features/admin";
 import { LoginPage, RequireAdmin, RequireAuth } from "../features/auth";
 import { DiscoveryPage } from "../features/discovery";
 import { EventPage } from "../features/event";
@@ -20,11 +20,11 @@ export const routes: RouteObject[] = [
   { path: "/guest/access", element: <GuestAccessPage /> },
   { path: "/login", element: <LoginPage /> },
   {
-    path: "/admin",
     element: (
       <RequireAdmin>
-        <AdminPage />
+        <Outlet />
       </RequireAdmin>
     ),
+    children: adminRoutes,
   },
 ];

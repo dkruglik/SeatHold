@@ -27,12 +27,26 @@ describe("RequireAdmin", () => {
     expect(backend.calls.some((call) => call.path.startsWith("/admin"))).toBe(false);
   });
 
-  it("renders the back office for an admin, reading the admin ping", async () => {
+  it("renders the back office for an admin, reading the admin event list", async () => {
     const { backend } = renderRoutes("/admin", { user: admin });
 
     await screen.findByRole("heading", { name: "Back office" });
-    await screen.findByText(/API reachable/i);
-    expect(backend.calls.some((call) => call.path === "/admin/ping")).toBe(true);
+    await screen.findByText("No events yet");
+    expect(backend.calls.some((call) => call.path.startsWith("/admin/events"))).toBe(true);
+  });
+
+  it("guards the create and detail pages too, and keeps buyers away from every admin call", async () => {
+    const { backend } = renderRoutes("/admin/events/new", { user: buyer });
+
+    await screen.findByRole("heading", { name: "Not allowed" });
+    expect(backend.calls.some((call) => call.path.startsWith("/admin"))).toBe(false);
+  });
+
+  it("sends an anonymous visitor from an admin detail page to login", async () => {
+    const { router } = renderRoutes("/admin/events/abc");
+
+    await screen.findByLabelText(/^Email/);
+    expect(router.state.location.pathname).toBe("/login");
   });
 });
 

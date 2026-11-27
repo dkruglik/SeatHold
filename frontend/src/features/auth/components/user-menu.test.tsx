@@ -67,3 +67,18 @@ describe("UserMenu on the home layout", () => {
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });
 });
+
+describe("UserMenu Back office link", () => {
+  it("shows the Back office link to an admin only", async () => {
+    renderRoutes("/", { user: { ...buyer, role: "admin" } });
+
+    expect((await screen.findByRole("link", { name: "Back office" })).getAttribute("href")).toBe("/admin");
+  });
+
+  it("does not show the Back office link to a buyer", async () => {
+    renderRoutes("/", { user: buyer });
+
+    await screen.findByRole("link", { name: "My bookings" });
+    expect(screen.queryByRole("link", { name: "Back office" })).toBeNull();
+  });
+});

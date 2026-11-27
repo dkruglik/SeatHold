@@ -74,6 +74,19 @@ describe("query string and error logging", () => {
     expect(records().some((record) => record.req?.url === "/api/health")).toBe(true);
   });
 
+  it("never logs a response body or a query string, so buyer emails in an admin-style list stay out of the log", async () => {
+    const { lines, stream, records } = capture();
+    app = buildApp(config, { clock: new ControlledClock(new Date()), logStream: stream });
+    app.get("/api/test-admin-list", () => ({ items: [{ buyerEmail: "buyer.body@example.io" }] }));
+
+    const response = await app.inject({ method: "GET", url: "/api/test-admin-list?email=buyer.query@example.io" });
+
+    expect(response.body).toContain("buyer.body@example.io");
+    expect(lines.join("")).not.toContain("buyer.body@example.io");
+    expect(lines.join("")).not.toContain("buyer.query@example.io");
+    expect(records().some((record) => record.req?.url === "/api/test-admin-list")).toBe(true);
+  });
+
   it("logs one error record for a throwing route, with headers still redacted and no secret in the output", async () => {
     const { lines, stream, records } = capture();
     app = buildApp(config, { clock: new ControlledClock(new Date()), logStream: stream });

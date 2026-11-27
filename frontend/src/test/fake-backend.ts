@@ -59,8 +59,9 @@ function mutate(state: State, options: FakeBackendOptions, path: string, body: R
   return failure(404, "not_found");
 }
 
-function read(state: State, options: FakeBackendOptions, path: string, meCalls: number): Response {
+function read(state: State, options: FakeBackendOptions, rawPath: string, meCalls: number): Response {
   const { user } = state;
+  const path = rawPath.split("?")[0] ?? rawPath;
   if (path === "/auth/csrf") {
     return json({ csrfToken: state.token });
   }
@@ -76,8 +77,14 @@ function read(state: State, options: FakeBackendOptions, path: string, meCalls: 
   if (path === "/shows/facets") {
     return json({ types: [], genres: [], countries: [], cities: [], venues: [] });
   }
-  if (path === "/admin/ping") {
-    return user === null ? failure(401, "UNAUTHENTICATED") : user.role === "admin" ? json({ ok: true }) : failure(403, "FORBIDDEN_ROLE");
+  if (path === "/admin/events" || path === "/admin/lookups") {
+    if (user === null) {
+      return failure(401, "UNAUTHENTICATED");
+    }
+    if (user.role !== "admin") {
+      return failure(403, "FORBIDDEN_ROLE");
+    }
+    return json(path === "/admin/lookups" ? { shows: [], venues: [] } : { items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
   }
   return failure(404, "not_found");
 }

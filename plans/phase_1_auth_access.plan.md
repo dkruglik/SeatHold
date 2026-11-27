@@ -128,7 +128,7 @@ Growth: `auth_codes` grows per login; a purge of rows older than 1 day is noted 
 | `POST /api/auth/verify` | none | yes | sets `sid`, returns me / 400 `INVALID_CODE` |
 | `GET /api/auth/me` | optional | - | `{ user: { id, email, role } \| null }` |
 | `POST /api/auth/logout`, `POST /api/auth/logout-all` | session | yes | 204 |
-| `GET /api/admin/ping` | admin | - | placeholder so the access test has a route until Phase 4 |
+| `GET /api/admin/ping` | admin | - | placeholder so the access test had a route until Phase 4; removed in Phase 4 (O95), the access test now lists the real admin routes and the guide checks `GET /api/admin/lookups` |
 
 ## 9. Iterations
 
