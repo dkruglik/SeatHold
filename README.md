@@ -1,15 +1,30 @@
 # SeatHolder
 
-SeatHolder is a ticketing system for events with numbered seats (the "SeatHold" brief). Buyers pick seats and hold them for a short time, then pay with a mock payment; guests reach their tickets through a link; admins manage events. Seat holds are decided in PostgreSQL so that several backend instances agree. The design is for AWS, but nothing is deployed.
+SeatHolder (the "SeatHold" brief) is a ticket-ordering platform for events with numbered seats. A buyer finds a show, holds seats on a seat map for a limited time and pays inside the window with a mock payment; guests get their tickets through an emailed link; admins create events and release stuck holds. A seat is never sold twice: holds are decided in PostgreSQL, so several backend instances agree. The design targets AWS, but nothing is deployed.
 
-Status: Phase 4 (back office) on top of Phase 3 (buyer flow), Phase 2 (booking core), Phase 1 (auth and access) and Phase 0 (setup). The backend serves a seeded catalog with search, holds seats, expires holds, takes a mock payment, issues guest links and logs users in by emailed code with buyer and admin roles. The frontend covers search, the seat map, checkout, My bookings and the guest ticket page. The back office lets an admin create events, list open and bought tickets and release a held seat. The plan is in [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md) and every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
+Status: Phases 0 to 4 (setup, auth and access, booking core, buyer flow, back office) are built and merged. Phase 5 (deliverables: this README, the install skill, the remaining `DECISIONS.md` entries, the AI workflow write-up) is in progress. Phase 6 (design system depth) is planned, not started. The plan is [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md); every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
 
-## Requirements
+## Contents
 
-- Node 24 (version in `.nvmrc`) and npm.
-- Docker with Compose, for PostgreSQL 17 and Mailpit (Windows, Linux). On a Mac you can use Homebrew services instead, see below.
+- [Quick start](#quick-start)
+- [How it works in one page](#how-it-works-in-one-page)
+- [Scripts](#scripts)
+- [Authentication](#authentication)
+- [Booking](#booking)
+- [Buyer flow](#buyer-flow)
+- [Admin back office](#admin-back-office)
+- [Tests and verify](#tests-and-verify)
+- [Install skill](#install-skill)
+- [AI tooling](#ai-tooling)
+- [What was cut](#what-was-cut)
+- [Backend image](#backend-image)
+- [Repository layout](#repository-layout)
 
-## Run on Windows or Linux (Docker)
+## Quick start
+
+Requirements: Node 24 (version in `.nvmrc`) and npm. Windows and Linux use Docker with Compose for PostgreSQL 17 and Mailpit; a Mac can use Homebrew services instead.
+
+### Windows or Linux (Docker)
 
 ```sh
 cp .env.example .env        # Windows PowerShell: Copy-Item .env.example .env
@@ -21,15 +36,11 @@ npm run db:seed
 npm run dev
 ```
 
-- App: http://localhost:5173
-- Health check: http://localhost:5173/api/health (the Vite dev server proxies `/api` to the backend on port 3001, so the browser sees one origin)
-- Mail inbox (Mailpit): http://localhost:8025
+Stop the database and mail catcher with `docker compose down` (or `npm run db:stop`).
 
-Stop the database and mail catcher with `docker compose down`.
+### Mac (Homebrew, without the install skill)
 
-## Run on a Mac without the install skill
-
-The skill in `.claude/skills/install-seathold/` automates these steps. By hand:
+The [install skill](#install-skill) automates these steps. By hand:
 
 ```sh
 brew install node@24 postgresql@17 mailpit
@@ -39,6 +50,38 @@ cp .env.example .env
 ```
 
 Create the role and database named by `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` in `.env` (defaults: all `seatholder`) so that `DATABASE_URL` works, then run `npm ci`, `npm run db:generate`, `npm run db:migrate:deploy`, `npm run db:seed` and `npm run dev`. The app reads the same `.env` keys as with Docker; it cannot tell the two setups apart. Make sure `node@24` is first on your `PATH` (`brew info node@24` prints the line to add).
+
+### URLs and logins
+
+- App: http://localhost:5173
+- Health check: http://localhost:5173/api/health (the Vite dev server proxies `/api` to the backend on port 3001, so the browser sees one origin)
+- Mail inbox (Mailpit): http://localhost:8025
+
+`npm run db:seed` creates two accounts on the local domain `seathold.local`: an admin with the local part `admin` and a buyer with the local part `buyer` (so `admin`, `buyer`, then `@seathold.local`), plus the demo catalog. There are no passwords.
+
+### Login by emailed code
+
+Open the app, choose sign in, enter a seeded address and submit. The backend sends a six-digit code over SMTP to Mailpit; open http://localhost:8025, open the message and type the code into the app. Any other address works too and creates a buyer. Details under [Authentication](#authentication).
+
+### Demo path in five lines
+
+1. Open http://localhost:5173 and search (for example by city or genre); open an event.
+2. Click free seats on the map; they are held and a countdown starts (10 minutes).
+3. Pay with the mock "Test payment" (succeed); signed out, give an email address and open the link from Mailpit, or sign in and open My bookings.
+4. See the ticket with its QR code.
+5. Sign in as the seeded admin, open "Back office" in the user menu (`/admin`), create an event or release a held seat.
+
+## How it works in one page
+
+- **Modular monolith.** One Fastify backend with modules (auth, catalog, booking, guest access, back office) split into presentation, application, domain and infrastructure layers; routes are thin and call application services. One React app (Vite, Mantine).
+- **Stateless instances.** No session, hold or rate-limit state in process memory and no local disk writes, so any number of identical instances can run behind a load balancer.
+- **PostgreSQL is the only shared state.** Sessions, login codes, holds, tickets and rate-limit counters all live there.
+- **Locking.** Holding a seat is one conditional `UPDATE` (`status = 'available'` or an expired hold); zero rows means 409. `UNIQUE(seat_id)` on tickets is the backstop. No check-then-write in application code (DECISIONS D1).
+- **Database time, lazy expiry.** Each operation reads the clock once, from the database in production (the `Clock` port; tests inject a controlled clock). Holds expire lazily: a hold past its expiry counts as free in every read and write, so nothing depends on a background job (D2, O4).
+- **One origin under `/api`.** The API is served on the frontend's origin (Vite proxy locally, CloudFront path routing in the AWS design), so session cookies are first-party and CORS stays closed (O5). State-changing requests need a CSRF token and an allowed `Origin`.
+- **Configuration only from environment**, validated at startup by one typed config module; `.env.example` lists every variable.
+- **AWS target (designed, not deployed).** CloudFront and S3, ECS Fargate behind an ALB, Aurora PostgreSQL 17 with RDS Proxy, SES, Secrets Manager, CloudWatch, WAF.
+- **Where to read more.** Every decision, with options and trade-offs: [`DECISIONS.md`](DECISIONS.md) (locking, hold state, caching, late payment, guest link, data store, KPIs, security, scale for 100,000 visitors and 20,000 seats). Plans per phase: [`plans/`](plans/). Release and deploy steps per phase: [`docs/release_guides/`](docs/release_guides/README.md).
 
 ## Scripts
 
@@ -74,7 +117,7 @@ Login is passwordless: the person enters an email address, receives a six-digit 
 - **Session.** The cookie `sid` holds a random token; only its hash is stored in PostgreSQL. It is `HttpOnly`, `SameSite=Lax`, scoped to `/api`, `Secure` when `COOKIE_SECURE=true`, and lasts `SESSION_TTL_DAYS` (30) with no idle timeout. Login rotates it; logout and logout-all revoke it on the server.
 - **CSRF and Origin.** Every state-changing browser request must carry the `X-CSRF-Token` header (from `GET /api/auth/csrf`) and an `Origin` equal to `FRONTEND_ORIGIN`; otherwise it gets 403.
 - **Back office.** Everything under `/api/admin/*` is one plugin that requires a session and the `admin` role (401 for anonymous callers, 403 for buyers). The frontend route guards only improve the experience; the server enforces access.
-- **Local flow.** After `npm run db:seed` an admin and a buyer account exist (the install skill prints both addresses). Open http://localhost:5173, enter the address, then read the code in the Mailpit inbox at http://localhost:8025 and enter it. The seed refuses to run with `APP_ENV=production`.
+- **Local flow.** See [Quick start](#quick-start): enter the seeded address, read the code in Mailpit. The seed refuses to run with `APP_ENV=production`.
 
 Configuration (names and local defaults in `.env.example`; the rules for each are checked at startup, which names the variable and never prints a value):
 
@@ -202,7 +245,34 @@ Reasoning: `DECISIONS.md` O83 to O109. Deploy and checks: [`docs/release_guides/
 
 ## Tests and verify
 
-`npm run verify` runs the same steps as the GitHub Actions workflow (`.github/workflows/ci.yml`): database, lint, typecheck, tests, build and a security scan. During development `npm run verify-fast-part` is quicker; run `npm run verify-slow-part` (or the full `npm run verify`) on the final commit before pushing. Tests are written first, in Vitest for the workspaces and `node:test` for `scripts/`.
+`npm run verify` runs the same steps as the GitHub Actions workflow (`.github/workflows/ci.yml`): database, lint, typecheck, tests, build and a security scan. While iterating, `npm run verify-fast-part` runs everything except the `*.slow.test.ts` integration files (tests that wait on real time); `npm run verify-slow-part` runs only those. Before a push, the full `npm run verify` (or both parts) must pass on the final commit. Tests are written first, in Vitest for the workspaces and `node:test` for `scripts/`. Integration tests need PostgreSQL (`npm run db:start`) and run against a throwaway database created by `scripts/test-db.mjs`.
+
+## Install skill
+
+`.claude/skills/install-seathold/SKILL.md` is a Claude Code skill that installs and starts SeatHolder on a Mac from a fresh clone with Homebrew and no Docker: Homebrew, `node@24`, `postgresql@17` and `mailpit` as services, role and database, `.env`, `npm ci`, migrate, seed, start, wait for `/api/health`, then print the URLs and the seeded logins. Every step checks before it creates, so a re-run is safe. Use it by asking Claude Code on the Mac to install SeatHolder (or `/install-seathold`).
+
+Honest status: the skill is written and statically checked (its commands are compared with `package.json`), but the timed clean-Mac run (target: under 10 minutes) has still to be done by a person. The by-hand Mac steps in [Quick start](#quick-start) are the fallback.
+
+## AI tooling
+
+SeatHolder was built with Claude Code. The engineering rules are in `.claude/rules/` (generated from `.cursor/rules/` by `node scripts/sync-ai-rules.mjs --write`; `npm run lint` fails on drift), the skills in `.claude/skills/`, and review agents come from the `review-suite` plugin. `CLAUDE.md` states the working rules. How AI was used, how its output was checked and where it was wrong: [`docs/ai-workflow-log.md`](docs/ai-workflow-log.md) and the "AI workflow" section of [`DECISIONS.md`](DECISIONS.md).
+
+## What was cut
+
+Cut or not built, checked against the code and the plans' "Out of scope" lists:
+
+- **Real payment provider.** Payment is a mock whose outcome the client chooses; no card data exists. Refunds are not built either.
+- **Live seat updates by SSE or WebSocket.** The event page polls every `VITE_SEAT_POLL_INTERVAL_MS` (3000 ms).
+- **Email delivery in production.** The SMTP adapter (Mailpit locally, SES SMTP in the design) is the only real path and is configuration only; verifying the sender with SES is an operator task.
+- **Admin audit log for all actions.** Only manual seat release is logged (`seat_release_log`).
+- **Back-office extras.** No sales dashboard, event editing or cloning, price changes or CSV export.
+- **AWS deployment and infrastructure as code.** Designed in `DECISIONS.md` and the roadmap, not built. The backend image builds in CI and is never pushed.
+- **Load tests.** None; the scale section of `DECISIONS.md` is analysis, not measurement.
+- **Caching layer.** Written in `DECISIONS.md` (D3), not built. Only short `Cache-Control` headers on public reads exist; there is no cache in the backend and no CDN.
+- **Scheduled hold sweeper.** The sweeper script exists; nothing schedules it, because expiry is lazy.
+- **Retention jobs.** Rows of used guest links and resend attempts are not purged.
+- **Phase 6 depth.** Only the base theme and the two extended components from Phase 3 exist; presets, seat-map zoom and keyboard navigation, dark scheme and a full responsive pass are planned, not built.
+- **Other product scope.** Ticket check-in scanning, waitlist and waiting room, per-buyer limits per show, hold extension, general admission, price tiers, passwords, OAuth and MFA, an idle session timeout, mobile apps and multi-language UI.
 
 ## Backend image
 
@@ -223,5 +293,7 @@ The build context is the repository root. The image contains no `.env` or secret
 | `DECISIONS.md` | Design decisions and trade-offs |
 | `docs/ai-workflow-log.md` | How AI was used and checked |
 | `.claude/skills/install-seathold/` | macOS install skill |
+| `.claude/rules/`, `.claude/skills/` | Rules and skills for Claude Code (generated from `.cursor/`) |
+| `docs/release_guides/` | One release guide per phase |
 | `CLAUDE.md` | Working rules for AI agents |
 | `.env.example` | Non-secret defaults for every variable |
