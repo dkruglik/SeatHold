@@ -1,6 +1,6 @@
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { HoldSweeper } from "../../application/ports/hold-sweeper.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 /**
  * Bounded batch UPDATEs. SKIP LOCKED lets concurrent sweepers (and in-flight hold transactions) pass over rows

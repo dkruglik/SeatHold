@@ -4,7 +4,8 @@ import type { Holder } from "../../domain/holder.js";
 import { money } from "../../domain/money.js";
 import { convertHold, insertBooking, insertTickets, lockActiveHold, sellHeldSeats, upsertPayment, type Tx } from "./checkout-statements.js";
 import { holderColumns } from "./hold-mappers.js";
-import { guarded, isUniqueViolation } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
+import { isUniqueViolation } from "./unique-violation.js";
 
 const TX_OPTIONS = { maxWait: 10_000, timeout: 10_000 };
 

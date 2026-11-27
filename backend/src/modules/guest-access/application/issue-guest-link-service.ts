@@ -1,3 +1,4 @@
+import { InfrastructureError } from "../../../shared/errors/app-error.js";
 import type { WarnLogger } from "../../../shared/logging/warn-logger.js";
 import type { Clock } from "../../../shared/time/clock.js";
 import type { EmailProvider } from "../../auth/index.js";
@@ -44,7 +45,7 @@ export class IssueGuestLinkService {
     try {
       await email.send(message);
     } catch (error) {
-      logger.warn("guest link email was not sent; the buyer can request a new link", { bookingId: input.bookingId, errorName: errorName(error) });
+      logger.warn("guest link email was not sent; the buyer can request a new link", { bookingId: input.bookingId, ...errorFields(error) });
       await this.invalidateUndelivered(input.bookingId, now);
     }
   }
@@ -60,3 +61,11 @@ export class IssueGuestLinkService {
 }
 
 const errorName = (error: unknown): string => (error instanceof Error ? error.name : "unknown");
+
+/** The SMTP adapter ends its message with a short code, "Email delivery failed (ECONNREFUSED)"; only that exact shape is logged, never the message text. */
+const SAFE_EMAIL_FAILURE = /^Email delivery failed \(([A-Z0-9_]{1,32})\)$/;
+
+function errorFields(error: unknown): { errorName: string; errorCode?: string } {
+  const code = error instanceof InfrastructureError ? SAFE_EMAIL_FAILURE.exec(error.message)?.[1] : undefined;
+  return code === undefined ? { errorName: errorName(error) } : { errorName: errorName(error), errorCode: code };
+}

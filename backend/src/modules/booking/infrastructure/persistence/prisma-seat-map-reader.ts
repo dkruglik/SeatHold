@@ -1,7 +1,7 @@
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { SeatMapReader, StoredSeatMap } from "../../application/ports/seat-map-reader.js";
 import type { SeatStatus } from "../../domain/seat-state.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 interface Row {
   readonly price_minor: number;

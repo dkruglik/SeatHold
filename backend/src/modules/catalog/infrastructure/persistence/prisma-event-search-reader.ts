@@ -2,7 +2,7 @@ import { Prisma } from "../../../../generated/prisma/client.js";
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { EventSearchCriteria, EventSearchPage, EventSearchReader } from "../../application/ports/event-search-reader.js";
 import { buildEventFilters } from "./event-search-sql.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 interface Row {
   readonly event_id: string;

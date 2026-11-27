@@ -1,6 +1,6 @@
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { FacetsReader, StoredFacets } from "../../application/ports/facets-reader.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 /** Two small DISTINCT statements over events that have not started (the same rule as the default search). */
 export class PrismaFacetsReader implements FacetsReader {
