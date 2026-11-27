@@ -76,3 +76,31 @@ describe("IssueGuestLinkService failure log", () => {
     expect(logger.text()).not.toContain("example.com");
   });
 });
+
+describe("IssueGuestLinkService invalidate failure log", () => {
+  const failBoth = (invalidateMessage: string) => {
+    const ctx = setup();
+    ctx.email.fail = true;
+    ctx.links.invalidateUnusedForBookings = () => Promise.reject(new InfrastructureError(invalidateMessage));
+    return ctx;
+  };
+
+  it("logs the safe database code of a guarded failure, never the operation text", async () => {
+    const { issue, logger } = failBoth("Persistence failed: invalidate links (57P01)");
+
+    await issue.issue(input);
+
+    expect(logger.lines[1]?.fields).toEqual({ bookingId: "b1", errorName: "InfrastructureError", errorCode: "57P01" });
+    expect(logger.lines[1]?.fields).not.toHaveProperty("operation");
+    expect(logger.text()).not.toContain("invalidate links");
+  });
+
+  it("logs no code when the guarded message has none or is not that shape", async () => {
+    for (const message of ["Persistence failed: invalidate links", "Persistence failed: invalidate links (bad code)", "oops Persistence failed: x (57P01)"]) {
+      const { issue, logger } = failBoth(message);
+      await issue.issue(input);
+      expect(logger.lines[1]?.fields).not.toHaveProperty("errorCode");
+      expect(logger.text()).not.toContain("invalidate links");
+    }
+  });
+});

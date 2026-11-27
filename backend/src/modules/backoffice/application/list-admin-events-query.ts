@@ -9,6 +9,6 @@ export class ListAdminEventsQuery {
   async execute(input: PageInput): Promise<Paged<AdminEventRow>> {
     const now = await this.deps.clock.now();
     const { rows, total } = await this.deps.reader.list({ now, ...windowOf(input, EVENT_LIST_OFFSET_LIMIT) });
-    return pagedOf(input, rows, total);
+    return pagedOf(input, rows, total, EVENT_LIST_OFFSET_LIMIT);
   }
 }

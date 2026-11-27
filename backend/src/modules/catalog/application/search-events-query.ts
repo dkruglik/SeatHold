@@ -1,5 +1,5 @@
 import { ValidationError } from "../../../shared/errors/app-error.js";
-import { assertOffsetWithinLimit } from "../../../shared/pagination/offset-limit.js";
+import { assertOffsetWithinLimit, reachablePages } from "../../../shared/pagination/offset-limit.js";
 import type { Clock } from "../../../shared/time/clock.js";
 import type { EventSearchReader, EventSearchRow } from "./ports/event-search-reader.js";
 
@@ -54,6 +54,6 @@ export class SearchEventsQuery {
       limit: input.pageSize,
       now,
     });
-    return { items: rows, total, page: input.page, pageSize: input.pageSize, totalPages: Math.ceil(total / input.pageSize) };
+    return { items: rows, total, page: input.page, pageSize: input.pageSize, totalPages: reachablePages(total, input.pageSize, SEARCH_OFFSET_LIMIT) };
   }
 }

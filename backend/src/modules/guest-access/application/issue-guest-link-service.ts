@@ -55,17 +55,20 @@ export class IssueGuestLinkService {
     try {
       await this.deps.links.invalidateUnusedForBookings([bookingId], now);
     } catch (error) {
-      this.deps.logger.warn("undelivered guest link could not be invalidated", { bookingId, errorName: errorName(error) });
+      this.deps.logger.warn("undelivered guest link could not be invalidated", { bookingId, ...errorFields(error) });
     }
   }
 }
 
 const errorName = (error: unknown): string => (error instanceof Error ? error.name : "unknown");
 
-/** The SMTP adapter ends its message with a short code, "Email delivery failed (ECONNREFUSED)"; only that exact shape is logged, never the message text. */
-const SAFE_EMAIL_FAILURE = /^Email delivery failed \(([A-Z0-9_]{1,32})\)$/;
+/**
+ * Two message shapes end in a short code: the SMTP adapter's "Email delivery failed (ECONNREFUSED)" and the database
+ * wrapper's "Persistence failed: <operation> (57P01)". The whole message must match; only the code is logged, never the text.
+ */
+const SAFE_FAILURES = [/^Email delivery failed \(([A-Z0-9_]{1,32})\)$/, /^Persistence failed: [^()]+ \(([A-Z0-9]{2,8})\)$/];
 
 function errorFields(error: unknown): { errorName: string; errorCode?: string } {
-  const code = error instanceof InfrastructureError ? SAFE_EMAIL_FAILURE.exec(error.message)?.[1] : undefined;
+  const code = error instanceof InfrastructureError ? SAFE_FAILURES.map((pattern) => pattern.exec(error.message)?.[1]).find((c) => c !== undefined) : undefined;
   return code === undefined ? { errorName: errorName(error) } : { errorName: errorName(error), errorCode: code };
 }

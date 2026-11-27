@@ -1,4 +1,4 @@
-import { assertOffsetWithinLimit } from "../../../shared/pagination/offset-limit.js";
+import { assertOffsetWithinLimit, reachablePages } from "../../../shared/pagination/offset-limit.js";
 
 export interface PageInput {
   readonly page: number;
@@ -23,10 +23,11 @@ export const windowOf = ({ page, pageSize }: PageInput, offsetLimit: number): { 
   return { offset: (page - 1) * pageSize, limit: pageSize };
 };
 
-export const pagedOf = <T>(input: PageInput, rows: readonly T[], total: number): Paged<T> => ({
+/** The page answer: `total` is the real count, `totalPages` stops at the last page `windowOf` accepts. */
+export const pagedOf = <T>(input: PageInput, rows: readonly T[], total: number, offsetLimit: number): Paged<T> => ({
   items: rows,
   total,
   page: input.page,
   pageSize: input.pageSize,
-  totalPages: Math.ceil(total / input.pageSize),
+  totalPages: reachablePages(total, input.pageSize, offsetLimit),
 });

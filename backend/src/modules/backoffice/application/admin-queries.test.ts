@@ -29,6 +29,16 @@ describe("ListAdminEventsQuery", () => {
     expect(seen).toEqual([{ now: NOW, offset: 40, limit: 20 }]);
     expect(result).toMatchObject({ total: 45, page: 3, pageSize: 20, totalPages: 3 });
   });
+
+  it("rejects an unreachable page with PAGE_TOO_DEEP before reading, and caps totalPages at the last reachable page", async () => {
+    let reads = 0;
+    const reader: AdminEventListReader = { list: () => { reads += 1; return Promise.resolve({ total: 50_000, rows: [] }); } };
+    const query = new ListAdminEventsQuery({ reader, clock: clock() });
+
+    await expect(query.execute({ page: 201, pageSize: 50 })).rejects.toThrow(expect.objectContaining({ publicCode: "PAGE_TOO_DEEP" }));
+    expect(reads).toBe(0);
+    await expect(query.execute({ page: 200, pageSize: 50 })).resolves.toMatchObject({ total: 50_000, totalPages: 200 });
+  });
 });
 
 describe("GetLookupsQuery", () => {

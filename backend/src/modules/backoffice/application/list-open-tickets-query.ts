@@ -16,6 +16,6 @@ export class ListOpenTicketsQuery {
     const event = await this.deps.reader.findHeader(input.eventId);
     if (event === null) throw new EventNotFound();
     const { rows, total } = await this.deps.reader.listOpen({ eventId: input.eventId, now, ...windowOf(input, TICKET_LIST_OFFSET_LIMIT) });
-    return { event, ...pagedOf(input, rows, total) };
+    return { event, ...pagedOf(input, rows, total, TICKET_LIST_OFFSET_LIMIT) };
   }
 }
