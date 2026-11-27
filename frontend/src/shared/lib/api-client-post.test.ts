@@ -135,6 +135,14 @@ describe("ApiClient.post failures", () => {
     expect(error.retryAfterSeconds).toBe(42);
   });
 
+  it("carries the server's error message as detail", async () => {
+    const { fetchImpl } = scripted(token("t"), () => jsonResponse({ error: { code: "INVALID_EVENT", message: "rows must be an integer from 1 to 200" } }, 400));
+
+    const error = (await client(fetchImpl).post("/admin/events", {}).catch((e: unknown) => e)) as ApiError;
+
+    expect(error.detail).toBe("rows must be an integer from 1 to 200");
+  });
+
   it("never writes the token to web storage or the console", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const { fetchImpl } = scripted(token("secret-token-value"), () => new Response(null, { status: 204 }));

@@ -1,17 +1,22 @@
 import type { FrontendConfig } from "../../app/config/load-frontend-config";
 
-/** The server answered with a non-2xx status (or a 2xx body that is not JSON). Carries no response body text. */
+/**
+ * The server answered with a non-2xx status (or a 2xx body that is not JSON). Carries the error `code` and, only when
+ * the server sent one, its `message` as `detail` (callers show it solely for validation errors the operator can act on).
+ */
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string | undefined;
   readonly retryAfterSeconds: number | undefined;
+  readonly detail: string | undefined;
 
-  constructor(status: number, code?: string, retryAfterSeconds?: number) {
+  constructor(status: number, code?: string, retryAfterSeconds?: number, detail?: string) {
     super(`API request failed with status ${status}`);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.detail = detail;
   }
 }
 
@@ -31,14 +36,16 @@ const csrfInvalidCode = "CSRF_INVALID";
 async function failureOf(response: Response): Promise<ApiError> {
   let code: string | undefined;
   let retryAfterSeconds: number | undefined;
+  let detail: string | undefined;
   try {
-    const body = (await response.json()) as { error?: { code?: unknown }; retryAfterSeconds?: unknown } | null;
+    const body = (await response.json()) as { error?: { code?: unknown; message?: unknown }; retryAfterSeconds?: unknown } | null;
     code = typeof body?.error?.code === "string" ? body.error.code : undefined;
+    detail = typeof body?.error?.message === "string" ? body.error.message : undefined;
     retryAfterSeconds = typeof body?.retryAfterSeconds === "number" ? body.retryAfterSeconds : undefined;
   } catch {
     // a body that is not JSON carries no code
   }
-  return new ApiError(response.status, code, retryAfterSeconds);
+  return new ApiError(response.status, code, retryAfterSeconds, detail);
 }
 
 function assertApiPath(path: string): void {

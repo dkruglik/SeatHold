@@ -19,7 +19,7 @@ function AccountError({ onRetry }: { readonly onRetry: () => void }) {
   );
 }
 
-function SignedIn({ email, failed, onLogout }: { readonly email: string; readonly failed: boolean; readonly onLogout: () => void }) {
+function SignedIn({ email, admin, failed, onLogout }: { readonly email: string; readonly admin: boolean; readonly failed: boolean; readonly onLogout: () => void }) {
   return (
     <Group gap="sm" wrap="wrap" justify="flex-end">
       <Text size="sm" style={{ overflowWrap: "anywhere" }}>
@@ -28,6 +28,11 @@ function SignedIn({ email, failed, onLogout }: { readonly email: string; readonl
       <Button component={Link} to="/bookings" variant="subtle" size="compact-md">
         My bookings
       </Button>
+      {admin ? (
+        <Button component={Link} to="/admin" variant="subtle" size="compact-md">
+          Back office
+        </Button>
+      ) : null}
       <Button variant="default" size="compact-md" onClick={onLogout}>
         Log out
       </Button>
@@ -75,5 +80,5 @@ export function UserMenu() {
       </Button>
     );
   }
-  return <SignedIn email={me.data.email} failed={failed} onLogout={() => void logout()} />;
+  return <SignedIn email={me.data.email} admin={me.data.role === "admin"} failed={failed} onLogout={() => void logout()} />;
 }
