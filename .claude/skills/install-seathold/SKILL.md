@@ -7,7 +7,7 @@ description: Installs and starts SeatHolder on a Mac from a fresh clone with Hom
 
 **Status: written and statically checked on Linux, not yet run on a Mac.** `scripts/install-skill.test.mjs` checks that every `npm run` command, `.env.example` key and repository path named here exists, and that the skill prints no secret. No timed run on a clean Mac has been recorded yet; see "Timed run".
 
-Runs PostgreSQL 17 and Mailpit as Homebrew services (the exception in `.claude/rules/50-infrastructure.md`). Docker is not needed. The app reads the same `.env` keys as with Docker Compose. These are instructions for an agent, not a script: run the steps in order from the repository root.
+Runs PostgreSQL 17 and Mailpit as Homebrew services. Docker is not needed. The app reads the same `.env` keys as with Docker Compose. These are instructions for an agent, not a script: run the steps in order from the repository root.
 
 ## Rules for every step
 
