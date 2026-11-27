@@ -88,8 +88,8 @@ export const openTicketsSchema = {
       type: "array",
       items: {
         type: "object",
-        properties: { seatId: str, row: str, number: int, state: { type: "string", enum: ["available", "held"] }, heldUntil: { type: ["string", "null"] } },
-        required: ["seatId", "row", "number", "state", "heldUntil"],
+        properties: { seatId: str, row: str, number: int, state: { type: "string", enum: ["available", "held"] }, heldUntil: { type: ["string", "null"] }, releasable: { type: "boolean" } },
+        required: ["seatId", "row", "number", "state", "heldUntil", "releasable"],
       },
     },
     ...pagingProperties,

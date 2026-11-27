@@ -13,7 +13,7 @@ const minutes = (n: number): Date => new Date(T0.getTime() + n * 60_000);
 
 interface OpenBody {
   event: { eventId: string; showTitle: string; startsAt: string; venueName: string; city: string; timezone: string };
-  items: { seatId: string; row: string; number: number; state: string; heldUntil: string | null }[];
+  items: { seatId: string; row: string; number: number; state: string; heldUntil: string | null; releasable: boolean }[];
   total: number; page: number; pageSize: number; totalPages: number;
 }
 const open = async (eventId: string, query = ""): Promise<OpenBody> => (await harness.get(`/api/admin/events/${eventId}/open-tickets${query}`, await adminHeaders())).json() as OpenBody;
@@ -33,9 +33,9 @@ describe("GET /api/admin/events/:eventId/open-tickets", () => {
       eventId: event.eventId, showTitle: "Open show", startsAt: "2030-06-01T18:00:00.000Z", venueName: expect.stringMatching(/^Hall /), city: "Berlin", timezone: "Europe/Berlin",
     });
     expect(body.items).toEqual([
-      { seatId: event.seat.A1, row: "A", number: 1, state: "held", heldUntil: minutes(5).toISOString() },
-      { seatId: event.seat.A2, row: "A", number: 2, state: "available", heldUntil: null },
-      { seatId: event.seat.A4, row: "A", number: 4, state: "available", heldUntil: null },
+      { seatId: event.seat.A1, row: "A", number: 1, state: "held", heldUntil: minutes(5).toISOString(), releasable: true },
+      { seatId: event.seat.A2, row: "A", number: 2, state: "available", heldUntil: null, releasable: true },
+      { seatId: event.seat.A4, row: "A", number: 4, state: "available", heldUntil: null, releasable: false },
     ]);
     expect([body.total, body.page, body.pageSize, body.totalPages]).toEqual([3, 1, 50, 1]);
   });

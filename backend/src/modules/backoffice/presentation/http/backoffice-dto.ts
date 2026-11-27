@@ -75,3 +75,10 @@ export const createdEventSchema = {
   },
   required: ["eventId", "showId", "venueId", "title", "startsAt", "priceMinor", "currency", "rows", "seatsPerRow", "seatCount"],
 } as const;
+
+/** The app-wide error body, documented for the 409 VENUE_CONFLICT answer. */
+export const conflictSchema = {
+  type: "object",
+  properties: { error: { type: "object", properties: { code: { type: "string" }, message: { type: "string" } }, required: ["code", "message"] } },
+  required: ["error"],
+} as const;

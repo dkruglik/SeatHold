@@ -45,6 +45,18 @@ describe("POST /api/admin/events/:eventId/seats/:seatId/release", () => {
     ]);
   });
 
+  it("frees a seat whose hold has already expired (status still held): 200 and one log row", async () => {
+    const { eventId, seat } = await seedEvent(harness.prisma, { seats: [["A", 1]] });
+    await holdSeat(harness.prisma, eventId, seat.A1 as string, new Date("2029-12-31T10:00:00Z"));
+    const admin = await adminSession();
+
+    const response = await harness.post(url(eventId, seat.A1 as string), { reason: REASON }, admin.headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(await seatState(harness.prisma, seat.A1 as string)).toEqual({ status: "available", hold_id: null, held_until: null });
+    expect(await releaseLogRows(harness.prisma)).toHaveLength(1);
+  });
+
   it("keeps the buyer's other seat held and the hold active", async () => {
     const { eventId, seat } = await seedEvent(harness.prisma, { seats: [["A", 1], ["A", 2]] });
     const booking = bookingServices();

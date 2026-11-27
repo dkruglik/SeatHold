@@ -4,8 +4,9 @@ import type { NewEventGrid } from "../../application/ports/event-grid-writer.js"
 import { PrismaEventGridWriter } from "./prisma-event-grid-writer.js";
 import { useBookingDatabase } from "./catalog-test-support.js";
 
+const GRID_SHOW = { title: "Hamlet", type: "theatre", genre: "drama", description: "A play" };
 const GRID: NewEventGrid = {
-  show: { new: { title: "Hamlet", type: "theatre", genre: "drama", description: "A play" } },
+  show: { new: GRID_SHOW },
   venue: { new: { name: "Globe", city: "London", countryCode: "GB", timezone: "Europe/London" } },
   startsAt: new Date("2030-06-01T18:00:00.000Z"),
   priceMinor: 5000,
@@ -64,15 +65,27 @@ describe("PrismaEventGridWriter show and venue", () => {
     expect([await count("shows"), await count("venues"), await count("events")]).toEqual([1, 1, 2]);
   });
 
-  it("reuses a venue whose (name, city) exists instead of failing", async () => {
+  it("reuses a venue whose (name, city, country, timezone) all match", async () => {
     const first = await writer.create(GRID);
 
-    const second = await writer.create({ ...GRID, venue: { new: { name: "Globe", city: "London", countryCode: "FR", timezone: "Europe/Paris" } } });
+    const second = await writer.create({ ...GRID, show: { new: { ...GRID_SHOW, title: "Other" } } });
 
     expect(second.venueId).toBe(first.venueId);
     expect(await count("venues")).toBe(1);
-    const [venue] = await prisma.client.$queryRaw<{ country_code: string }[]>`SELECT country_code FROM venues`;
-    expect(venue?.country_code).toBe("GB");
+  });
+
+  it.each([
+    ["timezone", { name: "Globe", city: "London", countryCode: "GB", timezone: "Europe/Paris" }],
+    ["country", { name: "Globe", city: "London", countryCode: "FR", timezone: "Europe/London" }],
+  ])("answers VENUE_CONFLICT when the existing venue differs in %s and creates nothing", async (field, venue) => {
+    const first = await writer.create(GRID);
+
+    const attempt = writer.create({ ...GRID, show: { new: { ...GRID_SHOW, title: "Other" } }, venue: { new: venue } });
+
+    await expect(attempt).rejects.toMatchObject({ kind: "business", publicCode: "VENUE_CONFLICT", message: expect.stringContaining(field) });
+    expect(await attempt.catch((e: Error) => e.message)).not.toContain("Paris");
+    expect([await count("shows"), await count("venues"), await count("events")]).toEqual([1, 1, 1]);
+    expect(first.venueId).toBeDefined();
   });
 
   it("answers NotFoundError for an unknown show or venue and creates nothing", async () => {

@@ -67,6 +67,8 @@ export interface OpenTicketRow {
   readonly number: number;
   readonly state: "available" | "held";
   readonly heldUntil: Date | null;
+  /** True exactly when the seat's stored status is `held`, live or expired; the operator may free it. */
+  readonly releasable: boolean;
 }
 
 export interface BoughtTicketRow {

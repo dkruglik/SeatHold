@@ -2,6 +2,7 @@ import type { Prisma } from "../../../../generated/prisma/client.js";
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import { NotFoundError } from "../../../../shared/errors/app-error.js";
 import type { CreatedEvent, EventGridWriter, NewEventGrid, ShowRef, VenueRef } from "../../application/ports/event-grid-writer.js";
+import { VenueConflict } from "../../domain/errors.js";
 import { rowLabels } from "../../domain/row-label.js";
 import { guarded } from "./persistence-errors.js";
 
@@ -34,7 +35,10 @@ async function resolveShow(tx: Tx, ref: ShowRef): Promise<{ id: string; title: s
   return show as { id: string; title: string };
 }
 
-/** A new venue reuses the row with the same (name, city); the no-op update makes RETURNING answer for it too, so there is no unique violation to catch. */
+/**
+ * A new venue reuses the row with the same (name, city) when its country and timezone match; the no-op update makes RETURNING
+ * answer for it too, so there is no unique violation to catch. A different country or timezone throws VenueConflict, which rolls the transaction back.
+ */
 async function resolveVenueId(tx: Tx, ref: VenueRef): Promise<string> {
   if ("existingId" in ref) {
     const [venue] = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM venues WHERE id = ${ref.existingId}::uuid`;
@@ -42,11 +46,14 @@ async function resolveVenueId(tx: Tx, ref: VenueRef): Promise<string> {
     return venue.id;
   }
   const { name, city, countryCode, timezone } = ref.new;
-  const [venue] = await tx.$queryRaw<{ id: string }[]>`
+  const [venue] = await tx.$queryRaw<{ id: string; country_code: string; timezone: string }[]>`
     INSERT INTO venues (name, city, country_code, timezone) VALUES (${name}, ${city}, ${countryCode}, ${timezone})
     ON CONFLICT (name, city) DO UPDATE SET name = EXCLUDED.name
-    RETURNING id`;
-  return (venue as { id: string }).id;
+    RETURNING id, country_code, timezone`;
+  const stored = venue as { id: string; country_code: string; timezone: string };
+  const differing = [...(stored.country_code === countryCode ? [] : ["country"]), ...(stored.timezone === timezone ? [] : ["timezone"])];
+  if (differing.length > 0) throw new VenueConflict(differing);
+  return stored.id;
 }
 
 /** Writes show, venue, event and the whole seat grid in one transaction. */

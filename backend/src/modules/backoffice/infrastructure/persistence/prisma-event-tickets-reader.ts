@@ -8,6 +8,7 @@ interface OpenRow {
   readonly seat_number: number;
   readonly held_until: Date | null;
   readonly is_held: boolean;
+  readonly is_releasable: boolean;
 }
 
 interface BoughtRow {
@@ -35,13 +36,13 @@ export class PrismaEventTicketsReader implements EventTicketsReader {
     });
   }
 
-  /** Every seat that is not sold: a live hold (`held_until > now`) is shown as held, an ended hold as available. Row order: shorter label first (AA after Z). */
+  /** Every seat that is not sold: a live hold (`held_until > now`) is shown as held, an ended hold as available (but still `releasable`, since its stored status is held). Row order: shorter label first (AA after Z). */
   listOpen(c: PageCriteria & { readonly eventId: string; readonly now: Date }): Promise<Rows<OpenTicketRow>> {
     return guarded("list open tickets", async () => {
       const [counted, rows] = await Promise.all([
         this.prisma.client.$queryRaw<{ total: number }[]>`SELECT count(*)::int AS total FROM seats WHERE event_id = ${c.eventId}::uuid AND status <> 'sold'`,
         this.prisma.client.$queryRaw<OpenRow[]>`
-          SELECT id, row_label, seat_number, held_until, (status = 'held' AND held_until > ${c.now}::timestamptz) AS is_held
+          SELECT id, row_label, seat_number, held_until, (status = 'held' AND held_until > ${c.now}::timestamptz) AS is_held, (status = 'held') AS is_releasable
           FROM seats WHERE event_id = ${c.eventId}::uuid AND status <> 'sold'
           ORDER BY length(row_label), row_label COLLATE "C", seat_number
           LIMIT ${c.limit} OFFSET ${c.offset}`,
@@ -70,7 +71,7 @@ export class PrismaEventTicketsReader implements EventTicketsReader {
 }
 
 const toOpen = (r: OpenRow): OpenTicketRow => ({
-  seatId: r.id, row: r.row_label, number: r.seat_number, state: r.is_held ? "held" : "available", heldUntil: r.is_held ? r.held_until : null,
+  seatId: r.id, row: r.row_label, number: r.seat_number, state: r.is_held ? "held" : "available", heldUntil: r.is_held ? r.held_until : null, releasable: r.is_releasable,
 });
 
 const toBought = (r: BoughtRow): BoughtTicketRow => ({

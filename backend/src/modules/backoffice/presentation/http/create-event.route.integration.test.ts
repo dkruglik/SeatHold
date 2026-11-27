@@ -65,6 +65,22 @@ describe("POST /api/admin/events", () => {
     expect([await count("venues"), await count("shows"), await count("events")]).toEqual([1, 2, 2]);
   });
 
+  it.each([
+    ["timezone", { timezone: "Europe/Paris" }],
+    ["country", { countryCode: "fr" }],
+  ])("answers 409 VENUE_CONFLICT when the existing venue differs in %s, and creates no show, venue or event", async (field, change) => {
+    await create(BODY);
+
+    const clash = await create({ ...BODY, show: { new: { ...BODY.show.new, title: "Other" } }, venue: { new: { ...BODY.venue.new, ...change } } });
+
+    expect(clash.statusCode).toBe(409);
+    const error = (clash.json() as { error: { code: string; message: string } }).error;
+    expect(error.code).toBe("VENUE_CONFLICT");
+    expect(error.message).toContain(field);
+    expect(error.message).not.toContain("Paris");
+    expect([await count("venues"), await count("shows"), await count("events")]).toEqual([1, 1, 1]);
+  });
+
 });
 
 describe("POST /api/admin/events validation", () => {
