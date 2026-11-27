@@ -115,4 +115,4 @@ After the third review round the user asked which options exist for loading the 
 
 **Where it went wrong and how it was caught.** Mantine's default muted text (gray 6) failed WCAG AA; the contrast assertions in `theme.test.ts` show the gap, and the theme now maps it to gray 7 (O117).
 
-**Not yet done.** The external review of Phase 6 (a later entry, not O-numbered yet), a manual keyboard-only purchase and a check on real devices, `ColorSchemeScript` for the dark first paint, and the full `npm run verify` on the final commit.
+**Not yet done.** The external review of Phase 6 is recorded in O122 (two rounds, all findings fixed or disproved by tests). Still open: a manual keyboard-only purchase and a check on real devices, `ColorSchemeScript` for the dark first paint, and the full `npm run verify` on the final commit.

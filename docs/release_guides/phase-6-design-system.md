@@ -116,10 +116,10 @@ None. This release adds no background job, queue or schedule.
 
 ## Rollback
 
-Redeploy the previous static build and invalidate the CDN again. TODO(operator): the same upload and invalidation commands as in "Deploy", pointed at the previous build. Or revert the branch and rebuild:
+Redeploy the previous static build and invalidate the CDN again. TODO(operator): the same upload and invalidation commands as in "Deploy", pointed at the previous build. Normally redeploy the previous artifact; the documentation commits do not need reverting. To undo the code instead, revert the frontend commits and rebuild:
 
 ```bash
-git revert --no-edit 99b89c7 2a76c12 3a1ae01 7b870e2 d8203ea f7c803f
+git revert --no-edit 99b89c7 3a1ae01 7b870e2 d8203ea f7c803f
 npm ci
 npm run build -w frontend
 ```

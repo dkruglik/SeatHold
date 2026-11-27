@@ -1147,6 +1147,15 @@ The Phase 1 summary and its open risks are in O56.
 - **Trade-off.** The time went to the four required iterations and their tests; either extra needs backend work and its own plan.
 - **Status.** `implemented` as a cut (no code; README "What was cut").
 
+### O122. External review of Phase 6
+
+- **Context.** Reviewer `SH-cursor` ran the review-suite over the Phase 6 commits (`fa20efe..HEAD`) outside the run that built them, one single-agent review per round, as for Phases 2 to 5 (O68, O82, O110, O115).
+- **Findings, round 1.** 0 Critical, 3 Important, 7 suggestions. Important: pinch zoom used the wrong baseline distance (disproved: hook tests with synthetic pointer events show the scale follows the finger distance exactly, `seat-map-extensions.test.tsx`); the picker's `timeZone` prop might disagree with the Mantine calendar (not a bug: a picked day is a wall date in the prop zone, now proved with `Pacific/Auckland` in `date-time-range-picker.extensions.test.tsx`); the plan promised a venue time zone label (narrowed to the browser zone plus an optional prop, O118). Suggestions: stale picker comment, `useNarrow` not following resize (disproved by `use-narrow.test.tsx`), a weak `allowPast` test, an SVG-wide query on every arrow key (now an id to element map), seat sizes outside the theme (named tokens in `seat-tokens.ts`, with the reason), plan todos still pending, and the first-paint dark flash (accepted, O117). Fixes in `99b89c7`.
+- **Findings, round 2** (`2a76c12..HEAD`). 0 Critical, 0 Important; confirmed all ten round 1 items resolved, disproved with non-vacuous tests, or open by design; three suggestions (a stale `useNarrow` comment, a rollback note in the release guide, this record), all fixed in the commit that adds this entry.
+- **Choice.** Disprove a finding only with a test that would fail if the reviewer were right, and keep that test (chosen), over changing code to match a finding that the code already satisfies.
+- **Trade-off.** The review was static plus unit runs: real-device pinch, tap sizes, layout and the dark first paint are not covered by it.
+- **Status.** `implemented` (commits `99b89c7` and the fix commit of this round).
+
 ## Back-office capability proposal
 
 **Manual release of a held seat.** An operator can free a seat stuck in a hold with a required reason (for example, a buyer abandoned checkout during a support call, or a hold blocks the last seat before showtime). It uses the same conditional update as a buyer release and writes a log row.
