@@ -255,7 +255,7 @@ Honest status: the skill is written and statically checked (its commands are com
 
 ## AI tooling
 
-SeatHolder was built with Claude Code. The engineering rules are in `.claude/rules/` (generated from `.cursor/rules/` by `node scripts/sync-ai-rules.mjs --write`; `npm run lint` fails on drift), the skills in `.claude/skills/`, and review agents come from the `review-suite` plugin. `CLAUDE.md` states the working rules. How AI was used, how its output was checked and where it was wrong: [`docs/ai-workflow-log.md`](docs/ai-workflow-log.md) and the "AI workflow" section of [`DECISIONS.md`](DECISIONS.md).
+SeatHolder was built with Claude Code. `CLAUDE.md` states the working rules (test first, module layout, locking model, verify command). The longer engineering rule set and most skills stay local and are not part of the repository; the `install-seathold` skill is the one skill that is committed. How AI was used, how its output was checked and where it was wrong: [`docs/ai-workflow-log.md`](docs/ai-workflow-log.md) and the "AI workflow" section of [`DECISIONS.md`](DECISIONS.md).
 
 ## What was cut
 
@@ -293,7 +293,7 @@ The build context is the repository root. The image contains no `.env` or secret
 | `DECISIONS.md` | Design decisions and trade-offs |
 | `docs/ai-workflow-log.md` | How AI was used and checked |
 | `.claude/skills/install-seathold/` | macOS install skill |
-| `.claude/rules/`, `.claude/skills/` | Rules and skills for Claude Code (generated from `.cursor/`) |
+| `.claude/skills/install-seathold/` | The one committed skill: install on a Mac |
 | `docs/release_guides/` | One release guide per phase |
 | `CLAUDE.md` | Working rules for AI agents |
 | `.env.example` | Non-secret defaults for every variable |
