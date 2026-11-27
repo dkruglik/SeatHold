@@ -30,7 +30,7 @@ todos:
     content: My bookings with QR, guest access page, lost-link form
     status: completed
   - id: it-9-docs-verify
-    content: "DECISIONS entry 5, README, install skill check, full verify, roadmap status. Manual end-to-end for buyer and guest, expiry on screen and the two-browser race run by the repository owner in desktop Chrome on 2026-11-27 (seat map, hold countdown, checkout, bookings, guest link). GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27). Still open: operator items in the release guide, deferred to deploy (not deployed by this project)."
+    content: "DECISIONS entry 5, README, install skill check, full verify, roadmap status. Manual end-to-end for buyer and guest, run by the repository owner in desktop Chrome on 2026-11-27 (seat map, hold countdown, checkout, bookings, guest link, the seat lock checked with two browsers); the hold running out on screen was not named in that run. GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27). Still open: operator items in the release guide, deferred to deploy (not deployed by this project)."
     status: completed
 isProject: false
 ---
