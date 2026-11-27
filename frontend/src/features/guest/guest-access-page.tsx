@@ -1,4 +1,4 @@
-import { Anchor, BookingCard, Center, Container, Loader, Stack, Title } from "../../shared/ui";
+import { Anchor, BookingCard, Center, Container, Loader, PageLayout, Stack } from "../../shared/ui";
 import { Link } from "react-router";
 import { ClosedNotice } from "./components/closed-notice";
 import { ResendForm } from "./components/resend-form";
@@ -20,9 +20,8 @@ export function GuestAccessPage() {
         </Container>
       </header>
       <main>
-        <Container size="md" py="xl">
+        <PageLayout title="Your tickets" size="md">
           <Stack gap="lg">
-            <Title order={1}>Your tickets</Title>
             {state.kind === "loading" ? (
               <Center p="xl">
                 <Loader aria-label="Opening your tickets" />
@@ -36,7 +35,7 @@ export function GuestAccessPage() {
               </>
             ) : null}
           </Stack>
-        </Container>
+        </PageLayout>
       </main>
     </>
   );

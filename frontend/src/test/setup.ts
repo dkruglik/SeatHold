@@ -1,5 +1,6 @@
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
+import { resetViewport } from "./viewport";
 
 // Mantine reads matchMedia and ResizeObserver, which jsdom does not provide.
 Object.defineProperty(window, "matchMedia", {
@@ -26,4 +27,5 @@ window.ResizeObserver = ResizeObserverStub;
 
 afterEach(() => {
   cleanup();
+  resetViewport();
 });

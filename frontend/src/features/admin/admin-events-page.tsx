@@ -1,4 +1,4 @@
-import { Anchor, Button, Group, Stack, Text, Title } from "../../shared/ui";
+import { Anchor, Button, Stack, Text } from "../../shared/ui";
 import { useState } from "react";
 import { Link } from "react-router";
 import { AdminLayout } from "./components/admin-header";
@@ -12,14 +12,15 @@ export function AdminEventsPage() {
   const events = useAdminEvents(page);
 
   return (
-    <AdminLayout>
+    <AdminLayout
+      title="Back office"
+      actions={
+        <Button component={Link} to="/admin/events/new">
+          Create event
+        </Button>
+      }
+    >
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <Title order={1}>Back office</Title>
-          <Button component={Link} to="/admin/events/new">
-            Create event
-          </Button>
-        </Group>
         {events.isError ? (
           <ListError title="Could not load events" onRetry={() => void events.refetch()} />
         ) : events.data === undefined ? (

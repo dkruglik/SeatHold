@@ -1,4 +1,4 @@
-import { Alert, Anchor, Button, Container, Paper, Stack, Text, TextInput, Title } from "../../../shared/ui";
+import { Alert, Anchor, Button, Card, PageLayout, Stack, Text, TextInput } from "../../../shared/ui";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation } from "react-router";
 import { useLoginFlow } from "../hooks/use-login-flow";
@@ -41,7 +41,7 @@ function CodeStep(props: { readonly email: string; readonly pending: boolean; re
   return (
     <form onSubmit={submit}>
       <Stack>
-        <Text>We sent a code to {props.email}. It is valid for 10 minutes.</Text>
+        <Text style={{ overflowWrap: "anywhere" }}>We sent a code to {props.email}. It is valid for 10 minutes.</Text>
         <TextInput
           label="6-digit code"
           name="code"
@@ -75,21 +75,22 @@ export function LoginPage() {
     return <Navigate to={target} replace />;
   }
   return (
-    <Container size="xs" py="xl" component="main">
-      <Paper withBorder p={{ base: "md", sm: "xl" }}>
-        <Stack>
-          <Title order={1}>Sign in</Title>
-          <ErrorAlert message={flow.error} />
-          {flow.step === "email" ? (
-            <EmailStep initial={flow.email} pending={flow.pending} onSubmit={(email) => void flow.submitEmail(email)} />
-          ) : (
-            <CodeStep email={flow.email} pending={flow.pending} onSubmit={(code) => void flow.submitCode(code)} onChangeEmail={flow.changeEmail} />
-          )}
-          <Anchor component={Link} to="/" size="sm">
-            Back to home
-          </Anchor>
-        </Stack>
-      </Paper>
-    </Container>
+    <main>
+      <PageLayout title="Sign in" size="xs">
+        <Card p={{ base: "md", sm: "xl" }}>
+          <Stack>
+            <ErrorAlert message={flow.error} />
+            {flow.step === "email" ? (
+              <EmailStep initial={flow.email} pending={flow.pending} onSubmit={(email) => void flow.submitEmail(email)} />
+            ) : (
+              <CodeStep email={flow.email} pending={flow.pending} onSubmit={(code) => void flow.submitCode(code)} onChangeEmail={flow.changeEmail} />
+            )}
+            <Anchor component={Link} to="/" size="sm">
+              Back to home
+            </Anchor>
+          </Stack>
+        </Card>
+      </PageLayout>
+    </main>
   );
 }

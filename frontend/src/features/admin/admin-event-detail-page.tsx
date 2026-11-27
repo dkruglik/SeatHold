@@ -1,4 +1,4 @@
-import { Anchor, Stack, Tabs, Text, Title } from "../../shared/ui";
+import { Anchor, Stack, Tabs, Text } from "../../shared/ui";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { AdminLayout } from "./components/admin-header";
@@ -27,15 +27,14 @@ export function AdminEventDetailPage() {
   const timezone = header?.timezone ?? "UTC";
 
   return (
-    <AdminLayout>
+    <AdminLayout title={header?.showTitle ?? "Event"}>
       <Stack gap="lg">
         <Anchor component={Link} to="/admin">
           Back to events
         </Anchor>
         {header === undefined && !open.isError && <ListSkeleton label="Loading event" />}
         {header !== undefined && (
-          <Stack gap={4}>
-            <Title order={1}>{header.showTitle}</Title>
+          <Stack gap={4} style={{ overflowWrap: "anywhere" }}>
             {header.venueName !== undefined && <Text>{header.venueName}{header.city === undefined ? "" : `, ${header.city}`}</Text>}
             <StartTime startsAt={header.startsAt} timezone={header.timezone} />
           </Stack>

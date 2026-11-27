@@ -1,4 +1,4 @@
-import { Anchor, Badge, Group, Paper, Stack, Text, Title } from "../../../shared/ui";
+import { Anchor, Badge, Card, Group, Stack, Text, Title } from "../../../shared/ui";
 import { Link } from "react-router";
 import { formatPrice, formatStart, seatsLabel } from "../../../shared/lib/format";
 import type { ShowItem } from "../types";
@@ -7,10 +7,10 @@ import type { ShowItem } from "../types";
 export function ShowRow({ item }: { readonly item: ShowItem }) {
   const start = formatStart(item.startsAt, item.venue.timezone);
   return (
-    <Paper component="li" withBorder p="md" style={{ listStyle: "none" }}>
+    <Card component="li" style={{ listStyle: "none" }}>
       <Group justify="space-between" align="flex-start" wrap="wrap" gap="md">
         <Stack gap={4} style={{ flex: "1 1 16rem", minWidth: 0 }}>
-          <Title order={3} size="h4">
+          <Title order={3} size="h4" style={{ overflowWrap: "anywhere" }}>
             <Anchor component={Link} to={`/events/${item.eventId}`} inherit>
               {item.title}
             </Anchor>
@@ -34,6 +34,6 @@ export function ShowRow({ item }: { readonly item: ShowItem }) {
           )}
         </Stack>
       </Group>
-    </Paper>
+    </Card>
   );
 }

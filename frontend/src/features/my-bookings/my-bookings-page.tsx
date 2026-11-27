@@ -1,4 +1,4 @@
-import { Alert, Anchor, BookingCard, Button, Center, Container, Group, Loader, Stack, Text, Title } from "../../shared/ui";
+import { Alert, Anchor, BookingCard, Button, Center, Container, Group, Loader, PageLayout, Stack, Text } from "../../shared/ui";
 import { Link } from "react-router";
 import { ApiError } from "../../shared/lib/api-client";
 import { UserMenu } from "../auth";
@@ -56,7 +56,7 @@ export function MyBookingsPage() {
   return (
     <>
       <header>
-        <Container size="md" py="md">
+        <Container size="lg" py="md">
           <Group justify="space-between" wrap="wrap" gap="sm">
             <Anchor component={Link} to="/" fw={700} c="inherit" underline="never">
               SeatHolder
@@ -66,12 +66,9 @@ export function MyBookingsPage() {
         </Container>
       </header>
       <main>
-        <Container size="md" py="xl">
-          <Stack gap="lg">
-            <Title order={1}>My bookings</Title>
-            <Body query={query} />
-          </Stack>
-        </Container>
+        <PageLayout title="My bookings">
+          <Body query={query} />
+        </PageLayout>
       </main>
     </>
   );

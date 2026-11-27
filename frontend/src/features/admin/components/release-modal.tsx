@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Modal, Stack, Text, Textarea } from "../../../shared/ui";
+import { Alert, Button, Group, Modal, Stack, Text, Textarea, useNarrow } from "../../../shared/ui";
 import { useState } from "react";
 import { ApiError } from "../../../shared/lib/api-client";
 import { useReleaseSeat } from "../hooks/use-admin-queries";
@@ -25,6 +25,7 @@ export function ReleaseModal({ eventId, seat, onClose }: Props) {
   const [reason, setReason] = useState("");
   const [invalid, setInvalid] = useState(false);
   const release = useReleaseSeat(eventId);
+  const narrow = useNarrow();
   const label = `${seat.row}${seat.number}`;
   const stale = seat.state !== "held";
 
@@ -38,7 +39,7 @@ export function ReleaseModal({ eventId, seat, onClose }: Props) {
   }
 
   return (
-    <Modal opened onClose={onClose} title={stale ? `Clear stale hold on seat ${label}` : `Release seat ${label}`} centered>
+    <Modal opened onClose={onClose} title={stale ? `Clear stale hold on seat ${label}` : `Release seat ${label}`} centered fullScreen={narrow}>
       <Stack gap="md">
         <Text size="sm">{stale ? STALE_TEXT : LIVE_TEXT}</Text>
         <Textarea
@@ -60,7 +61,7 @@ export function ReleaseModal({ eventId, seat, onClose }: Props) {
             {failureText(release.error)}
           </Alert>
         )}
-        <Group justify="flex-end">
+        <Group justify="flex-end" wrap="wrap">
           <Button variant="default" onClick={onClose}>
             Cancel
           </Button>

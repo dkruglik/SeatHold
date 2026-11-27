@@ -12,9 +12,9 @@ export function ZoomPan({ children }: { readonly children: ReactNode }) {
   return (
     <div>
       <Group gap="xs" mb="xs" hiddenFrom="sm" role="group" aria-label="Zoom">
-        <Button size="compact-sm" variant="default" onClick={() => zoomBy(zoomStep)}>Zoom in</Button>
-        <Button size="compact-sm" variant="default" onClick={() => zoomBy(1 / zoomStep)}>Zoom out</Button>
-        <Button size="compact-sm" variant="default" onClick={reset}>Reset view</Button>
+        <Button size="lg" variant="default" onClick={() => zoomBy(zoomStep)}>Zoom in</Button>
+        <Button size="lg" variant="default" onClick={() => zoomBy(1 / zoomStep)}>Zoom out</Button>
+        <Button size="lg" variant="default" onClick={reset}>Reset view</Button>
       </Group>
       <div ref={frame} style={{ overflow: "clip", touchAction: zoom.scale > 1 ? "none" : "pan-x pan-y" }} {...handlers}>
         <div

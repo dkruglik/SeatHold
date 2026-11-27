@@ -1,4 +1,4 @@
-import { Alert, Button, Paper, Stack, TextInput, Title } from "../../../shared/ui";
+import { Alert, Button, Card, Stack, TextInput, Title } from "../../../shared/ui";
 import { useEffect, useRef, useState } from "react";
 import { useMe } from "../../auth";
 import { useCheckout } from "../hooks/use-checkout";
@@ -41,7 +41,7 @@ export function CheckoutPanel({ order, holdLive, onSettled, onClose }: CheckoutP
   };
 
   return (
-    <Paper component="section" aria-label="Checkout" aria-busy={state.status === "submitting"} withBorder p="md">
+    <Card component="section" aria-label="Checkout" aria-busy={state.status === "submitting"}>
       {state.status === "confirmed" ? (
         <Confirmation booking={state.booking} seats={order.seats} guestEmail={state.email} onClose={onClose} />
       ) : (
@@ -60,6 +60,6 @@ export function CheckoutPanel({ order, holdLive, onSettled, onClose }: CheckoutP
           {failure?.kind === "expired" || !holdLive ? <Button variant="default" onClick={onClose}>Back to seats</Button> : null}
         </Stack>
       )}
-    </Paper>
+    </Card>
   );
 }
