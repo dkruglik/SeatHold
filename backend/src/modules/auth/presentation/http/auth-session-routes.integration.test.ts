@@ -11,6 +11,18 @@ describe("GET /api/auth/me", () => {
     expect((await harness.get("/api/auth/me", cookieHeader("garbage"))).json()).toEqual({ user: null });
   });
 
+  it("is never cached, for an anonymous browser and for a signed-in user", async () => {
+    const anonymous = await harness.get("/api/auth/me");
+    const sid = sidOf(await harness.login("ada@example.io"));
+    const signedIn = await harness.get("/api/auth/me", cookieHeader(sid));
+
+    for (const response of [anonymous, signedIn]) {
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["cache-control"]).toBe("no-store");
+      expect(response.headers.vary).toBe("Cookie");
+    }
+  });
+
   it("answers the user of a live session", async () => {
     const sid = sidOf(await harness.login("ada@example.io"));
 
