@@ -2,7 +2,7 @@
 
 SeatHolder (the "SeatHold" brief) is a ticket-ordering platform for events with numbered seats. A buyer finds a show, holds seats on a seat map for a limited time and pays inside the window with a mock payment; guests get their tickets through an emailed link; admins create events and release stuck holds. A seat is never sold twice: holds are decided in PostgreSQL, so several backend instances agree. The design targets AWS, but nothing is deployed.
 
-Status: Phases 0 to 4 (setup, auth and access, booking core, buyer flow, back office) are built and merged. Phase 5 (deliverables: this README, the install skill, the remaining `DECISIONS.md` entries, the AI workflow write-up) is in progress (README, decisions and AI workflow done; the timed install run on a Mac and the final verify with the manual end-to-end are open). Phase 6 (design system depth) is planned, not started. The plan is [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md); every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
+Status: Phases 0 to 4 (setup, auth and access, booking core, buyer flow, back office) are built and merged. Phase 5 (deliverables: this README, the install skill, the remaining `DECISIONS.md` entries, the AI workflow write-up) is in progress (README, decisions and AI workflow done; the timed install run on a Mac and the final verify with the manual end-to-end are open). Phase 6 (design system depth: theme, shared UI layer, picker and seat map extensions, responsive pass) is built on branch `feature/phase-6-design-system`; open: a check on real devices, the dark-scheme first paint (no `ColorSchemeScript` yet) and the external review. The plan is [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md); every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
 
 ## Contents
 
@@ -12,6 +12,7 @@ Status: Phases 0 to 4 (setup, auth and access, booking core, buyer flow, back of
 - [Authentication](#authentication)
 - [Booking](#booking)
 - [Buyer flow](#buyer-flow)
+- [Frontend and UI](#frontend-and-ui)
 - [Admin back office](#admin-back-office)
 - [Tests and verify](#tests-and-verify)
 - [Install skill](#install-skill)
@@ -213,6 +214,18 @@ Try the guest path locally: `docker compose up -d` (or the Homebrew services) st
 
 The guest session cookie `gsid` and the user session cookie `sid` are separate and never accepted for each other's routes. The decisions and their trade-offs are `DECISIONS.md` O70 to O82 (and D5). Known limits: the payment is a mock whose outcome the client chooses (do not expose it to real customers), the seat countdown uses the browser clock, search matches whole words and venue substrings only, and rows of used guest links and resend attempts are not purged yet.
 
+## Frontend and UI
+
+The UI is Mantine behind our own layer in `frontend/src/shared/ui/`. Feature code imports only from that barrel (`shared/ui/index.ts`); `shared/ui/no-direct-mantine.test.ts` fails when a file under `features/` imports `@mantine/*` (O116). The layer has the wrappers `Button`, `Card`, `FilterBar`, `PageLayout` and `Pagination`, the components `DateTimeRangePicker`, `SeatMap`, `BookingCard`, `TicketQr` and `ColorSchemeToggle`, and re-exports the Mantine primitives the features use.
+
+- **Theme** (`frontend/src/app/theme.ts`, `theme-components.ts`, `focus-ring.css`). Own palette, spacing and type scales, component defaults, a keyboard focus ring. Muted text and the focus ring are contrast-checked in `theme.test.ts` (WCAG AA); Mantine's default muted gray failed it and is replaced (O117).
+- **Dark scheme.** The Light, Dark or Auto switch in the header stores only the preference string in the browser's localStorage. There is no `ColorSchemeScript` in `index.html` yet, so a stored dark preference can show one light frame on the first paint (accepted, O117).
+- **Date-time range picker.** Presets (Tonight, This weekend, Next 7 days, Next 30 days), a time zone label (the `timeZone` prop, default the browser zone), the message "This range is already over" for a past range unless `allowPast`, and keyboard use (arrows move the day; Tab goes calendar, from time, to time, presets, Clear; Escape closes) (O118).
+- **Seat map.** Row labels on both sides, a tooltip with seat, price and state, and keyboard navigation with one tab stop: arrow keys move between seats and rows, Home and End go to the first and last seat of the row, PageUp and PageDown go to the first and last row, Enter or Space holds or releases. A two-finger pinch zooms the map and a drag pans it (scale 1 to 3, not stored); the Zoom in, Zoom out and Reset view buttons show below 48em (O119).
+- **Phone layout** (below 48em). A sticky bar with the countdown and the way on to payment on the event page, a compact account menu, a full-screen release dialog, and large touch targets for buttons, the pager and the zoom buttons. Text inputs and inline links keep their default size (O120).
+
+Tests run in jsdom, which has no layout and no touch device: the phone layouts are tested at a controlled viewport width, and the pinch gesture only with synthetic pointer events.
+
 ## Admin back office
 
 Operators work at `/admin` in the browser (the "Back office" link in the user menu shows for admins only). Everything is served by one Fastify plugin under `/api/admin`: anonymous callers get 401, buyers get 403, and every state-changing admin call also needs the CSRF token and an allowed Origin. The role is read from the database on each request.
@@ -271,7 +284,9 @@ Cut or not built, checked against the code and the plans' "Out of scope" lists:
 - **Caching layer.** Written in `DECISIONS.md` (D3), not built. Only short `Cache-Control` headers on public reads exist; there is no cache in the backend and no CDN.
 - **Scheduled hold sweeper.** The sweeper script exists; nothing schedules it, because expiry is lazy.
 - **Retention jobs.** Rows of used guest links and resend attempts are not purged.
-- **Phase 6 depth.** Only the base theme and the two extended components from Phase 3 exist; presets, seat-map zoom and keyboard navigation, dark scheme and a full responsive pass are planned, not built.
+- **Phase 6 optional extras.** Live seat updates by SSE (the seat map polls) and a per-buyer ticket limit were not built (O121).
+- **Real-device checks.** The responsive layouts, the pinch zoom and the dark scheme were tested in jsdom only, not on a phone or in several browsers.
+- **`ColorSchemeScript`.** Not added to `index.html`, so a stored dark preference can flash light on first paint (O117).
 - **Other product scope.** Ticket check-in scanning, waitlist and waiting room, per-buyer limits per show, hold extension, general admission, price tiers, passwords, OAuth and MFA, an idle session timeout, mobile apps and multi-language UI.
 
 ## Backend image

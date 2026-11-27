@@ -102,3 +102,17 @@ After the third review round the user asked which options exist for loading the 
 **External review (O115).** Reviewer `SH-cursor`, round 1 (`origin/main..HEAD`): 0 Critical, 3 Important, 5 suggestions, fixed in `60d1bbe`; round 2 (`206d131..HEAD`): 0 Critical, 1 Important (KPI it-0 wording), 3 suggestions, fixed in the fix commit of that round. Static review only.
 
 **Not yet done.** The latency targets were not measured; the KPI query was not run against a database; no cache layer exists. The install skill has had only the static check (npm scripts, `.env.example` keys and repository paths), not a run on a clean Mac.
+
+## 2026-11-27: Phase 6 (design system depth)
+
+**What the AI did.** Built it-1 to it-4 of `plans/phase_6_design_system.plan.md`, one Claude Sonnet subagent per step, tests first: the range picker (it-2, `f7c803f`), the seat map (it-3, `d8203ea`), the theme depth, dark scheme and shared UI layer (it-1, `7b870e2`), and the responsive pass (it-4, `3a1ae01`). One agent wrote this documentation (`DECISIONS.md` O116 to O121, the README "Frontend and UI" section and cut list). The optional it-5 extras were not built (O121).
+
+**How it was directed.** Each step was a self-contained brief with the files, the behavior to prove and the done-when command. The main agent checked each report against the code and a fresh run. The documentation step was told which three files it may edit and to check every claim against the code and git history.
+
+**Red runs, as reported by the subagents** (not independently re-run by the main agent): the picker step reported 15 of 17 new tests failing before the implementation, the seat map step 9 failures, the theme and UI layer step 8 failures, and the responsive step 6 failures. The numbers are the agents' reports, not a captured log.
+
+**What jsdom could not prove.** Layout and touch: the 360 px fit of every screen, tap-target size as rendered, the pinch gesture on a real device (it is tested with synthetic pointer events), focus visibility in real browsers, and the dark-scheme first paint (the component tests set the scheme directly). The phone layouts are tested at a controlled viewport width through `src/test/viewport.ts`, which only answers media queries. The contrast checks are computed from the theme's colour values, not measured on screen.
+
+**Where it went wrong and how it was caught.** Mantine's default muted text (gray 6) failed WCAG AA; the contrast assertions in `theme.test.ts` show the gap, and the theme now maps it to gray 7 (O117).
+
+**Not yet done.** The external review of Phase 6 (a later entry, not O-numbered yet), a manual keyboard-only purchase and a check on real devices, `ColorSchemeScript` for the dark first paint, and the full `npm run verify` on the final commit.
