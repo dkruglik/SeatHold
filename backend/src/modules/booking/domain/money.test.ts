@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { money, totalFor } from "./money.js";
+import { money, totalFor, type Money } from "./money.js";
 
 describe("money", () => {
+  it("only money() produces a Money; a plain object literal is a type error", () => {
+    // @ts-expect-error an unvalidated literal must not type-check as Money
+    const forged: Money = { minor: -1, currency: "usd" };
+    const valid: Money = money(5, "EUR");
+    expect(forged).toEqual({ minor: -1, currency: "usd" });
+    expect(valid).toEqual({ minor: 5, currency: "EUR" });
+  });
+
   it("totals are unit price times seats in minor units", () => {
     expect(totalFor(money(2550, "EUR"), 3)).toEqual({ minor: 7650, currency: "EUR" });
   });
