@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 
-// Backend test files share loaded modules (isolate: false); see .claude/rules/11-common-testing.md.
+// Backend test files share loaded modules (isolate: false), so tests must not rely on module-level state.
 export default defineConfig({
   test: {
     isolate: false,
