@@ -1,4 +1,4 @@
-import { NativeSelect, Stack, Textarea, TextInput } from "@mantine/core";
+import { Alert, NativeSelect, Stack, Textarea, TextInput } from "@mantine/core";
 import { NEW } from "../lib/event-form";
 import { commonTimezones } from "../lib/timezones";
 import type { Lookups } from "../types";
@@ -36,6 +36,11 @@ export function VenueFields({ form, lookups }: { readonly form: FormApi; readonl
   return (
     <Stack gap="sm">
       <NativeSelect label="Venue" withAsterisk data={options} {...bind(form, "venue")} />
+      {form.venueConflict === true && (
+        <Alert color="red" role="alert" title="Venue already exists">
+          A venue with this name and city already exists with a different country or time zone. Select the existing venue instead.
+        </Alert>
+      )}
       {form.values.venue === NEW && (
         <>
           <TextInput label="Venue name" withAsterisk maxLength={100} {...bind(form, "venueName")} />

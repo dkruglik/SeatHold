@@ -58,6 +58,27 @@ describe("Create event form failures", () => {
     await submit();
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("The venue no longer exists"));
   });
+  it("shows a fixed venue alert on 409 VENUE_CONFLICT, keeps the values and allows another submit", async () => {
+    const { user, field, setText, fillCommon, submit, callsTo } = await setup(post(() => failure(409, "VENUE_CONFLICT", "server text")));
+    await user.selectOptions(field(/^Show( \*)?$/), lookups.shows[0]?.id ?? "");
+    await user.selectOptions(field(/^Venue( \*)?$/), "__new__");
+    await setText(/^Venue name/, "Arena One");
+    await setText(/^City/, "Berlin");
+    await setText(/^Country code/, "fr");
+    await setText(/^Time zone/, "Europe/Paris");
+    await fillCommon();
+    await submit();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("A venue with this name and city already exists with a different country or time zone. Select the existing venue instead.");
+    expect(alert.textContent).not.toContain("server text");
+    expect((field(/^Venue name/) as HTMLInputElement).value).toBe("Arena One");
+    expect((field(/^Time zone/) as HTMLInputElement).value).toBe("Europe/Paris");
+    expect((field(/^Price/) as HTMLInputElement).value).toBe("45.50");
+    expect((screen.getByRole("button", { name: "Create event" }) as HTMLButtonElement).disabled).toBe(false);
+    await submit();
+    await waitFor(() => expect(callsTo("POST", "/api/admin/events")).toHaveLength(2));
+  });
   it("posts once when the button is double-clicked", async () => {
     const { user, field, fillCommon, callsTo } = await setup(post(() => new Promise<Response>((resolve) => setTimeout(() => resolve(json(created, 201)), 30))));
     await user.selectOptions(field(/^Show( \*)?$/), lookups.shows[0]?.id ?? "");

@@ -11,6 +11,9 @@ function failureText(error: Error): string {
   return error instanceof ApiError && error.status === 409 ? "That seat is no longer held." : error instanceof ApiError && error.status === 404 ? "That seat no longer exists." : "Could not release the seat. Please try again.";
 }
 
+const STALE_TEXT = "The hold expired but the seat is still marked held. Clearing it marks the seat available again.";
+const LIVE_TEXT = "The buyer's hold on this seat ends and the seat becomes available at once. Their other seats stay held.";
+
 interface Props {
   readonly eventId: string;
   readonly seat: OpenTicket;
@@ -23,6 +26,7 @@ export function ReleaseModal({ eventId, seat, onClose }: Props) {
   const [invalid, setInvalid] = useState(false);
   const release = useReleaseSeat(eventId);
   const label = `${seat.row}${seat.number}`;
+  const stale = seat.state !== "held";
 
   function confirm() {
     const trimmed = reason.trim();
@@ -34,14 +38,13 @@ export function ReleaseModal({ eventId, seat, onClose }: Props) {
   }
 
   return (
-    <Modal opened onClose={onClose} title={`Release seat ${label}`} centered>
+    <Modal opened onClose={onClose} title={stale ? `Clear stale hold on seat ${label}` : `Release seat ${label}`} centered>
       <Stack gap="md">
-        <Text size="sm">The buyer's hold on this seat ends and the seat becomes available at once. Their other seats stay held.</Text>
+        <Text size="sm">{stale ? STALE_TEXT : LIVE_TEXT}</Text>
         <Textarea
           label="Reason"
           description={`${reason.trim().length}/${MAX} characters`}
           withAsterisk
-         
           rows={3}
           maxLength={MAX}
           value={reason}

@@ -17,6 +17,12 @@ export function createFailureMessage(error: Error): string {
   return "Could not create the event. Please try again.";
 }
 
+const VENUE_CONFLICT = "VENUE_CONFLICT";
+
+function isVenueConflict(error: Error | null): boolean {
+  return error instanceof ApiError && error.status === 409 && error.code === VENUE_CONFLICT;
+}
+
 export function useCreateEventForm(formRef: RefObject<HTMLFormElement | null>) {
   const [values, setValues] = useState<EventFormValues>(initialValues);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -53,5 +59,8 @@ export function useCreateEventForm(formRef: RefObject<HTMLFormElement | null>) {
     });
   }
 
-  return { values, errors, set, submit, pending: create.isPending, failure: create.isError ? createFailureMessage(create.error) : undefined };
+  return { values, errors, set, submit, pending: create.isPending,
+    venueConflict: isVenueConflict(create.error),
+    failure: create.isError && !isVenueConflict(create.error) ? createFailureMessage(create.error) : undefined,
+  };
 }

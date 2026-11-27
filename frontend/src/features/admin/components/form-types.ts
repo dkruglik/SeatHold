@@ -3,6 +3,7 @@ import type { EventFormValues, FieldErrors, FieldName } from "../lib/event-form"
 export interface FormApi {
   readonly values: EventFormValues;
   readonly errors: FieldErrors;
+  readonly venueConflict?: boolean;
   readonly set: (field: FieldName, value: string) => void;
 }
 

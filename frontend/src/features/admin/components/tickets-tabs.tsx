@@ -65,9 +65,9 @@ export function OpenTicketsTab({ query, page, onPage, timezone, onRelease }: Tab
             <Table.Td>{seat.state}</Table.Td>
             <Table.Td>{seat.heldUntil === null ? "" : <Time iso={seat.heldUntil} timezone={timezone} />}</Table.Td>
             <Table.Td>
-              {seat.state === "held" && (
-                <Button variant="default" size="compact-sm" onClick={() => onRelease(seat)} aria-label={`Release seat ${seat.row}${seat.number}`}>
-                  Release
+              {seat.releasable && (
+                <Button variant="default" size="compact-sm" onClick={() => onRelease(seat)} aria-label={`${seat.state === "held" ? "Release seat" : "Clear stale hold on seat"} ${seat.row}${seat.number}`}>
+                  {seat.state === "held" ? "Release" : "Clear stale hold"}
                 </Button>
               )}
             </Table.Td>

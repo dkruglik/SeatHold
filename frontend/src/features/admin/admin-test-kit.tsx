@@ -38,7 +38,7 @@ export const page = <T,>(items: T[], over: Partial<{ total: number; page: number
 
 export const eventHeader = { eventId: berlinEvent.eventId, showTitle: "Night Songs", venueName: "Arena One", city: "Berlin", timezone: "Europe/Berlin", startsAt: berlinEvent.startsAt };
 
-export const openSeat = (over: Partial<OpenTicket> = {}): OpenTicket => ({ seatId: "s1", row: "A", number: 1, state: "available", heldUntil: null, ...over });
+export const openSeat = (over: Partial<OpenTicket> = {}): OpenTicket => ({ seatId: "s1", row: "A", number: 1, state: "available", heldUntil: null, releasable: false, ...over });
 export const boughtTicket = (over: Partial<BoughtTicket> = {}): BoughtTicket => ({
   ticketId: "t1", row: "B", number: 4, buyerEmail: "buyer@example.com", buyerType: "user", bookedAt: "2026-06-01T10:00:00.000Z", bookingStatus: "confirmed", ...over,
 });

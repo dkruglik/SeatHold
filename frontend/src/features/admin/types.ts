@@ -59,6 +59,8 @@ export interface OpenTicket {
   readonly number: number;
   readonly state: "available" | "held";
   readonly heldUntil: string | null;
+  /** True while the seat is still marked held in the database, including a hold that already expired. */
+  readonly releasable: boolean;
 }
 
 export interface BoughtTicket {
