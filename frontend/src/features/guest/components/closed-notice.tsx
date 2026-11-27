@@ -6,13 +6,19 @@ const titles: Record<Closed, string> = {
   expired: "This link has expired",
   invalid: "This link is not valid",
   no_session: "Open the link from your email",
+  blocked: "We could not verify this request",
   error: "Something went wrong",
+};
+
+const bodies: Partial<Record<Closed, string>> = {
+  no_session: "Your tickets are in the email we sent after your booking.",
+  blocked: "This link could not be checked. Request a new link below.",
 };
 
 export function ClosedNotice({ reason }: { readonly reason: Closed }) {
   return (
     <Alert color={reason === "no_session" ? "blue" : "red"} role={reason === "error" ? "alert" : "status"} title={titles[reason]}>
-      {reason === "no_session" ? "Your tickets are in the email we sent after your booking." : "You can ask for new links below."}
+      {bodies[reason] ?? "You can ask for new links below."}
     </Alert>
   );
 }

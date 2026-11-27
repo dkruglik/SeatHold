@@ -1,7 +1,10 @@
 import { ApiError, type ApiClient } from "../../../shared/lib/api-client";
 import { isBooking, type Booking } from "../../../shared/ui/booking-card";
 
-export type ResendResult = "sent" | "rate_limited" | "invalid";
+export type ResendResult =
+  | { readonly kind: "sent" }
+  | { readonly kind: "rate_limited"; readonly retryAfterSeconds: number | undefined }
+  | { readonly kind: "invalid" };
 
 function asBooking(body: unknown): Booking {
   if (!isBooking(body)) {
@@ -35,13 +38,13 @@ export class GuestApi {
   async resend(email: string): Promise<ResendResult> {
     try {
       await this.client.post<undefined>("/guest/resend", { email });
-      return "sent";
+      return { kind: "sent" };
     } catch (error) {
       if (error instanceof ApiError && error.status === 429) {
-        return "rate_limited";
+        return { kind: "rate_limited", retryAfterSeconds: error.retryAfterSeconds };
       }
       if (error instanceof ApiError && error.status === 400) {
-        return "invalid";
+        return { kind: "invalid" };
       }
       throw error;
     }

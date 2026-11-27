@@ -28,3 +28,12 @@ export function formatPrice(priceMinor: number, currency: string): string {
 export function seatsLabel(seatsLeft: number): string {
   return seatsLeft === 1 ? "1 seat left" : `${seatsLeft} seats left`;
 }
+
+/** A wait as "45 seconds" or "50 minutes" (minutes rounded up). */
+export function formatRetry(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}

@@ -71,6 +71,18 @@ describe("Guest access: exchange", () => {
   });
 });
 
+describe("Guest access: blocked exchange", () => {
+  it("shows a dedicated notice and the resend form when the exchange stays 403, without the token in the page", async () => {
+    renderGuest({ hash, exchange: () => json({ error: { code: "CSRF_INVALID", message: "x" } }, 403) });
+
+    expect(await screen.findByText("We could not verify this request")).toBeTruthy();
+    expect(screen.getByText("This link could not be checked. Request a new link below.")).toBeTruthy();
+    expect(screen.queryByText("Something went wrong")).toBeNull();
+    expect(screen.getByLabelText("Email")).toBeTruthy();
+    expect(document.body.innerHTML).not.toContain(secretToken);
+  });
+});
+
 describe("Guest access: without a fragment", () => {
   it("shows the booking of an existing guest session", async () => {
     const { exchangeCalls } = renderGuest({ booking: () => json(makeBooking()) });
@@ -114,6 +126,17 @@ describe("Guest access: lost-link form", () => {
 
     expect(await screen.findByText("Too many requests, try again later")).toBeTruthy();
     expect(screen.queryByText(neutral)).toBeNull();
+  });
+
+  it("shows the wait from retryAfterSeconds on 429", async () => {
+    const limited = () => json({ error: { code: "RATE_LIMITED", message: "x" }, retryAfterSeconds: 3000 }, 429);
+    const { user } = renderGuest({ booking: unauthorized, resend: limited });
+
+    await user.type(await screen.findByLabelText("Email"), "a@example.com");
+    await user.click(screen.getByRole("button", { name: "Send new links" }));
+
+    expect(await screen.findByText("Too many requests. Try again in 50 minutes.")).toBeTruthy();
+    expect(screen.queryByText("Too many requests, try again later")).toBeNull();
   });
 
   it("shows an inline validation message on 400", async () => {

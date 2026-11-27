@@ -4,7 +4,7 @@ import type { Booking } from "../../../shared/ui/booking-card";
 import { takeFragmentToken } from "../lib/take-fragment-token";
 import type { GuestApi } from "../services/guest-api";
 
-export type Closed = "used" | "expired" | "invalid" | "no_session" | "error";
+export type Closed = "used" | "expired" | "invalid" | "no_session" | "blocked" | "error";
 export type GuestAccessState =
   | { readonly kind: "loading" }
   | { readonly kind: "booking"; readonly booking: Booking }
@@ -18,6 +18,10 @@ function reasonOf(error: unknown): Closed {
   }
   if (error.status === 410) {
     return goneReasons[error.code ?? ""] ?? "invalid";
+  }
+  // A 403 that outlived the client's one CSRF retry: a stale page or a wrong origin, not a server fault.
+  if (error.status === 403) {
+    return "blocked";
   }
   // The exchange body schema bounds the token length, so a short or corrupted fragment is a 400, not a 410.
   return error.status === 400 ? "invalid" : "error";
