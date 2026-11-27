@@ -252,7 +252,7 @@ Operators work at `/admin` in the browser (the "Back office" link in the user me
 - At most 20,000 seats per event (rows and seats per row 1 to 200), a price up to 1,000,000 minor units, a start time in the future and within 3 years. Bad input is 400 `INVALID_EVENT`.
 - A release needs a reason and is logged in the `seat_release_log` table (who, which seat, which hold, the reason, the time). A second release of the same seat answers 409 `SEAT_NOT_HELD`. The reason is stored, never written to the application log. Only this action has an audit trail; a general admin audit log is a production addition.
 - Buyer and guest emails appear only in admin responses. Ticket codes and payment details appear in no admin list.
-- Admin lists are paged: `page` 1 to 100000, `pageSize` 1 to 100; unknown query parameters are 400. The total and the items are two reads, not one snapshot.
+- Admin lists are paged: `pageSize` 1 to 100, and the offset is capped (400 `PAGE_TOO_DEEP`: 10,000 for events, 20,000 for ticket lists); unknown query parameters are 400. The total and the items are two reads, not one snapshot.
 
 Reasoning: `DECISIONS.md` O83 to O109. Deploy and checks: [`docs/release_guides/phase-4-back-office.md`](docs/release_guides/phase-4-back-office.md).
 
