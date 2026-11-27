@@ -3,23 +3,23 @@ name: Phase 5 - Deliverables
 overview: "Turns the running system into the submission: the install-seathold skill verified on a clean Mac in under 10 minutes, a README that runs the system without the skill and says what was cut, the remaining DECISIONS.md entries (caching, latency, scale on AWS, own KPI) checked against the code, and the AI workflow section with one real example where Claude was wrong."
 todos:
   - id: it-0-approvals
-    content: Confirm the own KPI default (hold-to-purchase conversion and hold expiry rate) and the latency targets below
-    status: pending
+    content: Confirm the own KPI default (hold-to-purchase conversion and hold expiry rate) and the latency targets below. Used as written, recorded in DECISIONS O111-O114; no person confirmed them
+    status: completed
   - id: it-1-install-skill
-    content: install-seathold complete - prerequisites, Homebrew services, install, migrate, seed, start, health wait, URLs and logins; timed clean-Mac run
-    status: pending
+    content: install-seathold complete - prerequisites, Homebrew services, install, migrate, seed, start, health wait, URLs and logins; timed clean-Mac run. Skill rewritten with a static check (917be0a). Still open (timed clean-Mac run by a person, not run)
+    status: in_progress
   - id: it-2-readme
     content: README final - what it is, run on Windows (Docker) and Mac (Homebrew) without the skill, scripts, tests, what was cut
-    status: pending
+    status: completed
   - id: it-3-decisions
     content: DECISIONS caching, latency, scale (100,000 visitors / 20,000 seats on AWS), own KPI; every entry cross-checked with the code
-    status: pending
+    status: completed
   - id: it-4-ai-workflow
     content: AI workflow section from the log - Claude setup, review loop, one real wrong-output example and how it was caught
-    status: pending
+    status: completed
   - id: it-5-final-verify
-    content: Full verify on the final commit, manual end-to-end for buyer, guest and admin, roadmap statuses
-    status: pending
+    content: Full verify on the final commit, manual end-to-end for buyer, guest and admin, roadmap statuses. Still open (full verify on the final commit, manual end-to-end not run)
+    status: in_progress
 isProject: false
 ---
 
@@ -37,10 +37,10 @@ The brief's deliverables are the working system, the install skill, `README.md`,
 |---|---|
 | Install path | Homebrew on macOS (rule 50 exception): `node@24`, `postgresql@17`, `mailpit` as `brew services`; same `.env` keys as Docker Compose |
 | Install proof | One timed run on a clean macOS user or VM; the time and any fix go into the AI workflow log |
-| Latency targets (written) | Search `GET /api/shows` p95 < 150 ms server time at seed size; seat hold p95 < 50 ms; checkout p95 < 200 ms excluding the payment provider. Threats: the hold transaction itself (clock read, expire a stale hold, insert or reuse the hold, update the seat: about four round trips inside the 50 ms budget), hot seat rows at on-sale, polling load, connection-pool exhaustion behind RDS Proxy, full-text query plans |
+| Latency targets (written) | Search `GET /api/shows` p95 < 150 ms server time at seed size; seat hold p95 < 50 ms; checkout p95 < 200 ms excluding the payment provider. Threats: the hold transaction itself (clock read, expire a stale hold, insert or reuse the hold, update the seat: nine round trips for an anonymous holder, ten for a signed-in one (counted from the code, DECISIONS O112)), hot seat rows at on-sale, polling load, connection-pool exhaustion behind RDS Proxy, full-text query plans |
 | Caching (written, decision 3) | Cache: show search results per normalized query for 30 s, facets for 5 min, event detail for 60 s (CloudFront / app); public seat availability per event for 1-2 s at CloudFront. Invalidate on admin event create and price change. Never cache: holds, `held_by_me` state, checkout, payments, sessions, My bookings, guest pages, admin responses |
 | Scale (written) | 100,000 visitors for 20,000 seats: first to break is the seat-hold write path (row contention and connection pool), then polling reads on the writer and the session lookup per request. Changes: virtual waiting room at CloudFront to meter entry, read replica for search and facets, seat-map availability cached 1-2 s, RDS Proxy, ElastiCache for sessions (needs approval), hold attempts per buyer limited. AWS: CloudFront, WAF, S3, ALB, ECS Fargate (auto scaling), Aurora PostgreSQL with replica, RDS Proxy, SES, Secrets Manager, CloudWatch, EventBridge Scheduler |
-| Own KPI (default, confirmed in it-0) | Hold-to-purchase conversion and hold expiry rate per event (shows whether the 10-minute window and checkout UX work, and detects hoarding). Alternatives: p99 time from click to `held_by_me`; ticket QR fetch success rate |
+| Own KPI (default, used as written in it-0; no person confirmed it) | Hold-to-purchase conversion and hold expiry rate per event (shows whether the 10-minute window and checkout UX work, and detects hoarding). Alternatives: p99 time from click to `held_by_me`; ticket QR fetch success rate |
 | Measured latency | Optional, only if time remains: a short `autocannon` run noted in `DECISIONS.md` (dependency would need approval) |
 
 ## 3. Security principles

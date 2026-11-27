@@ -241,7 +241,7 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** Development, tests and verify run on Docker Compose (PostgreSQL 17, Mailpit). The macOS install skill uses Homebrew services with the same versions and `.env` keys.
 - **Options.** Docker on the Mac too; Homebrew everywhere.
 - **Trade-off.** Two local setups to keep in line (a review check enforces it); in return the clean-Mac run avoids Docker Desktop's GUI install and fits under 10 minutes.
-- **Status.** `planned`: Phase 0 it-3, it-7. In place: `docker-compose.yml` (PostgreSQL 17.12, Mailpit v1.34.0; checked by `docker compose config -q`), `.env.example` (test `backend/src/config/env-example.test.ts`), `README.md` (test `scripts/readme-commands.test.mjs`), `.claude/skills/install-seathold/SKILL.md` (tracked, test `scripts/git-hygiene.test.mjs`). Missing: the install skill is v0 and has not been run on a Mac, so the Homebrew path is unproven.
+- **Status.** `planned`: Phase 0 it-3, it-7. In place: `docker-compose.yml` (PostgreSQL 17.12, Mailpit v1.34.0; checked by `docker compose config -q`), `.env.example` (test `backend/src/config/env-example.test.ts`), `README.md` (test `scripts/readme-commands.test.mjs`), `.claude/skills/install-seathold/SKILL.md` (tracked, test `scripts/git-hygiene.test.mjs`). The install skill is rewritten and statically checked (917be0a: its commands are checked against `package.json`). Missing: the timed clean-Mac run has not been done; a person must run it on a Mac, so the Homebrew path is unproven and the install proof stays open.
 
 ### O14. CI
 

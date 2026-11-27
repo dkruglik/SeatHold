@@ -18,8 +18,8 @@ todos:
     content: "Phase 4 built on branch feature/phase-4-back-office, 2026-11-27, 7 of 8 iterations: create event with generated rows x seats grid (one transaction), admin event list and lookups, open tickets (available and held, lazy expiry), bought tickets (buyer email, time, status), /admin screens (event list, create form, detail tabs), manual release of a held seat with reason and log row, DECISIONS O83-O109, README admin section, release guide docs/release_guides/phase-4-back-office.md. Still open: manual browser check as buyer and admin (only jsdom and integration tests run), second code review round, full npm run verify on the final commit, GitHub Actions run; stacked on feature/phase-3-buyer-flow (Phase 3 PR not merged) (plan: plans/phase_4_back_office.plan.md)"
     status: in_progress
   - id: phase-5-deliverables
-    content: "Phase 5: install-seathold verified on a clean Mac (< 10 min), README with what was cut, DECISIONS caching / latency / scale / own KPI, AI workflow section (plan: plans/phase_5_deliverables.plan.md)"
-    status: pending
+    content: "Phase 5 built on branch feature/phase-5-deliverables, 2026-11-27, 4 of 6 iterations: it-0 approvals (the plan's defaults used as written, DECISIONS O111-O114; no person confirmed them), README final with what was cut (d22589a), DECISIONS caching / latency / scale / own KPI cross-checked with the code (c9ebfb6, corrections 60d1bbe), AI workflow section; install-seathold skill rewritten with a static check (917be0a). Still open: timed clean-Mac run of install-seathold by a person (under 10 min is not yet proven), full npm run verify on the final commit, manual end-to-end for buyer, guest and admin (plan: plans/phase_5_deliverables.plan.md)"
+    status: in_progress
   - id: phase-6-design-system
     content: "Phase 6: Mantine theme and component layer depth, DateTimeRangePicker and SeatMap extensions polished, desktop and mobile layouts, optional extras (plan: plans/phase_6_design_system.plan.md)"
     status: pending
@@ -39,7 +39,7 @@ Source brief: `plans/Appcharge_AC11_TeamLeader_AI_Test_Task_PartA.md`.
 | 2 Booking core | completed (8/8 iterations; open: deploy and release-guide checks, human review of the whole branch, second external review of the last commits, first GitHub Actions run, browser run (UI is Phase 3)) | [phase_2_booking_core.plan.md](phase_2_booking_core.plan.md) |
 | 3 Buyer flow (end to end) | in progress (9/10 iterations, it-0 to it-8 completed, it-9 in progress; open: manual browser end-to-end for buyer and guest, expiry on screen and two-browser race, full verify before push, operator items in the release guide) | [phase_3_buyer_flow.plan.md](phase_3_buyer_flow.plan.md) |
 | 4 Back office | in progress (7/8 iterations, it-0 to it-6 completed, it-7 in progress; open: manual browser check as buyer and admin, second review round, full verify on the final commit, GitHub Actions run; stacked on the unmerged Phase 3 branch) | [phase_4_back_office.plan.md](phase_4_back_office.plan.md) |
-| 5 Deliverables | pending | [phase_5_deliverables.plan.md](phase_5_deliverables.plan.md) |
+| 5 Deliverables | in progress (4/6 iterations, it-0, it-2, it-3, it-4 completed, it-1 and it-5 in progress; open: timed clean-Mac run of install-seathold by a person, full verify on the final commit, manual end-to-end for buyer, guest and admin) | [phase_5_deliverables.plan.md](phase_5_deliverables.plan.md) |
 | 6 Design system depth | pending | [phase_6_design_system.plan.md](phase_6_design_system.plan.md) |
 
 ## Priority principles
