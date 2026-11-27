@@ -86,3 +86,17 @@ After the third review round the user asked which options exist for loading the 
 **Not yet done.** No browser end-to-end run was done: the screens have jsdom component tests and the routes have integration tests, but nobody drove the back office in a real browser against a real backend. The install skill has not run on a clean Mac, and the GitHub Actions workflow has not run on this branch. The 20,000-seat timing (about 0.4 to 0.5 s) was measured locally only.
 
 **Review round (Phase 4).** The external review ran through another Agent Manager agent (reviewer `SH-cursor`), outside the run that built the phase. It found 0 Critical and 3 Important findings, and 5 suggestions. The Important findings (the venue conflict, the stale hold release and the documentation) and the suggestions were all fixed. The review was not repeated after the fixes, so a second result is not claimed here. The decisions are in `DECISIONS.md` O84, O91, O93 and O101.
+
+## 2026-11-27: Phase 5 (deliverables), decisions and AI workflow (it-3, it-4)
+
+**What the AI did.** Wrote the remaining `DECISIONS.md` entries (O111 cache headers and the missing cache layer, O112 latency targets with the hold path counted from the code, O113 scale on AWS, O114 the own KPI with a read-only SQL example), rewrote the "AI workflow" section from this log and the git history, and re-read the six required decisions and the security entry against the code. Documents only: no code, test or script was changed.
+
+**How it was directed.** One agent, told which two files it may edit. It checked every statement against the route files, the hold repository, the schema and migrations and `git log`; it did not run the database or the SQL example.
+
+**Where it went wrong and how it was caught.**
+
+- The Phase 5 plan said the hold transaction takes "about four round trips". Counting the statements in `hold-seat-service.ts` and `prisma-hold-repository.ts` gives 9 round trips for an anonymous holder (clock read, `BEGIN`, six statements, `COMMIT`) and 10 for a signed-in one. The count in the plan was Claude's own estimate from the earlier planning step; it is replaced in O112 and the KPI table. The plan file still carries the old wording (this step may not edit `plans/`).
+- D3 listed `/api/auth/me` as never cached, but the route sets no `Cache-Control` header (O111). Not fixed here: a one-line test-first code change.
+- Older entries had drifted: O17 and O19 still said `planned` for work built in Phases 1 and 4, O52 described the removed `/api/admin/ping` page, D5 said the resend "always answers 204" although the limit answers 429, and the Security table listed zod at every HTTP boundary where the routes use Fastify JSON schemas. All corrected in the same change.
+
+**Not yet done.** The latency targets were not measured; the KPI query was not run against a database; no cache layer exists. Install proof on a clean Mac and the README are other iterations.
