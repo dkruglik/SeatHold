@@ -64,7 +64,7 @@ function EventScreen({ event, onContinue }: { readonly event: EventDetail; reado
       <Group align="flex-start" wrap="wrap" gap="xl">
         <div style={{ flex: "1 1 24rem", minWidth: 0 }}>
           {seatMap.data !== undefined ? (
-            <SeatMap rows={event.rows} seatsPerRow={event.seatsPerRow} seats={seats} onSelect={seatToggle.toggle} disabled={seatToggle.pending || order !== null} />
+            <SeatMap rows={event.rows} seatsPerRow={event.seatsPerRow} seats={seats} onSelect={seatToggle.toggle} priceMinor={event.priceMinor} currency={event.currency} disabled={seatToggle.pending || order !== null} />
           ) : seatMap.isError ? (
             <EventLoadError message="Could not load the seat map." onRetry={() => void seatMap.refetch()} />
           ) : (

@@ -33,12 +33,12 @@ describe("SeatMap", () => {
     expect(screen.getAllByRole("button")).toHaveLength(4);
   });
 
-  it("shows a label at the start of each row", () => {
+  it("shows a label on both sides of each row", () => {
     setup();
 
     const map = screen.getByRole("group", { name: "Seat map" });
-    expect(within(map).getByText("A")).toBeTruthy();
-    expect(within(map).getByText("B")).toBeTruthy();
+    expect(within(map).getAllByText("A")).toHaveLength(2);
+    expect(within(map).getAllByText("B")).toHaveLength(2);
   });
 
 });

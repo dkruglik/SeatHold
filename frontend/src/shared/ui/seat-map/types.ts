@@ -17,4 +17,7 @@ export interface SeatMapProps {
   readonly onSelect: (seat: SeatMapSeat) => void;
   /** Makes every seat inert, e.g. while a request is in flight. */
   readonly disabled?: boolean;
+  /** Price of a seat in the currency's minor unit; with `currency` it is shown in the seat tooltip. */
+  readonly priceMinor?: number;
+  readonly currency?: string;
 }
