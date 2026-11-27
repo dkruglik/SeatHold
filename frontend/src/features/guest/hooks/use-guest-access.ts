@@ -13,7 +13,14 @@ export type GuestAccessState =
 const goneReasons: Record<string, Closed> = { LINK_USED: "used", LINK_EXPIRED: "expired", LINK_INVALID: "invalid" };
 
 function reasonOf(error: unknown): Closed {
-  return error instanceof ApiError && error.status === 410 ? (goneReasons[error.code ?? ""] ?? "invalid") : "error";
+  if (!(error instanceof ApiError)) {
+    return "error";
+  }
+  if (error.status === 410) {
+    return goneReasons[error.code ?? ""] ?? "invalid";
+  }
+  // The exchange body schema bounds the token length, so a short or corrupted fragment is a 400, not a 410.
+  return error.status === 400 ? "invalid" : "error";
 }
 
 /**

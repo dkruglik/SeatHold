@@ -51,6 +51,18 @@ describe("Guest access: exchange", () => {
     expect(document.body.innerHTML).not.toContain(secretToken);
   });
 
+  it("treats a 400 from a short or corrupted fragment token as an invalid link, not a server error", async () => {
+    const { calls } = renderGuest({ hash: "#t=tooshort", exchange: () => json({ error: { code: "invalid_request", message: "x" } }, 400) });
+
+    expect(await screen.findByText("This link is not valid")).toBeTruthy();
+    expect(screen.queryByText("Something went wrong")).toBeNull();
+    expect(screen.getByLabelText("Email")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Send new links" })).toBeTruthy();
+    expect(window.location.hash).toBe("");
+    expect(document.body.innerHTML).not.toContain("tooshort");
+    expect(calls.find((c) => c.path === "/guest/exchange")?.body).toEqual({ token: "tooshort" });
+  });
+
   it("shows a generic error with the resend form when the exchange fails otherwise", async () => {
     renderGuest({ hash, exchange: () => json({ error: { code: "INTERNAL", message: "x" } }, 500) });
 
