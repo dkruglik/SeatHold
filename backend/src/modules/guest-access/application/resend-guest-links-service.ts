@@ -19,7 +19,7 @@ export interface ResendGuestLinksDeps {
 }
 
 /** `accepted` is the answer for every email, known or not (204); `rate_limited` is the same for every email (429). */
-export type ResendResult = { readonly kind: "accepted" } | { readonly kind: "rate_limited" };
+export type ResendResult = { readonly kind: "accepted" } | { readonly kind: "rate_limited"; readonly retryAfterSeconds: number };
 
 /**
  * Plan flow 5. The limiter runs first and counts every attempt, so neither answer depends on whether bookings exist.
@@ -32,7 +32,8 @@ export class ResendGuestLinksService {
     const { clock, links, sessions, limiter, bookings, tokens, issue, limit, windowMinutes } = this.deps;
     const email = input.email.trim().toLowerCase();
     const now = await clock.now();
-    if (!(await limiter.tryRegister(tokens.hash(email), now, limit, windowMinutes))) return { kind: "rate_limited" };
+    const attempt = await limiter.tryRegister(tokens.hash(email), now, limit, windowMinutes);
+    if (!attempt.allowed) return { kind: "rate_limited", retryAfterSeconds: attempt.retryAfterSeconds };
     const upcoming = await bookings.findUpcomingConfirmedGuestBookingsByEmail(email, now);
     if (upcoming.length === 0) return { kind: "accepted" };
     const ids = upcoming.map((b) => b.bookingId);

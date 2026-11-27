@@ -24,12 +24,12 @@ describe("ResendGuestLinksService", () => {
 
   it("answers rate_limited before any lookup or send when the limit is hit", async () => {
     const { resend, email, limiter, bookings } = setup();
-    limiter.allow = false;
+    limiter.refuseWith = 1234;
     bookings.upcoming.set("g@example.com", [booking("b1")]);
 
     const result = await resend.resend({ email: "g@example.com" });
 
-    expect(result).toEqual({ kind: "rate_limited" });
+    expect(result).toEqual({ kind: "rate_limited", retryAfterSeconds: 1234 });
     expect(trace).toEqual(["limiter"]);
     expect(email.sent).toEqual([]);
   });

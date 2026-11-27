@@ -10,7 +10,10 @@ export const resendRoute: FastifyPluginAsync<GuestRouteOptions> = async (app, op
     async (request, reply) => {
       const result = await options.services.resend.resend({ email: request.body.email });
       if (result.kind === "rate_limited") {
-        return reply.code(429).send({ error: { code: "RATE_LIMITED", message: "Too many requests. Try again later." } });
+        return reply
+          .code(429)
+          .header("Retry-After", String(result.retryAfterSeconds))
+          .send({ error: { code: "RATE_LIMITED", message: "Too many requests. Try again later." }, retryAfterSeconds: result.retryAfterSeconds });
       }
       return reply.code(204).send();
     },

@@ -2,7 +2,7 @@ import { GuestAccessLink } from "../domain/guest-access-link.js";
 import type { GuestLinkState } from "../domain/guest-link-state.js";
 import { GuestSession } from "../domain/guest-session.js";
 import type { ConsumeAndCreateSession, GuestLinkRepository, NewGuestLink } from "./ports/guest-link-repository.js";
-import type { GuestResendLimiter } from "./ports/guest-resend-limiter.js";
+import type { GuestResendLimiter, ResendAttempt } from "./ports/guest-resend-limiter.js";
 import type { GuestSessionRepository, NewGuestSession } from "./ports/guest-session-repository.js";
 import type { GuestBookings } from "./ports/guest-bookings.js";
 import type { EmailMessage, EmailProvider } from "../../auth/index.js";
@@ -89,13 +89,14 @@ export class InMemoryGuestSessions implements GuestSessionRepository {
 }
 
 export class FakeLimiter implements GuestResendLimiter {
-  allow = true;
+  /** Seconds to refuse with; null admits. */
+  refuseWith: number | null = null;
   readonly calls: { emailHash: string; limit: number; windowMinutes: number }[] = [];
 
-  tryRegister(emailHash: string, _now: Date, limit: number, windowMinutes: number): Promise<boolean> {
+  tryRegister(emailHash: string, _now: Date, limit: number, windowMinutes: number): Promise<ResendAttempt> {
     trace.push("limiter");
     this.calls.push({ emailHash, limit, windowMinutes });
-    return Promise.resolve(this.allow);
+    return Promise.resolve(this.refuseWith === null ? { allowed: true } : { allowed: false, retryAfterSeconds: this.refuseWith });
   }
 }
 
