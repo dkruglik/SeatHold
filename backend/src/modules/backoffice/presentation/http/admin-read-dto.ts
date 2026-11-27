@@ -6,12 +6,12 @@ import type { AdminEventRow, EventHeader } from "../../application/ports/admin-r
 const pagingProperties = { total: { type: "integer" }, page: { type: "integer" }, pageSize: { type: "integer" }, totalPages: { type: "integer" } } as const;
 const pagingRequired = ["total", "page", "pageSize", "totalPages"] as const;
 
-/** Query shape for the admin lists. `propertyNames` rejects unknown parameters with 400 (Ajv would strip them otherwise). */
-export const pageQuerySchema = (defaultPageSize: number) =>
+/** Query shape for the admin lists; `maxPage` is the deepest page of size 1 the list allows (the application layer enforces the exact offset limit). `propertyNames` rejects unknown parameters with 400 (Ajv would strip them otherwise). */
+export const pageQuerySchema = (defaultPageSize: number, maxPage: number) =>
   ({
     type: "object",
     properties: {
-      page: { type: "integer", minimum: 1, maximum: 100000, default: 1 },
+      page: { type: "integer", minimum: 1, maximum: maxPage, default: 1 },
       pageSize: { type: "integer", minimum: 1, maximum: 100, default: defaultPageSize },
     },
     propertyNames: { enum: ["page", "pageSize"] },

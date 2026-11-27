@@ -70,3 +70,21 @@ describe("GET /api/admin/events/:eventId/bought-tickets", () => {
     expect((await harness.get(`/api/admin/events/${event.eventId}/bought-tickets?pageSize=101`, headers)).statusCode).toBe(400);
   });
 });
+
+describe("GET /api/admin/events/:eventId/bought-tickets page depth", () => {
+  it("serves the last allowed offset (20,000 limit) and rejects the first deeper one with PAGE_TOO_DEEP", async () => {
+    const event = await seedEvent(harness.prisma, { seats: [["A", 1]] });
+    const headers = await adminHeaders();
+    const url = (query: string): string => `/api/admin/events/${event.eventId}/bought-tickets?${query}`;
+
+    const ok = await harness.get(url("page=200&pageSize=100"), headers);
+    const tooDeep = await harness.get(url("page=201&pageSize=100"), headers);
+
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toMatchObject({ items: [], page: 200 });
+    expect(tooDeep.statusCode).toBe(400);
+    expect(tooDeep.json()).toMatchObject({ error: { code: "PAGE_TOO_DEEP" } });
+    expect((await harness.get(url("page=20000&pageSize=1"), headers)).statusCode).toBe(200);
+    expect((await harness.get(url("page=20001&pageSize=1"), headers)).statusCode).toBe(400);
+  });
+});

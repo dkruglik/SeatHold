@@ -6,7 +6,7 @@ import { boughtTicketsSchema, eventIdParamsSchema, pageQuerySchema, toBoughtTick
 export const boughtTicketsRoute = (services: Pick<BackofficeServices, "listBoughtTickets">): FastifyPluginAsync => async (app) => {
   app.get<{ Params: { eventId: string }; Querystring: PageQuery }>(
     "/events/:eventId/bought-tickets",
-    { schema: { params: eventIdParamsSchema, querystring: pageQuerySchema(50), response: { 200: boughtTicketsSchema } } },
+    { schema: { params: eventIdParamsSchema, querystring: pageQuerySchema(50, 20000), response: { 200: boughtTicketsSchema } } },
     async (request, reply) => {
       void reply.header("cache-control", "no-store");
       return toBoughtTicketsDto(await services.listBoughtTickets.execute({ eventId: request.params.eventId, ...request.query }));

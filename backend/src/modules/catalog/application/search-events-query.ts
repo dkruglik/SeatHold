@@ -1,6 +1,10 @@
 import { ValidationError } from "../../../shared/errors/app-error.js";
+import { assertOffsetWithinLimit } from "../../../shared/pagination/offset-limit.js";
 import type { Clock } from "../../../shared/time/clock.js";
 import type { EventSearchReader, EventSearchRow } from "./ports/event-search-reader.js";
+
+/** Search results are paged only to this offset; deeper pages ask the caller to refine the filters. */
+export const SEARCH_OFFSET_LIMIT = 10_000;
 
 export interface SearchEventsInput {
   readonly q?: string;
@@ -34,6 +38,7 @@ export class SearchEventsQuery {
     if (input.from !== undefined && input.to !== undefined && input.from.getTime() > input.to.getTime()) {
       throw new ValidationError("from must not be after to", { publicCode: "invalid_date_range" });
     }
+    assertOffsetWithinLimit(input.page, input.pageSize, SEARCH_OFFSET_LIMIT);
     const now = await this.deps.clock.now();
     const q = input.q?.trim();
     const { rows, total } = await this.deps.reader.search({

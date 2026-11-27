@@ -6,7 +6,7 @@ import { adminEventListSchema, pageQuerySchema, toAdminEventListDto, type PageQu
 export const listEventsRoute = (services: Pick<BackofficeServices, "listEvents">): FastifyPluginAsync => async (app) => {
   app.get<{ Querystring: PageQuery }>(
     "/events",
-    { schema: { querystring: pageQuerySchema(20), response: { 200: adminEventListSchema } } },
+    { schema: { querystring: pageQuerySchema(20, 10000), response: { 200: adminEventListSchema } } },
     async (request, reply) => {
       void reply.header("cache-control", "no-store");
       return toAdminEventListDto(await services.listEvents.execute(request.query));

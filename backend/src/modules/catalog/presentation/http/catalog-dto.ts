@@ -14,7 +14,7 @@ export const searchQuerySchema = {
     venueId: { type: "string", format: "uuid" },
     from: { type: "string", format: "date-time" },
     to: { type: "string", format: "date-time" },
-    page: { type: "integer", minimum: 1, maximum: 100000, default: 1 },
+    page: { type: "integer", minimum: 1, maximum: 10000, default: 1 },
     pageSize: { type: "integer", minimum: 1, maximum: 50, default: 20 },
   },
   propertyNames: { enum: ["q", "type", "genre", "country", "city", "venueId", "from", "to", "page", "pageSize"] },

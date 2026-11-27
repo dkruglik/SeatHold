@@ -54,6 +54,19 @@ describe("GET /api/admin/events", () => {
     expect(body.items[0]).toMatchObject({ sold: 0, held: 0, available: 0 });
   });
 
+  it("serves the last allowed offset (10,000 limit) and rejects the first deeper one with PAGE_TOO_DEEP", async () => {
+    const headers = await adminHeaders();
+
+    const ok = await harness.get("/api/admin/events?page=100&pageSize=100", headers);
+    const tooDeep = await harness.get("/api/admin/events?page=101&pageSize=100", headers);
+
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toMatchObject({ items: [], page: 100 });
+    expect(tooDeep.statusCode).toBe(400);
+    expect(tooDeep.json()).toMatchObject({ error: { code: "PAGE_TOO_DEEP" } });
+    expect((await harness.get("/api/admin/events?page=10001&pageSize=1", headers)).statusCode).toBe(400);
+  });
+
   it.each(["pageSize=101", "pageSize=0", "page=0", "page=x", "extra=1"])("rejects %s with 400", async (query) => {
     expect((await harness.get(`/api/admin/events?${query}`, await adminHeaders())).statusCode).toBe(400);
   });
