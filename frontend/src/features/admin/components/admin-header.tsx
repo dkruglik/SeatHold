@@ -1,9 +1,16 @@
-import { Container, Group, Text } from "@mantine/core";
+import { Container, Group, PageLayout, Text } from "../../../shared/ui";
 import type { ReactNode } from "react";
 import { UserMenu } from "../../auth";
 
-/** The chrome of every admin screen: brand, account menu, then the page. */
-export function AdminLayout({ children }: { readonly children: ReactNode }) {
+interface AdminLayoutProps {
+  /** The page's h1. */
+  readonly title: string;
+  readonly actions?: ReactNode;
+  readonly children: ReactNode;
+}
+
+/** The chrome of every admin screen: brand, account menu, then the titled page. */
+export function AdminLayout({ title, actions, children }: AdminLayoutProps) {
   return (
     <>
       <header>
@@ -14,9 +21,11 @@ export function AdminLayout({ children }: { readonly children: ReactNode }) {
           </Group>
         </Container>
       </header>
-      <Container size="lg" py="xl" component="main">
-        {children}
-      </Container>
+      <main>
+        <PageLayout title={title} actions={actions}>
+          {children}
+        </PageLayout>
+      </main>
     </>
   );
 }

@@ -1,5 +1,6 @@
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
+import "./app/focus-ring.css";
 import { bootstrap } from "./app/bootstrap";
 
 const container = document.getElementById("root");

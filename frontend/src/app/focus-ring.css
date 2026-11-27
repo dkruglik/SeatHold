@@ -1,0 +1,5 @@
+/* A 2px palette outline on keyboard focus, readable on the page in both color schemes. */
+[data-mantine-color-scheme] :focus-visible {
+  outline: 2px solid var(--seat-focus-ring);
+  outline-offset: 2px;
+}

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Button, Stack, Table, Text } from "@mantine/core";
+import { Button, Stack, Table, Text } from "../../../shared/ui";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { formatStart } from "../../../shared/lib/format";
 import type { BoughtTicket, OpenTicket, TicketPage } from "../types";

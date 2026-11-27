@@ -1,11 +1,10 @@
-import { MantineProvider } from "@mantine/core";
+import { TestThemeProvider } from "../../test/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { createMemoryRouter, RouterProvider, type InitialEntry } from "react-router";
 import { ApiClientProvider } from "../../app/api-client-context";
-import { theme } from "../../app/theme";
 import { ApiClient } from "../../shared/lib/api-client";
 import { DiscoveryPage } from "./discovery-page";
 import type { Facets, ShowItem, ShowSearchResult } from "./types";
@@ -55,13 +54,13 @@ export function renderDiscovery(entry: InitialEntry, search: SearchHandler = () 
     { initialEntries: [entry] },
   );
   render(
-    <MantineProvider theme={theme} env="test">
+    <TestThemeProvider>
       <QueryClientProvider client={new QueryClient()}>
         <ApiClientProvider client={new ApiClient({ apiBaseUrl: "/api" }, fetchImpl)}>
           <RouterProvider router={router} />
         </ApiClientProvider>
       </QueryClientProvider>
-    </MantineProvider>,
+    </TestThemeProvider>,
   );
     return { router, searchQueries, urlParams: () => new URLSearchParams(router.state.location.search), user: userEvent.setup(fakeTimers ? { advanceTimers: vi.advanceTimersByTime } : {}) };
 }

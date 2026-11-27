@@ -1,10 +1,9 @@
-import { MantineProvider } from "@mantine/core";
+import { TestThemeProvider } from "../../test/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { ApiClientProvider } from "../../app/api-client-context";
-import { theme } from "../../app/theme";
 import { ApiClient } from "../../shared/lib/api-client";
 import { adminRoutes } from "./routes";
 import type { AdminEventRow, BoughtTicket, Lookups, OpenTicket } from "./types";
@@ -66,13 +65,13 @@ export function renderAdmin(entry: string, handlers: Record<string, Handler> = {
   };
   const router = createMemoryRouter([...adminRoutes, { path: "/", element: <p>home</p> }], { initialEntries: [entry] });
   render(
-    <MantineProvider theme={theme} env="test">
+    <TestThemeProvider>
       <QueryClientProvider client={new QueryClient()}>
         <ApiClientProvider client={new ApiClient({ apiBaseUrl: "/api" }, fetchImpl)}>
           <RouterProvider router={router} />
         </ApiClientProvider>
       </QueryClientProvider>
-    </MantineProvider>,
+    </TestThemeProvider>,
   );
   const callsTo = (method: string, path: string) => calls.filter((call) => call.method === method && call.path === path);
   return { router, calls, callsTo, user: userEvent.setup() };

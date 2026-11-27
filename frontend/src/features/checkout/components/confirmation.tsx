@@ -1,4 +1,4 @@
-import { Anchor, Button, Group, Stack, Text, Title } from "@mantine/core";
+import { Anchor, Button, Group, Stack, Text, Title } from "../../../shared/ui";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { formatPrice } from "../../../shared/lib/format";
@@ -26,7 +26,7 @@ export function Confirmation({ booking, seats, guestEmail, onClose }: Confirmati
           {booking.tickets.map((t) => <li key={t.seatId}>{`${labelOf(t.seatId)}: ${t.code}`}</li>)}
         </ul>
       ) : (
-        <Text>{`Check your email: we sent a link to ${guestEmail} to view your ticket and QR code.`}</Text>
+        <Text style={{ overflowWrap: "anywhere" }}>{`Check your email: we sent a link to ${guestEmail} to view your ticket and QR code.`}</Text>
       )}
       <Group justify="space-between">
         <Text fw={700}>Total</Text>

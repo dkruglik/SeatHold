@@ -1,4 +1,4 @@
-import { Group, Stack, Text } from "@mantine/core";
+import { Group, Stack, Text } from "../../../shared/ui";
 import { formatPrice } from "../../../shared/lib/format";
 import type { OrderSummary as Order } from "../types";
 

@@ -1,4 +1,4 @@
-import { Alert, Button, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Stack, Text, TextInput } from "../../../shared/ui";
 import { useState, type FormEvent } from "react";
 import { formatRetry } from "../../../shared/lib/format";
 import type { GuestApi, ResendResult } from "../services/guest-api";

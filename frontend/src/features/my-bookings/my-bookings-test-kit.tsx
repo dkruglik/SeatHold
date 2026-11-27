@@ -1,13 +1,12 @@
-import { MantineProvider } from "@mantine/core";
+import { TestThemeProvider } from "../../test/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { ApiClientProvider } from "../../app/api-client-context";
-import { theme } from "../../app/theme";
 import { ApiClient } from "../../shared/lib/api-client";
-import type { Booking } from "../../shared/ui/booking-card";
+import { type Booking } from "../../shared/ui";
 import { MyBookingsPage } from "./my-bookings-page";
 
 export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -44,13 +43,13 @@ export function renderMyBookings(bookings: BookingsHandler = () => json([makeBoo
     { initialEntries: ["/bookings"] },
   );
   render(
-    <MantineProvider theme={theme} env="test">
+    <TestThemeProvider>
       <QueryClientProvider client={new QueryClient()}>
         <ApiClientProvider client={new ApiClient({ apiBaseUrl: "/api" }, fetchImpl)}>
           <RouterProvider router={router} />
         </ApiClientProvider>
       </QueryClientProvider>
-    </MantineProvider>,
+    </TestThemeProvider>,
   );
   return { router, fetchImpl, user: userEvent.setup() };
 }

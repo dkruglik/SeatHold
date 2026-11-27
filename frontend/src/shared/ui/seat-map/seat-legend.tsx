@@ -1,5 +1,6 @@
 import { Group, Text } from "@mantine/core";
-import { markerSize, SeatMarker, stateLook } from "./seat-marker";
+import { SeatMarker, stateLook } from "./seat-marker";
+import { markerSize } from "./seat-tokens";
 import type { SeatState } from "./types";
 
 const legendStates: readonly { readonly state: SeatState; readonly text: string }[] = [

@@ -1,6 +1,5 @@
-import { Anchor, Center, Container, Loader, Stack, Title } from "@mantine/core";
+import { Anchor, BookingCard, Center, Container, Loader, PageLayout, Stack } from "../../shared/ui";
 import { Link } from "react-router";
-import { BookingCard } from "../../shared/ui/booking-card";
 import { ClosedNotice } from "./components/closed-notice";
 import { ResendForm } from "./components/resend-form";
 import { useGuestAccess } from "./hooks/use-guest-access";
@@ -21,9 +20,8 @@ export function GuestAccessPage() {
         </Container>
       </header>
       <main>
-        <Container size="md" py="xl">
+        <PageLayout title="Your tickets" size="md">
           <Stack gap="lg">
-            <Title order={1}>Your tickets</Title>
             {state.kind === "loading" ? (
               <Center p="xl">
                 <Loader aria-label="Opening your tickets" />
@@ -37,7 +35,7 @@ export function GuestAccessPage() {
               </>
             ) : null}
           </Stack>
-        </Container>
+        </PageLayout>
       </main>
     </>
   );

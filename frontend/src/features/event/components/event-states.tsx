@@ -1,4 +1,4 @@
-import { Alert, Anchor, Button, Skeleton, Stack, Text, Title } from "@mantine/core";
+import { Alert, Anchor, Button, Skeleton, Stack, Text } from "../../../shared/ui";
 import { Link } from "react-router";
 
 export function EventLoading() {
@@ -14,7 +14,6 @@ export function EventLoading() {
 export function EventNotFound() {
   return (
     <Stack gap="sm">
-      <Title order={1}>Event not found</Title>
       <Text>This event does not exist or is no longer on sale.</Text>
       <Anchor component={Link} to="/">Back to all shows</Anchor>
     </Stack>

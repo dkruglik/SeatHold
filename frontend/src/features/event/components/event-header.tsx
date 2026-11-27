@@ -1,4 +1,4 @@
-import { Badge, Group, Stack, Text, Title } from "@mantine/core";
+import { Badge, Group, Stack, Text } from "../../../shared/ui";
 import { formatPrice, formatStart, seatsLabel } from "../../../shared/lib/format";
 import type { EventDetail } from "../types";
 
@@ -7,7 +7,6 @@ export function EventHeader({ event, seatsLeft }: { readonly event: EventDetail;
   return (
     <Group justify="space-between" align="flex-start" wrap="wrap" gap="md">
       <Stack gap={4}>
-        <Title order={1}>{event.title}</Title>
         <Text>{`${event.venue.name}, ${event.venue.city}`}</Text>
         <Text c="dimmed">
           <time dateTime={event.startsAt}>{start.text}</time>

@@ -1,4 +1,4 @@
-import { Container, Group, Stack, Text, Title } from "@mantine/core";
+import { Container, Group, PageLayout, Stack, Text, Title } from "../../shared/ui";
 import { useRef } from "react";
 import { UserMenu } from "../auth";
 import { FilterBar } from "./components/filter-bar";
@@ -24,7 +24,7 @@ export function DiscoveryPage() {
   return (
     <>
       <header>
-        <Container size="md" py="md">
+        <Container size="lg" py="md">
           <Group justify="space-between" wrap="wrap" gap="sm">
             <Text fw={700}>SeatHolder</Text>
             <UserMenu />
@@ -32,16 +32,15 @@ export function DiscoveryPage() {
         </Container>
       </header>
       <main>
-        <Container size="md" py="xl">
+        <PageLayout title="Find a show">
           <Stack gap="lg">
-            <Title order={1}>Find a show</Title>
             <FilterBar state={state} facets={facets.data} />
             <Title order={2} size="h3" ref={resultsHeading} tabIndex={-1}>
               Results
             </Title>
             <Results search={search} page={state.filters.page} onPage={changePage} onClear={state.clear} />
           </Stack>
-        </Container>
+        </PageLayout>
       </main>
     </>
   );

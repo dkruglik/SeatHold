@@ -1,5 +1,4 @@
-import { Select, SimpleGrid, Stack, TextInput } from "@mantine/core";
-import { DateTimeRangePicker } from "../../../shared/ui/date-time-range-picker";
+import { DateTimeRangePicker, Select, SimpleGrid, Stack, TextInput } from "../../../shared/ui";
 import { useDebouncedQuery, type DiscoveryFilters } from "../hooks/use-discovery-filters";
 import type { Facets } from "../types";
 

@@ -1,4 +1,4 @@
-import { Alert, Center, Loader } from "@mantine/core";
+import { Alert, Center, Loader } from "../../../shared/ui";
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
 import { useMe } from "../hooks/use-me";

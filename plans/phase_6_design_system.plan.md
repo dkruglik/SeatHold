@@ -3,23 +3,23 @@ name: Phase 6 - Design system depth
 overview: "Deepens the component layer once everything else is solid: a SeatHolder theme beyond Mantine defaults, shared UI wrappers, extra behaviour on the DateTimeRangePicker and the SeatMap that Mantine does not offer, and a desktop and mobile pass on every screen. First phase to cut if time runs out; optional extras only after it."
 todos:
   - id: it-0-approvals
-    content: Approve the theme direction and the component extensions below (no new dependencies expected)
-    status: pending
+    content: "Approve the theme direction and the component extensions below (no new dependencies expected); plan defaults used as written, no person confirmed them"
+    status: completed
   - id: it-1-theme-and-ui-layer
-    content: Theme depth beyond the Phase 3 base theme (spacing and typography scale, dark scheme), shared ui wrappers
-    status: pending
+    content: Theme depth beyond the Phase 3 base theme (spacing and typography scale, dark scheme), shared ui wrappers (7b870e2)
+    status: completed
   - id: it-2-picker-extensions
-    content: DateTimeRangePicker presets, timezone label, validation messages, full keyboard support
-    status: pending
+    content: DateTimeRangePicker presets, timezone label, validation messages, full keyboard support (f7c803f)
+    status: completed
   - id: it-3-seat-map-extensions
-    content: SeatMap legend, row labels, price and state tooltip, keyboard navigation, zoom and pan on small screens
-    status: pending
+    content: SeatMap legend, row labels, price and state tooltip, keyboard navigation, zoom and pan on small screens (d8203ea)
+    status: completed
   - id: it-4-responsive-pass
-    content: Desktop and mobile layout on every screen (discovery, event, checkout, tickets, guest, admin)
-    status: pending
+    content: Desktop and mobile layout on every screen (discovery, event, checkout, tickets, guest, admin) (3a1ae01); real-device check still open
+    status: completed
   - id: it-5-optional-extras
-    content: Optional - one item from brief section 5 if time remains (for example SSE seat updates or a per-buyer ticket limit)
-    status: pending
+    content: Optional - one item from brief section 5 if time remains (for example SSE seat updates or a per-buyer ticket limit); not built, cut (O121)
+    status: completed
 isProject: false
 ---
 
@@ -37,7 +37,7 @@ The brief asks for an own component layer on a base library, themed and extended
 |---|---|
 | Base | Mantine; our components live in `frontend/src/shared/ui/` and features import only from there |
 | Theme | Phase 3 ships the base theme (palette, font stack, radius); this phase adds the spacing and typography scale and the dark scheme |
-| Picker extensions | Presets (Tonight, This weekend, Next 7 days, Next 30 days), venue or browser timezone label, inline validation (`to` before `from`, past ranges), keyboard: arrows move days, Tab moves between from/to date and time |
+| Picker extensions | Presets (Tonight, This weekend, Next 7 days, Next 30 days), time zone label (browser zone by default, optional zone prop; venue-local filtering not built, O118), inline validation (`to` before `from`, past ranges), keyboard: arrows move days, Tab moves between from/to date and time |
 | Seat map extensions | Legend for the four states, row labels on both sides, tooltip with seat, price and state, roving-tabindex keyboard navigation (arrows move, Enter or Space holds/releases), pinch zoom and pan on small screens, focus kept after polling refresh |
 | Accessibility | Each seat has an accessible name and state; colour is never the only signal (pattern or icon for held and sold) |
 | Responsive | Breakpoints from the theme; every screen usable at 360 px width and on desktop (rule 30) |

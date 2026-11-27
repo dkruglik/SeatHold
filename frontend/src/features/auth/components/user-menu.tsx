@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Text } from "@mantine/core";
+import { Alert, Button, ColorSchemeToggle, Group, Menu, Text, useNarrow } from "../../../shared/ui";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ApiError } from "../../../shared/lib/api-client";
@@ -19,7 +19,49 @@ function AccountError({ onRetry }: { readonly onRetry: () => void }) {
   );
 }
 
-function SignedIn({ email, admin, failed, onLogout }: { readonly email: string; readonly admin: boolean; readonly failed: boolean; readonly onLogout: () => void }) {
+/** On a phone the email and the links fold into one menu button, so the header fits at 360 px. */
+function CompactMenu({ email, admin, failed, onLogout }: SignedInProps) {
+  return (
+    <>
+      <Menu position="bottom-end" withinPortal>
+        <Menu.Target>
+          <Button variant="default" aria-label="Account menu">
+            Account
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Label style={{ overflowWrap: "anywhere" }}>{email}</Menu.Label>
+          <Menu.Item component={Link} to="/bookings">
+            My bookings
+          </Menu.Item>
+          {admin ? (
+            <Menu.Item component={Link} to="/admin">
+              Back office
+            </Menu.Item>
+          ) : null}
+          <Menu.Item onClick={onLogout}>Log out</Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
+      {failed ? (
+        <Alert color="red" role="alert" w="100%">
+          Could not log out. Please try again.
+        </Alert>
+      ) : null}
+    </>
+  );
+}
+
+interface SignedInProps {
+  readonly email: string;
+  readonly admin: boolean;
+  readonly failed: boolean;
+  readonly onLogout: () => void;
+}
+
+function SignedIn({ email, admin, failed, onLogout }: SignedInProps) {
+  if (useNarrow()) {
+    return <CompactMenu email={email} admin={admin} failed={failed} onLogout={onLogout} />;
+  }
   return (
     <Group gap="sm" wrap="wrap" justify="flex-end">
       <Text size="sm" style={{ overflowWrap: "anywhere" }}>
@@ -46,7 +88,7 @@ function SignedIn({ email, admin, failed, onLogout }: { readonly email: string; 
 }
 
 /** Header area: Sign in for a visitor; the email and Log out for a signed-in user. Renders nothing while `me` loads; if it failed, an alert with Retry. */
-export function UserMenu() {
+function AccountMenu() {
   const me = useMe();
   const api = useAuthApi();
   const session = useAuthSession();
@@ -81,4 +123,14 @@ export function UserMenu() {
     );
   }
   return <SignedIn email={me.data.email} admin={me.data.role === "admin"} failed={failed} onLogout={() => void logout()} />;
+}
+
+/** The header's right side: the color scheme toggle and the account menu. */
+export function UserMenu() {
+  return (
+    <Group gap="sm" wrap="wrap" justify="flex-end">
+      <ColorSchemeToggle />
+      <AccountMenu />
+    </Group>
+  );
 }
