@@ -2,7 +2,7 @@
 
 SeatHolder is a ticketing system for events with numbered seats (the "SeatHold" brief). Buyers pick seats and hold them for a short time, then pay with a mock payment; guests reach their tickets through a link; admins manage events. Seat holds are decided in PostgreSQL so that several backend instances agree. The design is for AWS, but nothing is deployed.
 
-Status: Phase 3 (buyer flow) on top of Phase 2 (booking core), Phase 1 (auth and access) and Phase 0 (setup). The backend serves a seeded catalog with search, holds seats, expires holds, takes a mock payment, issues guest links and logs users in by emailed code with buyer and admin roles. The frontend covers search, the seat map, checkout, My bookings and the guest ticket page. The back office UI is Phase 4. The plan is in [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md) and every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
+Status: Phase 4 (back office) on top of Phase 3 (buyer flow), Phase 2 (booking core), Phase 1 (auth and access) and Phase 0 (setup). The backend serves a seeded catalog with search, holds seats, expires holds, takes a mock payment, issues guest links and logs users in by emailed code with buyer and admin roles. The frontend covers search, the seat map, checkout, My bookings and the guest ticket page. The back office lets an admin create events, list open and bought tickets and release a held seat. The plan is in [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md) and every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
 
 ## Requirements
 
@@ -113,7 +113,7 @@ catalog inserted venues=12 shows=200 events=200 seats=40000
 
 The numbers are the rows created by that run, so a second run prints zeros. The catalog is 12 venues in 5 countries, 200 shows and one event per show in the next 90 days, each with a 10 x 20 seat grid (200 seats). It is deterministic apart from the start times.
 
-**Catalog in production.** `db:seed` refuses to run with `APP_ENV=production`. A demo deployment loads the same fictional catalog, and no user, with `node backend/dist/scripts/seed-catalog.js` (`npm run seed:catalog` in development); it prints the same line, is safe to repeat and exits 2 on any argument. A real deployment gets its events from the back office (Phase 4); no import-from-file command exists (DECISIONS.md O69).
+**Catalog in production.** `db:seed` refuses to run with `APP_ENV=production`. A demo deployment loads the same fictional catalog, and no user, with `node backend/dist/scripts/seed-catalog.js` (`npm run seed:catalog` in development); it prints the same line, is safe to repeat and exits 2 on any argument. A real deployment gets its events from the back office (see Admin back office); no import-from-file command exists (DECISIONS.md O69).
 
 **Sweeping expired holds.** Expiry never needs it, but `node backend/dist/scripts/sweep-holds.js --batch-size=500` (the compiled script, which is what the production image runs; `npm run sweep:holds -- --batch-size=500` is the development equivalent and needs the dev dependencies) frees the seats of expired holds once and prints `holds swept freedSeats=<n> expiredHolds=<n>`. It is safe to repeat and to run beside the app. The repository does not schedule it; production would run it as a one-off task (DECISIONS.md O64).
 
@@ -169,6 +169,36 @@ Try the guest path locally: `docker compose up -d` (or the Homebrew services) st
 | `/guest/access` | Guest ticket page (reads the link fragment) and the lost-link form |
 
 The guest session cookie `gsid` and the user session cookie `sid` are separate and never accepted for each other's routes. The decisions and their trade-offs are `DECISIONS.md` O70 to O82 (and D5). Known limits: the payment is a mock whose outcome the client chooses (do not expose it to real customers), the seat countdown uses the browser clock, search matches whole words and venue substrings only, and rows of used guest links and resend attempts are not purged yet.
+
+## Admin back office
+
+Operators work at `/admin` in the browser (the "Back office" link in the user menu shows for admins only). Everything is served by one Fastify plugin under `/api/admin`: anonymous callers get 401, buyers get 403, and every state-changing admin call also needs the CSRF token and an allowed Origin. The role is read from the database on each request.
+
+| Route | What it does |
+|---|---|
+| `GET /api/admin/events` | Paginated event list with sold, held and available seat counts (default page size 20) |
+| `POST /api/admin/events` | Creates an event and its whole seat grid (201) |
+| `GET /api/admin/lookups` | Shows and venues for the create form (at most 500 of each) |
+| `GET /api/admin/events/:eventId/open-tickets` | Seats not sold: available or held, paginated (default 50) |
+| `GET /api/admin/events/:eventId/bought-tickets` | Sold tickets with buyer email, buyer type and booking time, paginated (default 50) |
+| `POST /api/admin/events/:eventId/seats/:seatId/release` | Frees a held seat; body `{ "reason": "..." }` |
+
+**Becoming admin.** Sign-up always creates a buyer. Locally the seed creates an admin; otherwise the person signs in once and you run `npm run user:promote -- <email>` (see Authentication). No HTTP route changes roles.
+
+**What an operator can do.**
+
+- Create an event from an existing or a new show and venue, with a start time, a price, a currency and a rows by seats-per-row grid. Rows are labelled A to Z, then AA; seats are numbered from 1. A new venue with the same name and city as an existing one is reused only if its country and time zone match; otherwise the answer is 409 `VENUE_CONFLICT`.
+- See per event the open tickets (a hold that has run out counts as available) and the bought tickets.
+- Release a held seat, for example when a buyer abandoned checkout on a call, or to clear a stale hold. A reason of 3 to 500 characters is required.
+
+**Limits.**
+
+- At most 20,000 seats per event (rows and seats per row 1 to 200), a price up to 1,000,000 minor units, a start time in the future and within 3 years. Bad input is 400 `INVALID_EVENT`.
+- A release needs a reason and is logged in the `seat_release_log` table (who, which seat, which hold, the reason, the time). A second release of the same seat answers 409 `SEAT_NOT_HELD`. The reason is stored, never written to the application log. Only this action has an audit trail; a general admin audit log is a production addition.
+- Buyer and guest emails appear only in admin responses. Ticket codes and payment details appear in no admin list.
+- Admin lists are paged: `page` 1 to 100000, `pageSize` 1 to 100; unknown query parameters are 400. The total and the items are two reads, not one snapshot.
+
+Reasoning: `DECISIONS.md` O83 to O109. Deploy and checks: [`docs/release_guides/phase-4-back-office.md`](docs/release_guides/phase-4-back-office.md).
 
 ## Tests and verify
 

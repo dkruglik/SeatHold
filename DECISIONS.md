@@ -127,7 +127,7 @@ The Phase 1 summary and its open risks are in O56.
 
 - AWS WAF rate rules at the edge (in-process limits do not hold across instances).
 - Idle timeout for admin sessions; a fresh code before destructive admin actions.
-- Audit log of admin actions.
+- General audit log of admin actions (only the manual seat release is logged, in `seat_release_log`, O98).
 - Purge jobs for old login codes (rows older than a day, bounded batches, index on `created_at`), expired holds and guest links (bounded batches).
 - Real payment provider: webhook signature checks, idempotency keys, refunds.
 - Dependency and container image scanning in CI.
@@ -502,10 +502,10 @@ The Phase 1 summary and its open risks are in O56.
 ### O49. The admin boundary: one plugin, `requireRole`, role read per request
 
 - **Context.** Plan Phase 1 section 2 puts everything under `/api/admin/*` behind one check, and a demoted admin must lose access at once.
-- **Choice.** `requireRole(role)` (`modules/auth/presentation/http/hooks/require-role.ts`) runs after `requireAuth` and compares `request.user.role`, which `requireAuth` read from the database for this request (the session holds the user id only, O44): demotion applies on the next request, no cache. A mismatch is 403 `FORBIDDEN_ROLE` (`AuthorizationError` with `publicCode`); with no user on the request it fails closed with 401 `UNAUTHENTICATED`. `adminPlugin` (`presentation/http/admin-plugin.ts`), registered by `buildApp` at `/api/admin`, adds scope hooks in this order: the browser-state-change hooks (Origin, CSRF) for methods other than GET, HEAD and OPTIONS, then `requireAuth`, then `requireRole('admin')`; it takes the route modules as a list (`routes`), so a later module adds a route inside the guarded scope and cannot forget a check. Today the list holds `GET /api/admin/ping` -> `{ok:true}`, a placeholder until Phase 4. A route test enumerates every route the real app registers under `/api/admin` (`onRoute`) and requires anonymous 401, buyer 403 `FORBIDDEN_ROLE`, admin 2xx for each, so an admin route registered outside the plugin fails the build; a test registers such a stray route and shows the check reports it.
+- **Choice.** `requireRole(role)` (`modules/auth/presentation/http/hooks/require-role.ts`) runs after `requireAuth` and compares `request.user.role`, which `requireAuth` read from the database for this request (the session holds the user id only, O44): demotion applies on the next request, no cache. A mismatch is 403 `FORBIDDEN_ROLE` (`AuthorizationError` with `publicCode`); with no user on the request it fails closed with 401 `UNAUTHENTICATED`. `adminPlugin` (`presentation/http/admin-plugin.ts`), registered by `buildApp` at `/api/admin`, adds scope hooks in this order: the browser-state-change hooks (Origin, CSRF) for methods other than GET, HEAD and OPTIONS, then `requireAuth`, then `requireRole('admin')`; it takes the route modules as a list (`routes`), so a later module adds a route inside the guarded scope and cannot forget a check. The placeholder `GET /api/admin/ping` was removed in Phase 4 (O95); the list now holds the six back-office routes (O87). A route test enumerates every route the real app registers under `/api/admin` (`onRoute`), asserts the exact list, and requires anonymous 401, buyer 403 `FORBIDDEN_ROLE`, admin 2xx for each (O87), so an admin route registered outside the plugin fails the build; a test registers such a stray route and shows the check reports it.
 - **Options.** `requireRole` in each route (forgettable); a global hook on the `/api/admin` prefix (rule 80 keeps global hooks for credential separation); caching the role in the session (a demotion would wait for the session to end).
 - **Trade-off.** One extra database read per admin request (the session lookup already joins the user, so no second query). Mutation hooks run before the session lookup, as in O48, so an anonymous POST without a token is answered 403 `CSRF_INVALID`, not 401. The enumeration covers routes registered through `buildApp` only.
-- **Status.** `implemented`: `require-role.ts`, `admin-plugin.ts`, `routes/admin-ping.route.ts`, `app.ts`; tests `require-role.test.ts`, `admin-plugin.test.ts`, `admin-access.integration.test.ts` (route-wide 401/403/2xx, demotion and promotion on the next request with the same session, stray route detected, no route path names a role; verify with a role in the body still creates a buyer: `admin-access.integration.test.ts` and `auth-login-routes.integration.test.ts`).
+- **Status.** `implemented`: `require-role.ts`, `admin-plugin.ts`, `routes/admin-ping.route.ts` (removed in Phase 4, O95), `app.ts`; tests `require-role.test.ts`, `admin-plugin.test.ts`, `admin-access.integration.test.ts` (route-wide 401/403/2xx, demotion and promotion on the next request with the same session, stray route detected, no route path names a role; verify with a role in the body still creates a buyer: `admin-access.integration.test.ts` and `auth-login-routes.integration.test.ts`).
 
 ### O50. Promote and demote scripts
 
@@ -559,7 +559,7 @@ The Phase 1 summary and its open risks are in O56.
 
 - **Context.** Phase 1 (auth and access) is built; the brief asks for a security review of the whole. This entry gathers the controls and the open risks; the detail is in the linked entries.
 - **Choice.** *Implemented controls.* Passwordless email codes: six random digits, HMAC-SHA256 with a pepper, 10 minutes, 5 attempts, single use, database-backed request limit and cooldown, no account enumeration (O42, O43). Email transport `console` or `smtp`, `console` refused in production (O39). Schema with case-insensitive unique emails, role CHECK, hashed session tokens, cascade delete, conditional updates (O40, O41). Server-side sessions in the `sid` cookie, hash stored, rotated on login, revoked on logout (O19, O44, O45). CSRF double submit with a signed secret cookie, plus the Origin check, composed on every mutating browser route (O46, O47, O48). `/api/admin/*` as one plugin that requires a session and the admin role, role read per request (O49). Roles changed only by seed and CLI (O50, O51). Frontend guards as UX only (O52 to O55). Log redaction of cookies, CSRF header and bodies (O25). Production refuses the local secret placeholders, `console` email and an insecure cookie (O22, O42, O46). Every row of the Phase 1 "Agreed decisions" table has an entry above (login, code limit and enumeration O43; sign-up O43; admin grant O50, O51; session O19, O44; role freshness O49; CSRF O46, O47; back-office boundary O49; expiry time O4, O43; email transport O39; seeded users O51; secrets and variables O42, O46).
-- **Before production (written, not built).** AWS WAF rate rules at the edge; an idle timeout for admin sessions; an admin audit log; a fresh login code before destructive admin actions; a purge job for old `auth_codes` (rows older than a day, in bounded batches, with an index on `created_at`); SMTP credentials (`SMTP_USER`, `SMTP_PASS`) from the secret store and the SES SMTP wiring, none of it exercised yet.
+- **Before production (written, not built).** AWS WAF rate rules at the edge; an idle timeout for admin sessions; a general admin audit log (only the manual seat release is logged, O98); a fresh login code before destructive admin actions; a purge job for old `auth_codes` (rows older than a day, in bounded batches, with an index on `created_at`); SMTP credentials (`SMTP_USER`, `SMTP_PASS`) from the secret store and the SES SMTP wiring, none of it exercised yet.
 - **Open risks recorded during the iterations.** The request limit and the attempt count can overshoot by the number of concurrent racers (O43); the CSRF secret and token are not bound to the user and are not rotated on login (O46); creating the seeded admin is two statements and a crash between them leaves a buyer that `npm run user:promote` repairs (O51); the runtime image has no migration path, so a deployed instance cannot apply migrations until the one-off task of O35 exists (O35 stays `planned`).
 - **Options.** Leave the summary to the Security table only (it lists controls but not the open risks and cross-links); one entry per risk (the risks already sit in their own entries).
 - **Trade-off.** A summary can drift from the entries it links; the linked entries are the source, and this one changes in the same commit as any of them.
@@ -775,13 +775,231 @@ The Phase 1 summary and its open risks are in O56.
 - **Second round (fix slice only, `3e31709..HEAD`).** SH-cursor found 0 Critical, confirmed that all five first-round Important findings are resolved, and raised one Important item and three suggestions: the in-memory link repository used in unit tests did not roll the consume back when the session insert failed, unlike the SQL statement (fixed: the fake is atomic and a test proves the link stays consumable); the resend form ignored `retryAfterSeconds` (fixed: it shows the wait); a 403 on the exchange showed the generic server error (fixed: it shows that the link could not be checked, with the resend form); and a connection dropped after a successful exchange leaves a session without a cookie (accepted: documented in the release guide, recovery is the resend form). As the run rules say, there is no third review round.
 - **Status.** `implemented` for the fixes (commits `2afe774`, `82fcf8d`, `2f2bc18` and the statuses commit; tests as listed in O73, O74, O79 and O81). `planned` (accepted, not built) for the search `OR` (O70) and for the retention sweep (O73, O74; the release guide lists it as an operator item).
 
+### O83. Catalog owns the event and seat write
+
+- **Context.** Creating an event writes `shows`, `venues`, `events` and up to 20,000 `seats`. Those tables belong to the catalog module; the back office must not write them with its own SQL.
+- **Options.** Back-office SQL over catalog tables; a catalog repository method per table called in a loop; one catalog port that writes the whole event (chosen).
+- **Choice.** Catalog defines the `EventGridWriter` port (`catalog/application/ports/event-grid-writer.ts`) and a Prisma adapter (`PrismaEventGridWriter`); both leave `catalog/index.ts`. The back-office `CreateEventService` validates, then calls the port through that public API. Show, venue, event and seats are written in one transaction, so a failure leaves nothing behind. An unknown existing show or venue is 404 (`SHOW_NOT_FOUND`, `VENUE_NOT_FOUND`).
+- **Trade-off.** Catalog grows a write path used by one caller. In return the table owner keeps its SQL and the back office keeps no catalog SQL.
+- **Status.** `implemented` (Phase 4 it-1): `catalog/application/ports/event-grid-writer.ts`, `catalog/infrastructure/persistence/prisma-event-grid-writer.ts`, `backoffice/application/create-event-service.ts`; tests `prisma-event-grid-writer.integration.test.ts`, `create-event-service.test.ts`, `create-event.route.integration.test.ts`.
+
+### O84. New venue by (name, city): reuse only when country and timezone match
+
+- **Context.** `venues` has `UNIQUE(name, city)`. An operator who types a new venue that already exists must not create a duplicate, and must not silently change what a venue is.
+- **Options.** Plain insert and map the unique violation to 409; reuse the existing row whatever country and timezone were typed; reuse only on an exact match and refuse otherwise (chosen).
+- **Choice.** A new venue whose (name, city) exists is reused only when its country code and timezone equal the typed ones. Otherwise the request fails with 409 `VENUE_CONFLICT` and nothing is written. The first cut was `ON CONFLICT (name, city) DO UPDATE SET name = EXCLUDED.name`, a no-op upsert where the existing country and timezone silently won. Review showed that an operator typing a different timezone would get an event with a start time shown in the wrong zone and no warning. That first cut is `superseded` by the match rule above.
+- **Trade-off.** An operator who really wants to change a venue's timezone is refused and must pick the existing venue; there is no venue editor (out of scope). The match is checked inside the same transaction as the insert.
+- **Status.** `implemented` (Phase 4 it-1, changed after review): `prisma-event-grid-writer.ts`; tests `prisma-event-grid-writer.integration.test.ts`, `create-event.route.integration.test.ts`; the frontend shows a fixed message (O105).
+
+### O85. Seat grid: one INSERT ... SELECT in one transaction
+
+- **Context.** An event can have up to 20,000 seats (O17). Inserting them row by row from the application would be slow and chatty.
+- **Options.** One insert per seat; batched multi-row inserts from TypeScript; one `INSERT ... SELECT` over `unnest` and `generate_series` (chosen).
+- **Choice.** The row labels come from the TypeScript `rowLabel` (A to Z, then AA; `catalog/domain/row-label.ts`) and are passed as one text array. The seats are `INSERT INTO seats ... SELECT ... FROM unnest($labels) CROSS JOIN generate_series(1, seatsPerRow)`, in the same transaction as the event, with a 30 s transaction timeout. A 100 x 200 grid (20,000 seats) measured about 0.4 to 0.5 s locally.
+- **Trade-off.** The label rule lives in TypeScript, not SQL, so it is unit tested once and shared by the seed; the generated SQL depends on the array parameter. The 30 s timeout is generous on purpose; a slow database fails the whole event cleanly.
+- **Status.** `implemented` (Phase 4 it-1): `prisma-event-grid-writer.ts`, `row-label.ts`; tests `row-label.test.ts`, `prisma-event-grid-writer.integration.test.ts` (exact count, AA after Z, rollback).
+
+### O86. Create-event validation: explicit bounds, code `INVALID_EVENT`
+
+- **Context.** The back office takes free-form input that creates up to 20,000 rows. Phase 4 security principle: explicit bounds.
+- **Options.** Bounds only in the HTTP schema; bounds only in the database; bounds in the back-office domain with a shape-only HTTP schema (chosen).
+- **Choice.** `parseCreateEvent` (`backoffice/domain/create-event-rules.ts`) throws `InvalidEvent` (400, `INVALID_EVENT`; the message names the field and the bound, never the value). Show text fields 1 to 100 characters (description 0 to 2000); venue name, city and timezone 1 to 100; price 0 to 1,000,000 minor units; `rows` and `seatsPerRow` 1 to 200 and at most 20,000 seats; `startsAt` an ISO instant with offset, after `now` (the operation's clock read) and at most 3 years ahead; timezone must be an IANA zone (checked with `Intl.DateTimeFormat`); country code 2 letters and currency 3 letters, both upper-cased; for show and for venue exactly one of `existingId` and `new`. The HTTP schema checks shape and rejects unknown fields (`propertyNames` plus `additionalProperties: false`, because Ajv would otherwise strip them).
+- **Trade-off.** Two layers (shape in HTTP, bounds in domain) mean the 400 code differs by layer: a wrong type is a schema 400, an out-of-range value is `INVALID_EVENT`. The grid limits mirror the CHECK constraints on `events`.
+- **Status.** `implemented` (Phase 4 it-1): `create-event-rules.ts`, `backoffice-dto.ts`; tests `create-event-rules.test.ts`, `create-event.route.integration.test.ts`.
+
+### O87. Route-wide admin access test over real routes
+
+- **Context.** The Phase 1 test (O49) enumerates every route under `/api/admin`, and needs an admin 2xx for each. Real routes need bodies and existing ids.
+- **Options.** Skip routes that need input; per-route test lists; sample bodies and seeded ids inside the one route-wide test (chosen).
+- **Choice.** `admin-access.integration.test.ts` sends a sample body for each mutating route and substitutes a seeded event and a held seat for `:eventId` and `:seatId`, so the admin answer is 2xx. It asserts the exact list of six admin routes, so a new route fails the test until it is listed. Anonymous 401 and buyer 403 `FORBIDDEN_ROLE` are asserted for every route. The admin plugin already runs the CSRF and Origin hooks on every non-GET admin route, so route modules do not repeat them (rule 81).
+- **Trade-off.** Adding a route means adding its sample body to the test. That is the point: nothing joins the admin area unreviewed.
+- **Status.** `implemented` (Phase 4): `backend/src/presentation/http/admin-access.integration.test.ts`, `admin-plugin.test.ts`.
+
+### O88. Back-office read models are owned raw-SQL readers
+
+- **Context.** The admin lists need joins across catalog and booking tables, with the lazy-expiry rule.
+- **Options.** Call catalog and booking query services and merge in memory; add admin queries to those modules; owned readers behind back-office ports (chosen).
+- **Choice.** `AdminEventListReader`, `AdminLookupsReader` and `EventTicketsReader` are ports in `backoffice/application/ports/admin-readers.ts`; their Prisma adapters are raw SQL in `backoffice/infrastructure/persistence/`. Read-only; no other module's code is imported.
+- **Trade-off.** The SQL rules for lazy expiry and for confirmed bookings are repeated from the catalog and booking readers. A change to those rules must be made in three places. Accepted: the alternatives would widen two hot-path modules for a rare operator screen.
+- **Status.** `implemented` (Phase 4 it-2 to it-4): files above; tests `admin-event-list`, `admin-open-tickets` and `admin-bought-tickets` route integration tests, `admin-queries.test.ts`.
+
+### O89. Admin pagination
+
+- **Context.** Plan row "Pagination": `page`, `pageSize` max 100.
+- **Options.** Cursor pagination; offset pagination with a bounded window (chosen).
+- **Choice.** `page` 1 to 100000, `pageSize` 1 to 100; default page size 20 for events and 50 for tickets. Unknown query parameters are 400. `total` comes from a separate count statement; `totalPages` is derived. Every list has a total order, so pages do not overlap.
+- **Trade-off.** Offset reads get slower at deep pages; the 100,000 bound and a 20,000-seat cap per event keep it small.
+- **Status.** `implemented`: `application/page.ts`, `admin-read-dto.ts`; tests in the three list route tests.
+
+### O90. Event list counts
+
+- **Context.** The event list shows sold, held and available seats per event.
+- **Options.** Count per event in a loop; one query over all events; one grouped query for the events on the page (chosen).
+- **Choice.** The page is chosen first (newest start first, then id); one grouped query over `seats` for those event ids returns `sold` (status sold), `held` (`held_until > now`) and `available` (available, or a hold whose `held_until <= now`). `now` is one read of the `Clock`, bound as a parameter. Events with no seat rows count zero.
+- **Trade-off.** Two statements per request (count and page). The counts are consistent with the seat map and the search (lazy expiry).
+- **Status.** `implemented` (Phase 4 it-2): `prisma-admin-event-list-reader.ts`; test `admin-event-list.route.integration.test.ts`.
+
+### O91. Open tickets
+
+- **Context.** The plan lists available and live-held seats, with expired holds counted as available.
+- **Options.** Filter in SQL to available and live holds only; list every seat that is not sold and mark its state (chosen).
+- **Choice.** Open tickets are the seats with `status <> 'sold'`. `state` is `held` only while `held_until > now`; otherwise `available`. A `releasable` flag is true while the seat row is still `held` in the database, even when the hold has expired, so an operator can clear it (O101). Order: row label length, then label (`COLLATE "C"`), then seat number, so AA follows Z.
+- **Trade-off.** A seat in a stale hold appears as available and releasable at once; the label is explained in the UI.
+- **Status.** `implemented` (Phase 4 it-3, `releasable` after review): `prisma-event-tickets-reader.ts`; test `admin-open-tickets.route.integration.test.ts`.
+
+### O92. Bought tickets order
+
+- **Context.** The plan says bought tickets are ordered by booking time.
+- **Choice.** `bookings.created_at`, then seat order (row length, label, number), then ticket id. A small deviation from the plan: the seat order makes a multi-seat booking read in seat order, and the ticket id makes the order total so pages are stable.
+- **Options.** Booking time alone (tickets of one booking share a time, so the order inside a booking would be undefined and pages could repeat rows).
+- **Trade-off.** None beyond the deviation. Only confirmed bookings are listed.
+- **Status.** `implemented` (Phase 4 it-4): `prisma-event-tickets-reader.ts`; test `admin-bought-tickets.route.integration.test.ts`.
+
+### O93. What the ticket lists expose, and the venue timezone
+
+- **Context.** Buyer emails are personal data; the lists must show times the operator can read.
+- **Choice.** Both ticket lists return an event header (`eventId`, `showTitle`, `startsAt`, `venueName`, `city`, `timezone`). They never select ticket codes or payments, and exclude rejected bookings. Buyer email (user email or guest email) and `buyerType` appear only in admin responses. The event list rows and the headers carry the venue timezone, so the UI shows venue time. The frontend found that the first version returned UTC instants without a zone; fixed in `1d1051a`.
+- **Options.** Format times on the server; return the zone and format in the browser (chosen).
+- **Trade-off.** Every admin sees buyer and guest emails; a log of who looked is not built (O98).
+- **Status.** `implemented`: `admin-read-dto.ts`, readers; tests `admin-queries.test.ts`, route integration tests.
+
+### O94. Lookups are capped at 500
+
+- **Context.** The create form needs shows and venues.
+- **Choice.** `GET /api/admin/lookups` returns at most 500 shows and 500 venues, ordered by title or name. Beyond that the form needs a search box (not built).
+- **Options.** Paginate the lookups; add search now; cap (chosen).
+- **Trade-off.** An operator cannot pick the 501st show; they can still type a new one. The demo catalog has 200 shows.
+- **Status.** `implemented`: `application/get-lookups-query.ts` (`LOOKUP_LIMIT`), `prisma-admin-lookups-reader.ts`.
+
+### O95. The Phase 1 placeholder `/api/admin/ping` is removed
+
+- **Context.** O49 kept `GET /api/admin/ping` as a placeholder until real admin routes existed.
+- **Choice.** Removed in `3ef6b34`. The access test (O87) enumerates the six real routes; release guide checks use `GET /api/admin/lookups`. O49 is updated and marked.
+- **Options.** Keep the ping; remove it (chosen).
+- **Trade-off.** Nothing outside the repository calls it.
+- **Status.** `implemented`: `admin-ping.route.ts` deleted; `admin-access.integration.test.ts`.
+
+### O96. Manual release of a held seat (the proposed operator capability)
+
+- **Context.** Brief: propose one capability an operator needs. A buyer on a phone call abandons checkout, and the seat stays held until the hold expires. A hold whose time has passed can also leave its seat row `held` until the next buyer or the sweeper touches it.
+- **Options.** Do nothing and wait for expiry; an admin update of the hold; a conditional release with a reason (chosen).
+- **Choice.** `POST /api/admin/events/:eventId/seats/:seatId/release` with `{ reason }`. One conditional statement in one transaction: a CTE selects the seat `FOR UPDATE WHERE status = 'held' AND event_id = $event`, then the `UPDATE` frees it. Zero rows is decided by a read: 404 `SEAT_NOT_FOUND` when the seat is not in the event, 409 `SEAT_NOT_HELD` when it is available or sold. A second release answers 409: the operation is not idempotent, so a double click is visible instead of silent. The answer is `no-store`.
+- **Trade-off.** The buyer whose seat is released finds it missing from their hold on their next action. No notification is sent.
+- **Status.** `implemented` (Phase 4 it-6): `prisma-seat-releaser.ts`, `release-held-seat-service.ts`, `release-held-seat.route.ts`; tests `prisma-seat-releaser.integration.test.ts`, `release-held-seat.route.integration.test.ts`, `release-held-seat-service.test.ts`.
+
+### O97. Where the releaser lives
+
+- **Context.** The release changes booking-owned rows (`seats`, `holds`).
+- **Options.** A booking public command; a back-office raw-SQL `SeatReleaser` over booking tables (chosen).
+- **Choice.** `PrismaSeatReleaser` is owned by the back office. Booking's release takes a buyer `Holder` and runs on its hot-path transaction port; widening that for a rare action was judged worse.
+- **Trade-off.** Two booking invariants are repeated: a held seat becomes available (hold and expiry cleared) and a hold with no seats left is marked released. Alternative if the coupling hurts: a booking-side operator command.
+- **Status.** `implemented` (Phase 4 it-6): `prisma-seat-releaser.ts` and its integration test.
+
+### O98. `seat_release_log` audit table
+
+- **Context.** A manual release changes what a buyer holds; it needs a record of who and why. Earlier text said the admin audit log is not built.
+- **Options.** Log line only; a general admin audit log; one table for this action, written in the same transaction (chosen).
+- **Choice.** Migration `20261127120000_seat_release_log` (additive): `seat_id`, `event_id`, `hold_id` (nullable), `admin_user_id`, `reason`, `created_at`; foreign keys `ON DELETE RESTRICT`; CHECK reason length 3 to 500; no timestamp default (the application passes the `Clock` value). Rows are kept, one per manual release; no purge job.
+- **Trade-off.** This narrows the earlier "audit: not built" to every action except this one. A general admin audit log (every admin action, reads of buyer emails) stays a production addition. RESTRICT keys mean a user, seat or hold with a log row cannot be deleted by accident.
+- **Status.** `implemented` (Phase 4 it-6): `backend/prisma/migrations/20261127120000_seat_release_log/migration.sql`; test `prisma-seat-releaser.integration.test.ts`.
+
+### O99. Release reason handling
+
+- **Context.** The reason is free text typed by an operator.
+- **Choice.** Trimmed, then 3 to 500 characters (domain rule `parseReleaseReason`, 400 `INVALID_RELEASE_REASON`; the message never carries the text). Stored, never logged: the route logs seat, event and admin ids only. The admin id comes from the session, never the body. Unknown body fields are 400. Ajv coerces scalar types, so a numeric `reason` arrives as a digit string and is accepted as such.
+- **Options.** Reject non-strings strictly (would need disabling coercion for one route); accept the coercion (chosen).
+- **Trade-off.** `reason: 12345` becomes `"12345"`; harmless, and the 3 character minimum still applies.
+- **Status.** `implemented`: `release-rules.ts`, `release-dto.ts`; tests `release-rules.test.ts`, `release-held-seat.route.integration.test.ts`.
+
+### O100. Releasing the last seat of a hold
+
+- **Context.** A hold can own up to the seat cap.
+- **Choice.** Mirrors the buyer's release: when the released seat was the hold's last, the hold becomes `released`; a hold with seats left stays `active` with its expiry.
+- **Options.** Leave the hold active until it expires; mark it released (chosen).
+- **Trade-off.** Same statement-level rule as O97 repeats here.
+- **Status.** `implemented`: `prisma-seat-releaser.ts`; test `prisma-seat-releaser.integration.test.ts`.
+
+### O101. Stale holds can be cleared
+
+- **Context.** The review found that an expired hold whose seat row is still `held` showed as available but had no Release button, so an operator could not clear it.
+- **Choice.** Open tickets carry `releasable` (O91). The UI shows "Release" for a live hold and "Clear stale hold" for an expired one, with an explanation in the modal. Both post the same request.
+- **Options.** Wait for the sweeper or the next buyer; show the button only on live holds; flag stale holds (chosen).
+- **Trade-off.** One more field in the API and a second label.
+- **Status.** `implemented` (after review): reader, `admin-read-dto.ts`, `tickets-tabs.tsx`, `release-modal.tsx`; tests `admin-open-tickets.route.integration.test.ts`, `event-detail.test.tsx`.
+
+### O102. Total and items are not one snapshot
+
+- **Context.** Each list runs a count and a page as separate statements.
+- **Choice.** Accepted: under concurrent writes the total and the items can differ by a row, the same limit as O70. The pager tolerates it.
+- **Options.** One repeatable-read transaction; accept (chosen).
+- **Trade-off.** An operator may see a total off by one for a moment.
+- **Status.** `implemented` (accepted limit): the three readers.
+
+### O102a. Buyer emails never reach the logs
+
+- **Context.** Bought-ticket responses carry buyer emails; review asked whether request logging could leak them.
+- **Choice.** No change needed: the logger serializers record method, path without the query string, host, IP and redacted headers, and the status code and headers of the response. Bodies are never logged. A regression test pins it.
+- **Options.** Redact in the route; rely on the serializers (chosen).
+- **Trade-off.** A future change that logs bodies would break the test, not the code review.
+- **Status.** `implemented` (after review): `backend/src/infrastructure/logging/logger-options.ts`; test `backend/src/presentation/http/log-redaction.test.ts`.
+
+### O103. Frontend: start time input
+
+- **Context.** `startsAt` is an instant; operators think in venue time.
+- **Choice.** The input is the browser's local `datetime-local` value, converted to an ISO instant on submit. When the venue timezone is known, a "Venue time: ..." preview shows the same instant in the venue's zone.
+- **Options.** Typed text with a zone; a picker in venue time; browser-local plus preview (chosen).
+- **Trade-off.** An operator in another zone than the venue must read the preview. Venue-zone entry would need a timezone-aware picker.
+- **Status.** `implemented` (Phase 4 it-5): `lib/event-form.ts`, `schedule-grid-fields.tsx`; test `create-event-validation.test.tsx`.
+
+### O104. Frontend: price in major units
+
+- **Choice.** The operator enters a price in major units ("45.50"), converted to `priceMinor` with the currency's own decimals (JPY 0, EUR 2). The client bounds mirror the backend (0 to 1,000,000 minor, grid, dates).
+- **Options.** Ask for minor units; convert (chosen).
+- **Trade-off.** The bounds exist in two places; the server stays authoritative.
+- **Status.** `implemented`: `lib/event-form.ts`; test `create-event-validation.test.tsx`.
+
+### O105. Frontend: server messages
+
+- **Choice.** `ApiError.detail` carries the server `error.message`. Only the create-event form shows it, and only for a 400 (messages name a field and a bound, never a value). 409 `VENUE_CONFLICT` shows a fixed message (O84).
+- **Options.** Show every server message; show none; show it only where the operator can act (chosen).
+- **Trade-off.** Other screens keep generic text.
+- **Status.** `implemented`: `shared/lib/api-client.ts`, `use-create-event-form.ts`; tests `api-client-post.test.ts`, `create-event-page.test.tsx`.
+
+### O106. Frontend: timezone field
+
+- **Choice.** A text input with a `datalist` of common zones, validated with `Intl.DateTimeFormat`, as the backend does (O86).
+- **Options.** A select of every IANA zone; free text; text with suggestions (chosen).
+- **Trade-off.** The datalist is a short list; any valid zone can be typed.
+- **Status.** `implemented`: `lib/timezones.ts`, `show-venue-fields.tsx`.
+
+### O107. Frontend: buyers on `/admin`
+
+- **Choice.** A signed-in buyer on `/admin` sees the existing "Not allowed" page (O55) and the page makes no admin API call. The guard is UX only; the server answers 403 (O49).
+- **Options.** Redirect to home; "Not allowed" page (chosen).
+- **Trade-off.** None new.
+- **Status.** `implemented`: `routes.tsx`; test `guards.test.tsx`.
+
+### O108. Frontend: event detail counts
+
+- **Choice.** The detail header shows no seat counts, because there is no per-event admin route for them. Each tab shows its own total (open seats, tickets sold).
+- **Options.** Add a per-event route; reuse the event list row; no counts (chosen).
+- **Trade-off.** The counts are on the event list only.
+- **Status.** `implemented`: `admin-event-detail-page.tsx`, `tickets-tabs.tsx`; test `event-detail.test.tsx`.
+
+### O109. Frontend: "Back office" link
+
+- **Choice.** The user menu shows a "Back office" link for admins only. Hiding the link is UX; access is O49.
+- **Options.** Always show; admins only (chosen).
+- **Trade-off.** None new.
+- **Status.** `implemented`: `auth/components/user-menu.tsx`; test `user-menu.test.tsx`.
+
 ---
 
 ## Back-office capability proposal
 
 **Manual release of a held seat.** An operator can free a seat stuck in a hold with a required reason (for example, a buyer abandoned checkout during a support call, or a hold blocks the last seat before showtime). It uses the same conditional update as a buyer release and writes a log row.
 
-- **Status.** `planned` as a written proposal: Phase 4 it-7. Building it is optional (Phase 4 it-6).
+- **Status.** `implemented`: proposed here and built in Phase 4 it-6; the decisions are O96 to O101 (why, the statement, the log table, the reason handling, stale holds).
 
 ---
 

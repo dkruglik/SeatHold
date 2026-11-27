@@ -10,7 +10,7 @@ Placeholders used below: `<site-origin>` (the public https origin, the same valu
 
 Visitors can now sign in. They enter an email address, receive a six-digit code by email, and enter it. The code is valid for 10 minutes, allows 5 wrong attempts and works once. A first sign-in creates a `buyer` account. The session lasts 30 days (`SESSION_TTL_DAYS`) in the `sid` cookie. Logout ends it on the server.
 
-Everything under `/api/admin/*` now requires an admin session: anonymous callers get 401, buyers get 403. There are no admin features yet; `GET /api/admin/ping` is a placeholder. Every state-changing browser request now needs the `X-CSRF-Token` header and an `Origin` equal to `FRONTEND_ORIGIN`. The frontend gets a login screen, a user menu and route guards, so the frontend must be released with the backend.
+Everything under `/api/admin/*` now requires an admin session: anonymous callers get 401, buyers get 403. There are no admin features in this release; the first real admin route is `GET /api/admin/lookups` from Phase 4 (the Phase 1 placeholder `GET /api/admin/ping` no longer exists). Every state-changing browser request now needs the `X-CSRF-Token` header and an `Origin` equal to `FRONTEND_ORIGIN`. The frontend gets a login screen, a user menu and route guards, so the frontend must be released with the backend.
 
 No admin exists after deploy. The seed is refused in production, so the first admin is created by hand (see "Before deploy", step 5).
 
@@ -191,7 +191,7 @@ Expected: `{"status":"ok"}`. If the tasks do not become healthy, read the task l
 ```bash
 curl -s "$SITE/api/auth/me"
 echo
-curl -s -o /dev/null -w '%{http_code}\n' "$SITE/api/admin/ping"
+curl -s -o /dev/null -w '%{http_code}\n' "$SITE/api/admin/lookups"
 ```
 
 Expected: `{"user":null}`, then `401`.
@@ -247,7 +247,7 @@ Expected: `{"user":{...}}` with the same account.
 ### 7. A buyer cannot reach the admin area
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" "$SITE/api/admin/ping"
+curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" "$SITE/api/admin/lookups"
 ```
 
 Expected: `403` (code `FORBIDDEN_ROLE`). If it prints `200`, stop: access control is broken. Roll back (see "Rollback") and report it.
@@ -278,11 +278,10 @@ Expected: `<admin-email> is now admin` (or `already admin` when repeated). Exit 
 Check the effect without logging in again (the role is read on every request): sign in as that admin as in steps 4 and 5 with `TEST_EMAIL` set to `<admin-email>` and a new `JAR`, then:
 
 ```bash
-curl -s -b "$JAR" "$SITE/api/admin/ping"
-echo
+curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" "$SITE/api/admin/lookups"
 ```
 
-Expected: `{"ok":true}`.
+Expected: `200`. `GET /api/admin/lookups` comes from Phase 4 and replaces the old Phase 1 placeholder, so steps 2, 7 and 8 need a release that includes Phase 4 (deploy them together; see [phase-4-back-office.md](phase-4-back-office.md)).
 
 ### 9. Log out
 
