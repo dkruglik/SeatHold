@@ -15,6 +15,7 @@ describe("PUT /api/events/:eventId/hold/seats/:seatId", () => {
     const first = await harness.mutate("PUT", holdUrl(eventId, seatIds[0] as string));
 
     expect(first.statusCode).toBe(200);
+    expect(first.headers["cache-control"]).toBe("no-store");
     const set = first.cookies.find((c) => c.name === "vid");
     expect(set).toMatchObject({ httpOnly: true, sameSite: "Lax", path: "/api" });
     expect(first.json()).toEqual({ seatIds: [seatIds[0]], expiresAt: expect.any(String) });

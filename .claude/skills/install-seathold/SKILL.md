@@ -59,5 +59,6 @@ Target: the whole skill from a fresh clone on a clean Mac in < 10 minutes, inclu
 
 ## Notes
 
+- The static check (`scripts/install-skill.test.mjs`) covers `npm run` scripts, `.env.example` keys and repository paths only; the brew, curl and psql steps have never run on a Mac.
 - Ports 5173, 3001, 5432, 1025 and 8025 must be free on the loopback interface.
 - The installed commands are the same as in `README.md` under "Run on a Mac without the install skill".
