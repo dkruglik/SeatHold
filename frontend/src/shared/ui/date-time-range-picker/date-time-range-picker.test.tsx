@@ -21,6 +21,7 @@ function Controlled({ onEmit, initial = empty }: { onEmit: (v: DateTimeRange) =>
   return (
     <DateTimeRangePicker
       label="Date range"
+      allowPast
       value={value}
       onChange={(next) => {
         onEmit(next);

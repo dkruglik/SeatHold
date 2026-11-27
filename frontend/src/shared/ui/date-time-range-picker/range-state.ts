@@ -1,4 +1,13 @@
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+export function browserTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
 
 /** The popover's editing state: calendar days (local `YYYY-MM-DD`) and local `HH:mm` times. */
 export interface RangeDraft {
@@ -12,10 +21,10 @@ export const DEFAULT_TO_TIME = "23:59";
 
 export const emptyDraft: RangeDraft = { dates: [null, null], fromTime: DEFAULT_FROM_TIME, toTime: DEFAULT_TO_TIME };
 
-/** Local date and time of an ISO instant, in the browser's timezone. */
-export function draftFromInstants(from: string | null, to: string | null): RangeDraft {
-  const start = from === null ? null : dayjs(from);
-  const end = to === null ? null : dayjs(to);
+/** Wall-clock date and time of an ISO instant in `zone` (default: the browser's timezone). */
+export function draftFromInstants(from: string | null, to: string | null, zone: string = browserTimeZone()): RangeDraft {
+  const start = from === null ? null : dayjs(from).tz(zone);
+  const end = to === null ? null : dayjs(to).tz(zone);
   return {
     dates: [start?.format("YYYY-MM-DD") ?? null, end?.format("YYYY-MM-DD") ?? null],
     fromTime: start?.format("HH:mm") ?? DEFAULT_FROM_TIME,
@@ -23,16 +32,14 @@ export function draftFromInstants(from: string | null, to: string | null): Range
   };
 }
 
-/** The local wall-clock moment as a UTC ISO instant; null when the time text is incomplete. */
-export function toInstant(date: string, time: string): string | null {
-  const match = /^(\d{2}):(\d{2})$/.exec(time);
-  const [y, m, d] = date.split("-").map(Number);
-  if (match === null || y === undefined || m === undefined || d === undefined) return null;
-  return new Date(y, m - 1, d, Number(match[1]), Number(match[2])).toISOString();
+/** The wall-clock moment in `zone` as a UTC ISO instant; null when the time text is incomplete. */
+export function toInstant(date: string, time: string, zone: string = browserTimeZone()): string | null {
+  if (!/^\d{2}:\d{2}$/.test(time) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  return dayjs.tz(`${date} ${time}`, zone).toISOString();
 }
 
-export function summarize(from: string | null, to: string | null): string | null {
+export function summarize(from: string | null, to: string | null, zone: string = browserTimeZone()): string | null {
   if (from === null && to === null) return null;
-  const format = (iso: string | null) => (iso === null ? "…" : dayjs(iso).format("D MMM YYYY HH:mm"));
+  const format = (iso: string | null) => (iso === null ? "…" : dayjs(iso).tz(zone).format("D MMM YYYY HH:mm"));
   return `${format(from)} – ${format(to)}`;
 }
