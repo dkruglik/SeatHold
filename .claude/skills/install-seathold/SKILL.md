@@ -7,7 +7,7 @@ description: Installs and starts SeatHolder on a Mac from a fresh clone with Hom
 
 **v0, not yet run on a clean Mac.** It was written on a Linux host and has not been tested. Phase 5 does the timed clean-Mac run and completes it (the final demo script). The Phase 2 catalog seed is included below but has not been timed on a Mac either.
 
-Runs PostgreSQL 17 and Mailpit as Homebrew services (the exception in `.claude/rules/50-infrastructure.md`). Docker is not needed. The app reads the same `.env` keys as with Docker Compose. Run the steps from the repository root, stop at the first failure and report it with the command output. Never print `.env` contents.
+Runs PostgreSQL 17 and Mailpit as Homebrew services. Docker is not needed. The app reads the same `.env` keys as with Docker Compose. Run the steps from the repository root, stop at the first failure and report it with the command output. Never print `.env` contents.
 
 ## Steps
 
