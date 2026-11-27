@@ -12,7 +12,7 @@ const adminHeaders = async (): Promise<Record<string, string>> => {
 const minutes = (n: number): Date => new Date(T0.getTime() + n * 60_000);
 
 interface BoughtBody {
-  event: { eventId: string; showTitle: string; startsAt: string };
+  event: { eventId: string; showTitle: string; startsAt: string; venueName: string; city: string; timezone: string };
   items: Record<string, unknown>[];
   total: number; page: number; pageSize: number; totalPages: number;
 }
@@ -29,7 +29,9 @@ describe("GET /api/admin/events/:eventId/bought-tickets", () => {
     const body = response.json() as BoughtBody;
 
     expect(response.headers["cache-control"]).toBe("no-store");
-    expect(body.event).toEqual({ eventId: event.eventId, showTitle: "Sold show", startsAt: "2030-06-01T18:00:00.000Z" });
+    expect(body.event).toEqual({
+      eventId: event.eventId, showTitle: "Sold show", startsAt: "2030-06-01T18:00:00.000Z", venueName: expect.stringMatching(/^Hall /), city: "Berlin", timezone: "Europe/Berlin",
+    });
     expect(body.items.map((i) => [i.row, i.number, i.buyerEmail, i.buyerType])).toEqual([
       ["A", 1, "ada@example.io", "user"], ["A", 2, "ada@example.io", "user"], ["A", 3, "guest@example.io", "guest"],
     ]);

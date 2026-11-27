@@ -7,6 +7,7 @@ interface Row {
   readonly title: string;
   readonly venue_name: string;
   readonly city: string;
+  readonly timezone: string;
   readonly starts_at: Date;
   readonly price_minor: number;
   readonly currency: string;
@@ -32,7 +33,7 @@ export class PrismaAdminEventListReader implements AdminEventListReader {
         this.prisma.client.$queryRaw<{ total: number }[]>`SELECT count(*)::int AS total FROM events`,
         this.prisma.client.$queryRaw<Row[]>`
           WITH page AS (
-            SELECT e.id, sh.title, v.name AS venue_name, v.city, e.starts_at, e.price_minor, e.currency, e.rows, e.seats_per_row
+            SELECT e.id, sh.title, v.name AS venue_name, v.city, v.timezone, e.starts_at, e.price_minor, e.currency, e.rows, e.seats_per_row
             FROM events e JOIN shows sh ON sh.id = e.show_id JOIN venues v ON v.id = e.venue_id
             ORDER BY e.starts_at DESC, e.id LIMIT ${criteria.limit} OFFSET ${criteria.offset}
           ), counts AS (
@@ -42,7 +43,7 @@ export class PrismaAdminEventListReader implements AdminEventListReader {
                    count(*) FILTER (WHERE s.status = 'available' OR (s.status = 'held' AND s.held_until <= ${criteria.now}::timestamptz))::int AS available
             FROM seats s WHERE s.event_id IN (SELECT id FROM page) GROUP BY s.event_id
           )
-          SELECT page.id AS event_id, page.title, page.venue_name, page.city, page.starts_at, page.price_minor, page.currency,
+          SELECT page.id AS event_id, page.title, page.venue_name, page.city, page.timezone, page.starts_at, page.price_minor, page.currency,
                  page.rows, page.seats_per_row, COALESCE(c.sold, 0) AS sold, COALESCE(c.held, 0) AS held, COALESCE(c.available, 0) AS available
           FROM page LEFT JOIN counts c ON c.event_id = page.id
           ORDER BY page.starts_at DESC, page.id`,
@@ -53,7 +54,7 @@ export class PrismaAdminEventListReader implements AdminEventListReader {
 }
 
 const toRow = (r: Row): AdminEventRow => ({
-  eventId: r.event_id, showTitle: r.title, venueName: r.venue_name, city: r.city, startsAt: r.starts_at,
+  eventId: r.event_id, showTitle: r.title, venueName: r.venue_name, city: r.city, timezone: r.timezone, startsAt: r.starts_at,
   priceMinor: r.price_minor, currency: r.currency, rows: r.rows, seatsPerRow: r.seats_per_row,
   sold: r.sold, held: r.held, available: r.available,
 });

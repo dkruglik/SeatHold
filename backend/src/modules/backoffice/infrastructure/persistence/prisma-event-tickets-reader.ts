@@ -28,9 +28,10 @@ export class PrismaEventTicketsReader implements EventTicketsReader {
 
   findHeader(eventId: string): Promise<EventHeader | null> {
     return guarded("find admin event header", async () => {
-      const [row] = await this.prisma.client.$queryRaw<{ title: string; starts_at: Date }[]>`
-        SELECT sh.title, e.starts_at FROM events e JOIN shows sh ON sh.id = e.show_id WHERE e.id = ${eventId}::uuid`;
-      return row === undefined ? null : { eventId, showTitle: row.title, startsAt: row.starts_at };
+      const [row] = await this.prisma.client.$queryRaw<{ title: string; starts_at: Date; venue_name: string; city: string; timezone: string }[]>`
+        SELECT sh.title, e.starts_at, v.name AS venue_name, v.city, v.timezone
+        FROM events e JOIN shows sh ON sh.id = e.show_id JOIN venues v ON v.id = e.venue_id WHERE e.id = ${eventId}::uuid`;
+      return row === undefined ? null : { eventId, showTitle: row.title, startsAt: row.starts_at, venueName: row.venue_name, city: row.city, timezone: row.timezone };
     });
   }
 

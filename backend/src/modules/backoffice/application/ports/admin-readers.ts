@@ -5,6 +5,8 @@ export interface AdminEventRow {
   readonly showTitle: string;
   readonly venueName: string;
   readonly city: string;
+  /** IANA timezone of the venue, for showing `startsAt` in venue time. */
+  readonly timezone: string;
   readonly startsAt: Date;
   readonly priceMinor: number;
   readonly currency: string;
@@ -54,6 +56,9 @@ export interface EventHeader {
   readonly eventId: string;
   readonly showTitle: string;
   readonly startsAt: Date;
+  readonly venueName: string;
+  readonly city: string;
+  readonly timezone: string;
 }
 
 export interface OpenTicketRow {

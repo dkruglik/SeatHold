@@ -15,7 +15,7 @@ const clock = (): ControlledClock & { reads: number } => {
   c.now = () => { c.reads += 1; return original(); };
   return c;
 };
-const header = { eventId: "e1", showTitle: "S", startsAt: NOW };
+const header = { eventId: "e1", showTitle: "S", startsAt: NOW, venueName: "Hall", city: "Berlin", timezone: "Europe/Berlin" };
 
 describe("ListAdminEventsQuery", () => {
   it("reads the clock once, passes now and the page window, and reports totalPages", async () => {

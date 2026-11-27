@@ -25,7 +25,7 @@ describe("GET /api/admin/events", () => {
     expect(response.headers["cache-control"]).toBe("no-store");
     expect(response.json()).toEqual({
       items: [{
-        eventId: event.eventId, showTitle: "Counted", venueName: expect.any(String), city: "Berlin", startsAt: "2030-06-01T18:00:00.000Z",
+        eventId: event.eventId, showTitle: "Counted", venueName: expect.any(String), city: "Berlin", timezone: "Europe/Berlin", startsAt: "2030-06-01T18:00:00.000Z",
         priceMinor: 5000, currency: "EUR", rows: 2, seatsPerRow: 2, seatCount: 4, sold: 1, held: 1, available: 3,
       }],
       total: 1, page: 1, pageSize: 20, totalPages: 1,

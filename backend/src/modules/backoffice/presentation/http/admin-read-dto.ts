@@ -34,11 +34,14 @@ const int = { type: "integer" } as const;
 
 const eventHeaderSchema = {
   type: "object",
-  properties: { eventId: str, showTitle: str, startsAt: str },
-  required: ["eventId", "showTitle", "startsAt"],
+  properties: { eventId: str, showTitle: str, startsAt: str, venueName: str, city: str, timezone: str },
+  required: ["eventId", "showTitle", "startsAt", "venueName", "city", "timezone"],
 } as const;
 
-const header = (event: EventHeader) => ({ eventId: event.eventId, showTitle: event.showTitle, startsAt: event.startsAt.toISOString() });
+const header = (event: EventHeader) => ({
+  eventId: event.eventId, showTitle: event.showTitle, startsAt: event.startsAt.toISOString(),
+  venueName: event.venueName, city: event.city, timezone: event.timezone,
+});
 const paging = (p: Paged<unknown>) => ({ total: p.total, page: p.page, pageSize: p.pageSize, totalPages: p.totalPages });
 
 export const adminEventListSchema = {
@@ -49,10 +52,10 @@ export const adminEventListSchema = {
       items: {
         type: "object",
         properties: {
-          eventId: str, showTitle: str, venueName: str, city: str, startsAt: str, priceMinor: int, currency: str,
+          eventId: str, showTitle: str, venueName: str, city: str, timezone: str, startsAt: str, priceMinor: int, currency: str,
           rows: int, seatsPerRow: int, seatCount: int, sold: int, held: int, available: int,
         },
-        required: ["eventId", "showTitle", "venueName", "city", "startsAt", "priceMinor", "currency", "rows", "seatsPerRow", "seatCount", "sold", "held", "available"],
+        required: ["eventId", "showTitle", "venueName", "city", "timezone", "startsAt", "priceMinor", "currency", "rows", "seatsPerRow", "seatCount", "sold", "held", "available"],
       },
     },
     ...pagingProperties,

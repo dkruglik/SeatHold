@@ -12,7 +12,7 @@ const adminHeaders = async (): Promise<Record<string, string>> => {
 const minutes = (n: number): Date => new Date(T0.getTime() + n * 60_000);
 
 interface OpenBody {
-  event: { eventId: string; showTitle: string; startsAt: string };
+  event: { eventId: string; showTitle: string; startsAt: string; venueName: string; city: string; timezone: string };
   items: { seatId: string; row: string; number: number; state: string; heldUntil: string | null }[];
   total: number; page: number; pageSize: number; totalPages: number;
 }
@@ -29,7 +29,9 @@ describe("GET /api/admin/events/:eventId/open-tickets", () => {
     const body = response.json() as OpenBody;
 
     expect(response.headers["cache-control"]).toBe("no-store");
-    expect(body.event).toEqual({ eventId: event.eventId, showTitle: "Open show", startsAt: "2030-06-01T18:00:00.000Z" });
+    expect(body.event).toEqual({
+      eventId: event.eventId, showTitle: "Open show", startsAt: "2030-06-01T18:00:00.000Z", venueName: expect.stringMatching(/^Hall /), city: "Berlin", timezone: "Europe/Berlin",
+    });
     expect(body.items).toEqual([
       { seatId: event.seat.A1, row: "A", number: 1, state: "held", heldUntil: minutes(5).toISOString() },
       { seatId: event.seat.A2, row: "A", number: 2, state: "available", heldUntil: null },
