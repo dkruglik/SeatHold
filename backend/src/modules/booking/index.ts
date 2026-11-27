@@ -9,6 +9,11 @@ export type { AuthorizeRequest, AuthorizeResult, PaymentGateway, PaymentOutcomeH
 export { MockPaymentGateway } from "./infrastructure/payment/mock-payment-gateway.js";
 export { GetCurrentHoldQuery } from "./application/get-current-hold-query.js";
 export { GetSeatMapQuery, type SeatMap, type SeatMapSeat } from "./application/get-seat-map-query.js";
+export { ListMyBookingsQuery, MY_BOOKINGS_LIMIT, type MyBooking, type MyTicket } from "./application/list-my-bookings-query.js";
+export { GuestBookingsQuery } from "./application/guest-bookings-query.js";
+export type { GuestBookingReader } from "./application/ports/guest-booking-reader.js";
+export type { GuestLinkIssuer, IssueGuestLinkInput } from "./application/ports/guest-link-issuer.js";
+export type { MyBookingsReader, StoredMyBooking, StoredMyBookings, StoredMyTicket } from "./application/ports/my-bookings-reader.js";
 export type { CurrentHold, CurrentHoldReader } from "./application/ports/current-hold-reader.js";
 export type { HoldSweeper } from "./application/ports/hold-sweeper.js";
 export type { SeatMapReader, StoredSeatMap, StoredSeatView } from "./application/ports/seat-map-reader.js";

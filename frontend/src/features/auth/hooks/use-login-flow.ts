@@ -1,17 +1,10 @@
 import { useState } from "react";
 import { ApiError } from "../../../shared/lib/api-client";
+import { formatRetry } from "../../../shared/lib/format";
 import { useAuthApi } from "./use-auth-api";
 import { useAuthSession } from "./use-auth-session";
 
 export type LoginStep = "email" | "code";
-
-export function formatRetry(seconds: number): string {
-  if (seconds < 60) {
-    return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
-  }
-  const minutes = Math.ceil(seconds / 60);
-  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
-}
 
 const invalidCodeMessage = "That code is not right or has expired. Check it and try again, or send a new code.";
 const genericMessage = "Something went wrong. Please try again.";

@@ -6,6 +6,7 @@ import {
   BusinessError,
   InfrastructureError,
   NotFoundError,
+  GoneError,
   PaymentRequiredError,
   ValidationError,
 } from "./app-error.js";
@@ -18,6 +19,7 @@ describe("application errors", () => {
     [BusinessError, "business"],
     [NotFoundError, "not_found"],
     [PaymentRequiredError, "payment_required"],
+    [GoneError, "gone"],
     [InfrastructureError, "infrastructure"],
   ] as const)("%o is an AppError with kind %s", (ErrorClass, kind) => {
     const error = new ErrorClass("boom");

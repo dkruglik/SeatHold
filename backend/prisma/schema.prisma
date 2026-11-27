@@ -61,19 +61,23 @@ model Venue {
   events      Event[]
 
   @@unique([name, city])
+  @@index([countryCode, city])
   @@map("venues")
 }
 
 model Show {
-  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String
-  type        String
-  genre       String
-  description String
-  events      Event[]
+  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  type         String
+  genre        String
+  description  String
+  // Generated column (to_tsvector('simple', title)) created in the migration; Prisma never writes it.
+  searchVector Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, title)")) @map("search_vector")
+  events       Event[]
 
   @@index([type])
   @@index([genre])
+  @@index([searchVector], type: Gin)
   @@map("shows")
 }
 
@@ -152,6 +156,8 @@ model Booking {
   event          Event    @relation(fields: [eventId], references: [id])
   user           User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
   tickets        Ticket[]
+  guestLinks     GuestAccessLink[]
+  guestSessions  GuestSession[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([guestEmail])
@@ -183,4 +189,44 @@ model Payment {
 
   @@index([holdId])
   @@map("payments")
+}
+
+// A one-time link emailed after a guest checkout. Only the SHA-256 of the token is stored (DECISIONS.md, Phase 3).
+model GuestAccessLink {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId     String    @map("booking_id") @db.Uuid
+  tokenHash     String    @unique @map("token_hash")
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(3)
+  invalidatedAt DateTime? @map("invalidated_at") @db.Timestamptz(3)
+  createdAt     DateTime  @map("created_at") @db.Timestamptz(3)
+  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@map("guest_access_links")
+}
+
+// A guest session reads exactly one booking. Only the SHA-256 of the cookie token is stored.
+model GuestSession {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId String    @map("booking_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3)
+  booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@map("guest_sessions")
+}
+
+// Rate limit for "send my links again": one row per accepted request, keyed by the SHA-256 of the
+// lower-cased email (the address itself is never stored).
+model GuestResendAttempt {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  emailHash   String   @map("email_hash")
+  attemptedAt DateTime @map("attempted_at") @db.Timestamptz(3)
+
+  @@index([emailHash, attemptedAt])
+  @@map("guest_resend_attempts")
 }

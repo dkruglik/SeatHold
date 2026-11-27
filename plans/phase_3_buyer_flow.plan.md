@@ -4,34 +4,34 @@ overview: "The end-to-end flow on a plain UI built on the design-system layer: s
 todos:
   - id: it-0-approvals
     content: Approve qrcode (exact pin) and the defaults below
-    status: pending
+    status: completed
   - id: it-1-search-api
     content: GET /api/shows with type, genre, country, city, venue, text and from-to filters, pagination, indexes; facets endpoint
-    status: pending
+    status: completed
   - id: it-2-event-detail-bookings-api
     content: Event detail route and GET /api/me/bookings with tickets and codes
-    status: pending
+    status: completed
   - id: it-3-guest-access
     content: Guest link on guest checkout, single exchange into a guest session, guest booking route, resend that invalidates old links
-    status: pending
+    status: completed
   - id: it-4-datetime-range-picker
     content: Base theme, plus DateTimeRangePicker v1 (one control, date and time from-to) as an extension of Mantine
-    status: pending
+    status: completed
   - id: it-5-discovery-screen
     content: Discovery screen with filter bar in URL state, results list and pagination
-    status: pending
+    status: completed
   - id: it-6-seat-map-hold
     content: SeatMap v1 (SVG, four states), hold on click, release, countdown, polling
-    status: pending
+    status: completed
   - id: it-7-checkout-screens
     content: Checkout panel (guest email when signed out, pay succeed or fail), confirmation, error states
-    status: pending
+    status: completed
   - id: it-8-tickets-screens
     content: My bookings with QR, guest access page, lost-link form
-    status: pending
+    status: completed
   - id: it-9-docs-verify
-    content: DECISIONS entry 5, README, install skill check, manual end-to-end for buyer and guest, full verify, roadmap status
-    status: pending
+    content: DECISIONS entry 5, README, install skill check, manual end-to-end for buyer and guest, full verify, roadmap status. Still open, no browser run on this branch yet, so manual browser end-to-end for buyer and guest, expiry on screen, two-browser race, full npm run verify on the final commit
+    status: in_progress
 isProject: false
 ---
 
@@ -130,7 +130,7 @@ Cross-module: booking calls `guest-access` through its `index.ts` after a confir
 
 ## 9. Iterations
 
-- **it-0 Approvals.** `qrcode`, `@types/qrcode` (dev); defaults in section 2.
+- **it-0 Approvals.** `qrcode`, `@types/qrcode` (dev); defaults in section 2. Run note: the run also added `@mantine/dates` (9.8.2) and `dayjs` (1.11.23) for the DateTimeRangePicker, approved by the user; the plan listed only `qrcode`.
 - **it-1 Search API.** Integration tests first: each filter alone and combined; date range edges inclusive; text search matches title and venue; pagination stable; invalid range (`from > to`) 400; query uses indexes (EXPLAIN check noted, not asserted).
 - **it-2 Event detail and My bookings.** Route tests first: My bookings returns only my bookings with ticket codes; anonymous 401; event detail 404 for unknown id.
 - **it-3 Guest access.** Tests first: guest checkout issues one link and sends one email; exchange consumes once (second call 410); expired link 410; guest session reads only its booking; resend invalidates older links, revokes existing guest sessions for those bookings, and is rate limited; resend for an unknown email still 204 and sends nothing; concurrent double exchange yields one session.

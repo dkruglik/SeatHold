@@ -6,6 +6,8 @@ const pepper = "unit-test-pepper-0123456789-abcdefghij";
 const minimalEnv = { DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef" };
 const productionEnv = { APP_ENV: "production", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: pepper, CSRF_SECRET: "unit-test-csrf-secret-0123456789-abcdef", FRONTEND_ORIGIN: "https://seats.example.com", COOKIE_SECURE: "true" };
 
+const guestDefaults = { guestLinkTtlHours: 168, guestResendLimit: 3, guestResendWindowMinutes: 60 };
+
 function failureOf(env: Record<string, string | undefined>): ConfigError {
   try {
     loadConfig(env);
@@ -41,6 +43,7 @@ describe("loadConfig defaults", () => {
       holdDurationMinutes: 10,
       maxSeatsPerHold: 10,
       defaultCurrency: "EUR",
+      ...guestDefaults,
     });
   });
 

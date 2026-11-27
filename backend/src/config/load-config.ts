@@ -36,6 +36,12 @@ export interface AppConfig {
   readonly maxSeatsPerHold: number;
   /** ISO 4217 code used when a show does not set its own currency. */
   readonly defaultCurrency: string;
+  /** How long a guest access link stays valid, in hours. */
+  readonly guestLinkTtlHours: number;
+  /** The most guest access link resends per email address in the resend window. */
+  readonly guestResendLimit: number;
+  /** The resend window, in minutes. */
+  readonly guestResendWindowMinutes: number;
 }
 
 /** The value `.env.example` carries for local development. Production refuses it (DECISIONS.md O42). */
@@ -70,6 +76,9 @@ const requirements = {
   HOLD_DURATION_MINUTES: "must be a positive integer",
   MAX_SEATS_PER_HOLD: "must be a positive integer",
   DEFAULT_CURRENCY: "must be a 3-letter uppercase currency code such as EUR",
+  GUEST_LINK_TTL_HOURS: "must be a positive integer",
+  GUEST_RESEND_LIMIT: "must be a positive integer",
+  GUEST_RESEND_WINDOW_MINUTES: "must be a positive integer",
 } as const;
 
 export const configVariableNames = Object.keys(requirements) as ReadonlyArray<keyof typeof requirements>;
@@ -114,6 +123,9 @@ const envSchema = z.object({
   HOLD_DURATION_MINUTES: positiveInteger.default(10),
   MAX_SEATS_PER_HOLD: positiveInteger.default(10),
   DEFAULT_CURRENCY: z.string().regex(/^[A-Z]{3}$/).default("EUR"),
+  GUEST_LINK_TTL_HOURS: positiveInteger.default(168),
+  GUEST_RESEND_LIMIT: positiveInteger.default(3),
+  GUEST_RESEND_WINDOW_MINUTES: positiveInteger.default(60),
 });
 
 /** Thrown at startup for invalid configuration. Carries variable names and rules, never values (DATABASE_URL has a password). */
@@ -169,6 +181,9 @@ function toConfig(values: z.output<typeof envSchema>): AppConfig {
     holdDurationMinutes: values.HOLD_DURATION_MINUTES,
     maxSeatsPerHold: values.MAX_SEATS_PER_HOLD,
     defaultCurrency: values.DEFAULT_CURRENCY,
+    guestLinkTtlHours: values.GUEST_LINK_TTL_HOURS,
+    guestResendLimit: values.GUEST_RESEND_LIMIT,
+    guestResendWindowMinutes: values.GUEST_RESEND_WINDOW_MINUTES,
     ...(values.SMTP_USER === undefined ? {} : { smtpUser: values.SMTP_USER }),
     ...(values.SMTP_PASS === undefined ? {} : { smtpPass: values.SMTP_PASS }),
   });

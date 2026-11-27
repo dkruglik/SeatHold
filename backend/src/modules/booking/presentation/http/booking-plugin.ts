@@ -6,6 +6,7 @@ import { createHolderHooks, type VisitorCookieSettings } from "./hooks/holder-ho
 import { checkoutRoute } from "./routes/checkout.route.js";
 import { currentHoldRoute } from "./routes/current-hold.route.js";
 import { holdSeatRoute } from "./routes/hold-seat.route.js";
+import { myBookingsRoute } from "./routes/my-bookings.route.js";
 import { releaseSeatRoute } from "./routes/release-seat.route.js";
 import { seatMapRoute } from "./routes/seat-map.route.js";
 
@@ -13,8 +14,8 @@ export interface BookingPluginOptions {
   readonly services: BookingServices;
   /** CSRF and Origin checks that run first on every state-changing booking route. Required: a route cannot forget them. */
   readonly mutationHooks: BrowserStateChangeHooks;
-  /** The auth module's `optionalAuth` hook (from its public `createAuthHooks`); sets `request.user` before the holder is resolved. */
-  readonly auth: { readonly optionalAuth: onRequestAsyncHookHandler };
+  /** The auth module's hooks (from its public `createAuthHooks`): `optionalAuth` sets `request.user` before the holder is resolved; `requireAuth` guards the per-user routes. */
+  readonly auth: { readonly optionalAuth: onRequestAsyncHookHandler; readonly requireAuth: onRequestAsyncHookHandler };
   readonly cookie: VisitorCookieSettings;
 }
 
@@ -30,6 +31,7 @@ export const bookingPlugin: FastifyPluginAsync<BookingPluginOptions> = async (ap
   const routeOptions: BookingRouteOptions = {
     services: options.services,
     mutationHooks: options.mutationHooks,
+    requireAuth: options.auth.requireAuth,
     identity: {
       resolve: [options.auth.optionalAuth, holder.resolveHolder],
       issue: [options.auth.optionalAuth, holder.issueHolder],
@@ -40,4 +42,5 @@ export const bookingPlugin: FastifyPluginAsync<BookingPluginOptions> = async (ap
   await app.register(holdSeatRoute, routeOptions);
   await app.register(releaseSeatRoute, routeOptions);
   await app.register(checkoutRoute, routeOptions);
+  await app.register(myBookingsRoute, routeOptions);
 };

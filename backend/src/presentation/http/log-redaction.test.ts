@@ -42,6 +42,9 @@ const config: AppConfig = {
   holdDurationMinutes: 10,
   maxSeatsPerHold: 10,
   defaultCurrency: "EUR",
+  guestLinkTtlHours: 168,
+  guestResendLimit: 3,
+  guestResendWindowMinutes: 60,
 };
 
 function capture(): { lines: string[]; stream: Writable; records: () => LogRecord[] } {

@@ -17,10 +17,10 @@ function renderAt(path: string) {
 }
 
 describe("App", () => {
-  it("renders the home placeholder inside the Mantine provider with landmarks", () => {
+  it("renders the discovery landing page inside the Mantine provider with landmarks", () => {
     renderAt("/");
 
-    screen.getByRole("heading", { level: 1, name: "SeatHolder" });
+    screen.getByRole("heading", { level: 1, name: "Find a show" });
     screen.getByRole("banner");
     screen.getByRole("main");
     // Mantine's provider sets the color scheme attribute on the document root.

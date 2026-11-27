@@ -38,6 +38,9 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     holdDurationMinutes: 10,
     maxSeatsPerHold: 10,
     defaultCurrency: "EUR",
+    guestLinkTtlHours: 168,
+    guestResendLimit: 3,
+    guestResendWindowMinutes: 60,
     ...overrides,
   };
 }

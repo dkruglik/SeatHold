@@ -70,13 +70,19 @@ function read(state: State, options: FakeBackendOptions, path: string, meCalls: 
     }
     return json({ user });
   }
+  if (path === "/shows") {
+    return json({ items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
+  }
+  if (path === "/shows/facets") {
+    return json({ types: [], genres: [], countries: [], cities: [], venues: [] });
+  }
   if (path === "/admin/ping") {
     return user === null ? failure(401, "UNAUTHENTICATED") : user.role === "admin" ? json({ ok: true }) : failure(403, "FORBIDDEN_ROLE");
   }
   return failure(404, "not_found");
 }
 
-/** An in-memory stand-in for the backend contract of /api/auth and /api/admin: mutations without the current token get 403 CSRF_INVALID. */
+/** An in-memory stand-in for the backend contract of /api/auth, /api/admin and an empty public catalog (/api/shows): mutations without the current token get 403 CSRF_INVALID. */
 export function createFakeBackend(options: FakeBackendOptions = {}): FakeBackend {
   const state: State = { user: options.user ?? null, token: "token-1" };
   let rotations = 0;

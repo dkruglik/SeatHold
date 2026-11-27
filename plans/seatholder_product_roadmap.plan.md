@@ -12,8 +12,8 @@ todos:
     content: "Phase 2 built on branch feature/phase-2-booking-core, 2026-11-26: catalog schema and deterministic seed (200 shows, 200 events, 200 seats each), hold and release with one conditional UPDATE per seat, lazy expiry and idempotent sweeper, checkout with mock payment and late-payment rejection, booking HTTP routes with visitor identity and adoption on login, DECISIONS entries for locking, hold state and expiry, late payment, data store, release guide (docs/release_guides/phase-2-booking-core.md). Still open: deploy and release-guide checks; human review of the whole branch; second external review of the last commits; first GitHub Actions run; no browser UI until Phase 3 (plan: plans/phase_2_booking_core.plan.md)"
     status: completed
   - id: phase-3-buyer-flow
-    content: "Phase 3: end-to-end flow on a plain UI: show search with filters and DateTimeRangePicker, SeatMap with hold and countdown, mock payment, My bookings with QR, guest one-time link with QR; DECISIONS entry for the guest link (plan: plans/phase_3_buyer_flow.plan.md)"
-    status: pending
+    content: "Phase 3 built on branch feature/phase-3-buyer-flow, 2026-11-27, 9 of 10 iterations: show search with filters and DateTimeRangePicker, SeatMap with hold, countdown and polling, mock payment, checkout panel, My bookings with QR, guest one-time link with QR and lost-link resend; DECISIONS O70-O82, README buyer-flow section, release guide docs/release_guides/phase-3-buyer-flow.md. Still open: manual browser end-to-end for buyer and guest (not run on this branch yet), expiry on screen and two-browser race, full npm run verify before push, operator items in the release guide (plan: plans/phase_3_buyer_flow.plan.md)"
+    status: in_progress
   - id: phase-4-backoffice
     content: "Phase 4: back office screens and routes under /api/admin/* (create event with grid layout, open tickets, bought tickets), one proposed capability (plan: plans/phase_4_back_office.plan.md)"
     status: pending
@@ -37,7 +37,7 @@ Source brief: `plans/Appcharge_AC11_TeamLeader_AI_Test_Task_PartA.md`.
 | 0 Setup | completed (8/8 iterations; open: GitHub Actions run, clean-Mac install, deploy and release-guide checks) | [phase_0_setup.plan.md](phase_0_setup.plan.md) |
 | 1 Auth and access | completed (9/9 iterations; open: browser run of the login flow, GitHub Actions run, Phase 0 merge, production deploy and release-guide checks, migration path in the backend image (DECISIONS O35)) | [phase_1_auth_access.plan.md](phase_1_auth_access.plan.md) |
 | 2 Booking core | completed (8/8 iterations; open: deploy and release-guide checks, human review of the whole branch, second external review of the last commits, first GitHub Actions run, browser run (UI is Phase 3)) | [phase_2_booking_core.plan.md](phase_2_booking_core.plan.md) |
-| 3 Buyer flow (end to end) | pending | [phase_3_buyer_flow.plan.md](phase_3_buyer_flow.plan.md) |
+| 3 Buyer flow (end to end) | in progress (9/10 iterations, it-0 to it-8 completed, it-9 in progress; open: manual browser end-to-end for buyer and guest, expiry on screen and two-browser race, full verify before push, operator items in the release guide) | [phase_3_buyer_flow.plan.md](phase_3_buyer_flow.plan.md) |
 | 4 Back office | pending | [phase_4_back_office.plan.md](phase_4_back_office.plan.md) |
 | 5 Deliverables | pending | [phase_5_deliverables.plan.md](phase_5_deliverables.plan.md) |
 | 6 Design system depth | pending | [phase_6_design_system.plan.md](phase_6_design_system.plan.md) |
