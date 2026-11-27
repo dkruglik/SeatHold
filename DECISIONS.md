@@ -56,8 +56,9 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
   - Invalidated on: admin event creation or price change (event detail, search, facets).
   - Seat API split to match: `GET /api/events/:eventId/seats` is public and identical for every viewer, so it can be cached; the viewer's own hold comes from `GET /api/events/:eventId/hold` (never cached) and is merged in the browser.
   - **Never cached:** holds, the viewer's own `held_by_me` state, checkout, payments, sessions, `/api/auth/me`, My bookings, guest pages, anything under `/api/admin`.
+- **What the code does today (O111).** No cache layer exists: no CloudFront, no Redis, no in-process cache. The backend only sets `Cache-Control` headers: `public, max-age=1` on search, event detail and the seat map, `public, max-age=60` on facets, `no-store` on every other route listed under "Never cached" that exists (`/api/auth/me`, holds, release, checkout, CSRF token, My bookings, guest exchange and booking, every `/api/admin` route). The TTLs written above (30 s, 5 min, 60 s) are the targets for an edge cache in front of these routes; the headers today are shorter (1 s) on purpose, so a browser cache never adds more than about a second on top of any later edge TTL. Details, gaps and the invalidation story are in O111.
 - **Trade-off.** A seat map can be up to 2 s stale; a click on a seat that was just taken returns 409 and the map refreshes. No in-process cache, to keep instances stateless.
-- **Status.** `planned` as written entry: Phase 5 it-3. Implementation not planned.
+- **Status.** `planned` (Phase 5 it-3): the policy is written; the cache layer is not built and not scheduled. `implemented` only for the response headers (O111).
 
 ### D4. Late payment
 
@@ -71,7 +72,7 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 
 - **Context.** Guests buy with an email only and receive a link that shows the ticket and its QR.
 - **Options.** Single view (dies after first view); **single exchange into a session**; reusable until expiry.
-- **Choice.** The email link carries a random 32-byte token in the URL fragment (kept out of server logs and Referer). Opening it posts the token once to `/api/guest/exchange`, which consumes it and sets a guest session cookie scoped to that one booking, valid until the event start plus 1 day. The link can be exchanged within 168 h. A lost link is replaced via "send me a new link" with the email: always answers 204, sends new links for upcoming guest bookings, invalidates older unused links, and revokes existing guest sessions for those bookings. Only token hashes are stored.
+- **Choice.** The email link carries a random 32-byte token in the URL fragment (kept out of server logs and Referer). Opening it posts the token once to `/api/guest/exchange`, which consumes it and sets a guest session cookie scoped to that one booking, valid until the event start plus 1 day. The link can be exchanged within 168 h. A lost link is replaced via "send me a new link" with the email: answers 204 for every well-formed email (429 with `Retry-After` once the per-email limit is reached, O74), sends new links for upcoming guest bookings, invalidates older unused links, and revokes existing guest sessions for those bookings. Only token hashes are stored.
 - **Trade-off.** More moving parts than a plain link (exchange, guest session, resend). A guest who clears cookies needs a new link. Forwarding a used link does not share the ticket. Requesting a new link logs out a guest session on another device.
 - **Status.** `implemented`: Phase 3 it-3, it-8; the details, trade-offs and deviations are in O73 and O74, the resend limit in O74, the screens in O79. Decided 2026-11-26.
 
@@ -92,12 +93,12 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 | Oversell | 0 seats sold twice | Test: 100 parallel holds on one seat produce exactly 1 winner | `implemented` Phase 2 it-3: `prisma-hold-repository.hold-concurrency.integration.test.ts` (D1) |
 | Hold expiry | Seat back on sale after X minutes, same result every run | Test with a controlled clock, no real waiting | `implemented` Phase 2 it-4: `prisma-hold-repository.kpi-expiry.integration.test.ts` (D2) |
 | Time to first run | Clean Mac to running system < 10 min | `install-seathold` skill, timed run | `planned` Phase 0 it-7, Phase 5 it-1 |
-| Caching | See D3 | Written | `planned` Phase 5 it-3 |
-| Latency | Search `GET /api/shows` p95 < 150 ms server time; seat hold p95 < 50 ms; checkout p95 < 200 ms excluding the payment provider | Written; optional short measurement | `planned` Phase 5 it-3 |
-| Latency threats | The hold transaction itself (clock read, expire a stale hold, insert or reuse the hold, update the seat: about four round trips inside the 50 ms budget), hot seat rows at on-sale, seat-map polling on the writer, connection-pool exhaustion behind RDS Proxy, full-text query plans at larger catalog size | Written | `planned` Phase 5 it-3 |
-| Scale | See Scale section | Written | `planned` Phase 5 it-3 |
+| Caching | See D3 and O111 | Written; the response headers are in code | `planned` Phase 5 it-3 (headers `implemented`, O111) |
+| Latency | Search `GET /api/shows` p95 < 150 ms server time; seat hold p95 < 50 ms; checkout p95 < 200 ms excluding the payment provider | Written, not measured (O112) | `planned` Phase 5 it-3 |
+| Latency threats | The hold transaction itself (counted from the code: 9 database round trips for an anonymous holder, 10 for a signed-in one, O112), hot seat rows at on-sale, seat-map polling on the writer, connection-pool exhaustion behind RDS Proxy, full-text query plans at larger catalog size | Written (O112) | `planned` Phase 5 it-3 |
+| Scale | See Scale section and O113 | Written | `planned` Phase 5 it-3 |
 | Security | See Security section | Code + written | `implemented` Phase 1 (O56) |
-| Own KPI | Hold-to-purchase conversion and hold expiry rate per event: shows whether the 10-minute window and checkout work, and detects seat hoarding. Alternatives considered: p99 click-to-held time; QR fetch success rate | Written | `planned` default; confirm in Phase 5 it-0 |
+| Own KPI | Hold-to-purchase conversion and hold expiry rate per event: shows whether the 10-minute window and checkout work, and detects seat hoarding. Exact definition and read-only SQL: O114. Alternatives considered: p99 click-to-held time; QR fetch success rate | Written; computable from `holds` today, no dashboard built | `implemented` as a written decision (O114); default recorded in Phase 5 it-0, no person has confirmed or replaced it |
 
 ---
 
@@ -119,7 +120,7 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 | QR payload | Random 128-bit ticket code (base64url), unique, not derived from ids, so it cannot be guessed or enumerated | `implemented` as issuing in Phase 2 it-5: `backend/src/modules/booking/domain/ticket-code.ts` (16 random bytes from Node crypto, base64url), `UNIQUE(code)` on tickets; test `ticket-code.test.ts`. Showing it as a QR is `implemented` in Phase 3 it-8 (O79) |
 | Anonymous holders | Random visitor token cookie, hashed in the database; a holder can only touch their own hold (404 otherwise) | `implemented` Phase 2 it-6 (O59): `booking/presentation/http/hooks/{visitor-token.ts,holder-hooks.ts}`; tests `release-seat.route.integration.test.ts`, `checkout.route.integration.test.ts`, `current-hold.route.integration.test.ts` (another visitor gets 404) |
 | Secrets | None in the repository, images, CI logs or `VITE_*`; production reads them from AWS Secrets Manager or SSM Parameter Store | `planned` Phase 0 it-1, it-3 |
-| Input validation | zod schemas at every HTTP boundary with explicit bounds (grid size, price, page size, date ranges) | `planned` every phase |
+| Input validation | Fastify JSON schemas (Ajv) at every HTTP boundary, with `additionalProperties: false` and `propertyNames` where unknown fields must be rejected (O57, O70), plus explicit bounds (grid size, price, page size, date ranges: O70, O86) | `implemented` Phase 1 to 4; zod is used only for the environment configuration (`backend/src/config/load-config.ts`) |
 
 ### Before production (written, not built)
 
@@ -130,7 +131,7 @@ The Phase 1 summary and its open risks are in O56.
 - General audit log of admin actions (only the manual seat release is logged, in `seat_release_log`, O98).
 - Purge jobs for old login codes (rows older than a day, bounded batches, index on `created_at`), expired holds and guest links (bounded batches).
 - Real payment provider: webhook signature checks, idempotency keys, refunds.
-- Dependency and container image scanning in CI.
+- Container image scanning in CI. Dependency audit and Semgrep already run in CI (`.github/workflows/ci.yml`, `scripts/security-scan.mjs`); the image is not scanned.
 
 ---
 
@@ -145,7 +146,7 @@ The Phase 1 summary and its open risks are in O56.
   - Sessions in ElastiCache (needs approval; today PostgreSQL).
   - Per-buyer hold limits to stop hoarding.
 - **AWS services.** CloudFront, WAF, S3 (frontend), ALB, ECS Fargate with auto scaling (backend), Aurora PostgreSQL with a read replica and RDS Proxy, SES (email), Secrets Manager, CloudWatch, EventBridge Scheduler (sweeper).
-- **Status.** `planned` as written entry: Phase 5 it-3. Design invariants that keep this path open are already agreed (see O3).
+- **Status.** `planned` (Phase 5 it-3, written only; the reasoning against the code, the order of failures and the full AWS list are in O113). Design invariants that keep this path open are already agreed (see O3).
 
 ---
 
@@ -240,7 +241,7 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** Development, tests and verify run on Docker Compose (PostgreSQL 17, Mailpit). The macOS install skill uses Homebrew services with the same versions and `.env` keys.
 - **Options.** Docker on the Mac too; Homebrew everywhere.
 - **Trade-off.** Two local setups to keep in line (a review check enforces it); in return the clean-Mac run avoids Docker Desktop's GUI install and fits under 10 minutes.
-- **Status.** `planned`: Phase 0 it-3, it-7. In place: `docker-compose.yml` (PostgreSQL 17.12, Mailpit v1.34.0; checked by `docker compose config -q`), `.env.example` (test `backend/src/config/env-example.test.ts`), `README.md` (test `scripts/readme-commands.test.mjs`), `.claude/skills/install-seathold/SKILL.md` (tracked, test `scripts/git-hygiene.test.mjs`). Missing: the install skill is v0 and has not been run on a Mac, so the Homebrew path is unproven.
+- **Status.** `planned`: Phase 0 it-3, it-7. In place: `docker-compose.yml` (PostgreSQL 17.12, Mailpit v1.34.0; checked by `docker compose config -q`), `.env.example` (test `backend/src/config/env-example.test.ts`), `README.md` (test `scripts/readme-commands.test.mjs`), `.claude/skills/install-seathold/SKILL.md` (tracked, test `scripts/git-hygiene.test.mjs`). The install skill is rewritten and statically checked (917be0a: its commands are checked against `package.json`). Missing: the timed clean-Mac run has not been done; a person must run it on a Mac, so the Homebrew path is unproven and the install proof stays open.
 
 ### O14. CI
 
@@ -268,7 +269,7 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** 1-200 rows and 1-200 seats per row, at most 20,000 seats per event, enforced by a `CHECK` and by input validation.
 - **Options.** 50 x 50 (2,500 seats, too small for the scale scenario); no cap.
 - **Trade-off.** A 20,000-seat event means a 20,000-row insert in one transaction at creation and a heavy SVG seat map (zoom and pan in Phase 6).
-- **Status.** `implemented` for the database `CHECK` (`events_grid_check`, Phase 2 it-1; test `catalog-schema.integration.test.ts`); input validation at event creation is `planned` Phase 4 it-1. Row labels are generated as letters (`chr(64 + row)`), which is only meaningful up to 26 rows; the seed uses 10. Phase 4 must define labels for larger grids.
+- **Status.** `implemented` for the database `CHECK` (`events_grid_check`, Phase 2 it-1; test `catalog-schema.integration.test.ts`); input validation at event creation is `implemented` in Phase 4 it-1 (O86), and row labels beyond 26 rows are defined by `rowLabel` (A to Z, then AA; O85). The earlier note about `chr(64 + row)` is out of date: the seed and the back office both use `rowLabel`.
 
 ### O18. Visitor hold on login
 
@@ -282,8 +283,8 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** Fixed 30-day sessions, no idle timeout.
 - **Options.** Short sessions with refresh; a sliding idle timeout.
 - **Trade-off.** A stolen cookie stays valid longer; mitigated by `HttpOnly` cookies, logout-all, and an admin idle timeout listed before production.
-- **Status.** `planned`: Phase 1 it-4.
-- **Status.** `implemented`: `backend/src/modules/auth/application/session-service.ts`, `backend/src/config/load-config.ts` (`SESSION_TTL_DAYS`), tested in `session-service.test.ts` and `auth-session-routes.integration.test.ts` (Phase 1 it-4, O44).
+- **Status.** `implemented`: Phase 1 it-4 (`SESSION_TTL_DAYS`, default 30, in `backend/src/config/load-config.ts`; see O44). The admin idle timeout stays `planned` (Security, before production). Files and tests: `backend/src/modules/auth/application/session-service.ts`, `backend/src/config/load-config.ts` (`SESSION_TTL_DAYS`), tested in `session-service.test.ts` and `auth-session-routes.integration.test.ts` (Phase 1 it-4, O44).
+
 ### O20. Phase 0 tooling versions
 
 - **Choice.** Exact pins, Node 24. TypeScript 6.0.3 (typescript-eslint 8.74.0 supports TypeScript below 6.1, so TypeScript 7 waits). Prisma 7.10.1 (the `latest` tag is a release candidate); with Prisma 7 the connection URL lives in `backend/prisma.config.ts`, not in `schema.prisma`. `@types/node` 24.x to match the runtime. Extra packages beyond the Phase 0 list: `pg` and `@types/pg` (`scripts/test-db.mjs` and the integration smoke test), `@eslint/js` (ESLint recommended rules), `@testing-library/dom` (peer of Testing Library React), `@types/react` and `@types/react-dom`. Root `overrides` pins the transitive `effect` to 3.22.5 because Prisma's config package pulls a version with a high-severity advisory (dev-only).
@@ -526,9 +527,9 @@ The Phase 1 summary and its open risks are in O56.
 ### O52. Frontend auth state: `me` as server state
 
 - **Context.** Plan Phase 1 section 4 and it-7: the SPA must know who is signed in without keeping credentials in the browser (rules 30, 31, 40).
-- **Choice.** The signed-in user is TanStack Query server state under the key `['auth', 'me']`, filled by `AuthApi.getMe()` (`GET /api/auth/me`); `null` means anonymous, `undefined` means still loading, an error means the check failed (the guards show an alert and do not guess). `useMe` sets `retry: false` and `staleTime: 60s`. A successful verify sets the key to the returned user and a logout sets it to `null` (`useAuthSession`), after cancelling any `me` fetch in flight so a late anonymous answer cannot overwrite the new state. Nothing is written to `localStorage` or `sessionStorage`: the session itself is the `HttpOnly` `sid` cookie, which scripts cannot read. `LoginPage` shows email then a 6-digit code (`autocomplete="email"` and `"one-time-code"`, numeric input mode, submit on Enter, errors in `role="alert"`), and a signed-in user visiting it is redirected on, which is also how it lands after a successful verify. Logout calls `POST /api/auth/logout`, then sets `me` to `null` and goes home; a 401 (session already gone) counts as logged out, any other failure keeps the state and shows an alert. Feature services are `AuthApi` (auth) and `AdminApi` (the `/admin` placeholder page reading `/api/admin/ping`); components get them through the one `ApiClient` in `ApiClientProvider`.
+- **Choice.** The signed-in user is TanStack Query server state under the key `['auth', 'me']`, filled by `AuthApi.getMe()` (`GET /api/auth/me`); `null` means anonymous, `undefined` means still loading, an error means the check failed (the guards show an alert and do not guess). `useMe` sets `retry: false` and `staleTime: 60s`. A successful verify sets the key to the returned user and a logout sets it to `null` (`useAuthSession`), after cancelling any `me` fetch in flight so a late anonymous answer cannot overwrite the new state. Nothing is written to `localStorage` or `sessionStorage`: the session itself is the `HttpOnly` `sid` cookie, which scripts cannot read. `LoginPage` shows email then a 6-digit code (`autocomplete="email"` and `"one-time-code"`, numeric input mode, submit on Enter, errors in `role="alert"`), and a signed-in user visiting it is redirected on, which is also how it lands after a successful verify. Logout calls `POST /api/auth/logout`, then sets `me` to `null` and goes home; a 401 (session already gone) counts as logged out, any other failure keeps the state and shows an alert. Feature services are `AuthApi` (auth) and `AdminApi` (in Phase 1 the `/admin` placeholder page read `/api/admin/ping`; that route is removed, O95, and `AdminApi` now calls the back-office routes, O103 to O109); components get them through the one `ApiClient` in `ApiClientProvider`.
 - **Options.** A React context or global store for the user (a second source of truth next to the query cache; rule 30 prefers the project's server-state mechanism); caching the user in web storage (readable by any script on the origin, goes stale after a demotion); redirecting with an explicit `navigate` after verify (a second path next to the signed-in redirect).
-- **Trade-off.** One `me` request on first render of any page that shows the header. After a logout the other cached queries stay in memory until reload; today only the admin ping exists, and each feature that holds user data must clear its own keys on logout. A role change on the server shows up in the UI when `me` is next fetched; the server enforces it on every request regardless.
+- **Trade-off.** One `me` request on first render of any page that shows the header. After a logout the other cached queries stay in memory until reload; the admin lists (events, lookups, open and bought tickets, `frontend/src/features/admin/hooks/use-admin-queries.ts`) and the booking queries stay in the query cache, and logout does not clear them, so each feature that holds user data must clear its own keys on logout (not done for the admin lists; the server answers 401 or 403 to a signed-out request, and the admin pages sit behind `RequireAdmin`). A role change on the server shows up in the UI when `me` is next fetched; the server enforces it on every request regardless.
 - **Status.** `implemented`: `frontend/src/features/auth/{hooks/use-me,use-auth-session,use-login-flow,use-auth-api}.ts`, `services/auth-api.ts`, `components/{login-page,user-menu,require-auth,require-admin,not-allowed-page}.tsx`, `features/admin/*`, `app/router.tsx`, `features/home/home-page.tsx`; tests `login-page.test.tsx`, `user-menu.test.tsx`, `guards.test.tsx`, `auth-api.test.ts` (including no web storage writes).
 
 ### O53. CSRF token handling in the ApiClient
@@ -1004,6 +1005,109 @@ The Phase 1 summary and its open risks are in O56.
 - **Trade-off.** The seat release coupling (O97) and the non-snapshot lists (O102) remain by choice. The review was static plus targeted unit runs; the integration and manual browser checks are not part of it.
 - **Status.** `implemented` for the fixes (commits above, tests as listed in O84, O101 and O102a).
 
+### O111. Cache headers today, and the cache layer that is not built
+
+- **Context.** D3 writes the caching policy. The phase 5 plan asks the entry to say what exists. This entry records what each route sends today, read from the route files, and what is missing.
+- **Options.** Build an edge cache now (CloudFront is not part of the repository and the brief says production is designed, not deployed, O3); an in-process cache (breaks statelessness); only headers, with the policy written (chosen).
+- **Choice.** No cache layer is built. The backend sets `Cache-Control` per route:
+  - `public, max-age=1`: `GET /api/shows` (`shows-search.route.ts`), `GET /api/events/:eventId` (`event-detail.route.ts`), `GET /api/events/:eventId/seats` (`seat-map.route.ts`; it reads no cookie and sets none, so it is the same for every viewer).
+  - `public, max-age=60`: `GET /api/shows/facets` (`shows-facets.route.ts`).
+  - `no-store`: `GET /api/events/:eventId/hold`, `PUT .../hold/seats/:seatId`, `DELETE` on the seat release, `POST .../hold/checkout`, `GET /api/auth/csrf`, `GET /api/me/bookings` (with `Vary: Cookie`), `POST /api/guest/exchange`, `GET /api/guest/booking` (with `Vary: Cookie`), and every `/api/admin` route (events list, lookups, open tickets, bought tickets, create event, release).
+  - `GET /api/auth/me` also sends `no-store` with `Vary: Cookie` (`me.route.ts`), for the anonymous `{ user: null }` answer and the signed-in answer, as D3 requires.
+  - **No `Cache-Control` header at all** on `POST /api/guest/resend` and the other auth POST routes (`request-code`, `verify`, `logout`, `logout-all`). Responses to POST are not cached by browsers or shared caches by default, so this is left as is.
+  - The shorter 1 s of the headers against the 30 s, 60 s and 5 min of D3 is deliberate: the edge TTL is the planned cache time, and a browser cache must not stack a long second delay on top of it (O70).
+  - Invalidation: nothing to invalidate yet. An admin event create (O83) inserts a new event and the search, facets and detail answers show it within their TTL; with an edge cache the plan is a CloudFront invalidation of `/api/shows*` after create. A price change does not exist (no route edits an event, O67), so there is no price invalidation to build.
+  - Never cached, as D3: holds, `held_by_me`, checkout, payments, sessions, My bookings, guest pages, admin responses. The seat map carries no `held_by_me`; the viewer's own hold comes from the uncached `GET .../hold` (D3).
+- **Trade-off.** Without a cache layer every poll of the seat map reaches the database (O113); the headers only make the browser and a future edge cache correct.
+- **Status.** `implemented` for the headers (files above; tests `shows-facets.route.integration.test.ts`, `event-detail.route.integration.test.ts`, `seat-map.route.integration.test.ts`, `current-hold.route.integration.test.ts`, `checkout.route.integration.test.ts`, `my-bookings.route.integration.test.ts`, `release-seat.route.integration.test.ts`, `hold-seat.route.integration.test.ts` (successful `PUT` hold answers `no-store`), `guest-exchange.route.integration.test.ts`, the admin route integration tests, and `auth-csrf-routes.test.ts`, and `auth-session-routes.integration.test.ts` for `/api/auth/me`). `planned` (Phase 5 it-3, written only) for the cache layer and the invalidation.
+
+### O112. Latency targets, the hold path counted, and the threats
+
+- **Context.** The brief wants written latency targets. The phase 5 plan counted "about four round trips" for the hold; this entry replaces that with a count from the code.
+- **Targets (written, not measured).** `GET /api/shows` p95 under 150 ms server time at seed size (200 shows, 200 events, 40,000 seats, O9); seat hold (`PUT .../hold/seats/:seatId`) p95 under 50 ms; checkout p95 under 200 ms excluding the payment provider. No load test or timing run exists in the repository. The optional measurement of the plan (a short `autocannon` run) needs a new dependency, so it needs approval and is not done. The only timing in the repository is the local 20,000-seat insert, about 0.4 to 0.5 s (O85).
+- **The hold path, counted.** `HoldSeatService.hold` (`backend/src/modules/booking/application/hold-seat-service.ts`) and `PrismaHoldTransaction` (`prisma-hold-repository.ts`) run these round trips to the database, each in order:
+  1. `SELECT clock_timestamp()` (`DatabaseClock`, outside the transaction).
+  2. `BEGIN` (Prisma interactive transaction).
+  3. `expireStaleHold`: one `UPDATE holds ... RETURNING` (plus one more `UPDATE seats` only when the holder had a stale active hold).
+  4. `getOrCreateActiveHold`: `INSERT INTO holds ... ON CONFLICT DO NOTHING`.
+  5. `findActiveHold`: `SELECT ... FOR UPDATE` on the holder's active hold.
+  6. `findActiveHold`: `SELECT count(*)` of the hold's seats (the second statement exists because of the seat-cap race, D1).
+  7. `tryHoldSeat`: the conditional seat `UPDATE ... RETURNING`.
+  8. `seatIdsOfHold`: `SELECT id FROM seats WHERE hold_id = ...`.
+  9. `COMMIT`.
+  So 6 statements inside the transaction and 9 round trips for an anonymous holder (the `vid` cookie is hashed in the application, no query). A signed-in holder adds the session lookup of `requireAuth` or `optionalAuth` (one query, O44), so 10; a visitor with a `vid` cookie who has just signed in adds the adoption transaction once (O60). The plan's "about four" was wrong: four is the number of application steps, not round trips. The 50 ms budget leaves roughly 5 ms per round trip, which is realistic only inside one availability zone. Reductions that are possible and not built: read the clock inside the transaction as its first statement (saves one round trip and a pooled connection checkout), fold the `count` into the `FOR UPDATE` select by locking first in a CTE (the seat-cap test must keep passing, D1), and return the seat ids from the seat UPDATE's own result. Each needs a measurement first.
+- **Threats.**
+  - Hot seat rows at on-sale: concurrent holds on one seat serialize on that row's lock; correct by D1, and the 100-parallel-holds test shows one winner, but latency of the losers grows with the queue. Mitigation: per-buyer limits and the waiting room (O113).
+  - The same holder's parallel clicks serialize on the hold row (`FOR UPDATE`), by design.
+  - Polling load: the frontend polls the seat map every `VITE_SEAT_POLL_INTERVAL_MS` (default 3000) while the tab is visible (`frontend/src/features/event/hooks/event-queries.ts`); each answer reads every seat of the event (`prisma-seat-map-reader.ts`, up to 20,000 rows). That is read load on the writer today (O113).
+  - Connection pool exhaustion: each hold holds one pooled connection for the 9 round trips; `DATABASE_POOL_MAX` is 10 per instance (O31) and the transaction `maxWait` is 10 s (O66). Instances times the pool size must stay under RDS Proxy and PostgreSQL limits; RDS Proxy shares a database connection between clients only while it is not pinned, and some statements (the `SAVEPOINT` of the adoption transaction is one candidate) can pin it; this was not checked against a proxy. Not measured.
+  - Full-text plans: at 40,000 seats the planner prefers sequential scans, and the `OR` between the text match and the venue `ILIKE` cannot use the GIN index (O70). A `UNION` of the two matches is the written fix. The seat-count join for a result page uses `seats(event_id, status)`.
+  - Checkout: two clock reads, the mock payment (the mock gateway has no artificial delay) and one confirm transaction (D4). The 200 ms budget excludes the real provider.
+- **Indexes that serve these paths (all `implemented`).** Hold and release: `seats_event_id_row_label_seat_number_key` and the primary key for `UPDATE ... WHERE id AND event_id`, `seats_hold_id_idx` for `WHERE hold_id`, the partial unique indexes `holds_event_id_user_id_active_key` and `holds_event_id_visitor_hash_active_key` (migration `20261126130000_booking_schema`) for the get-or-create and the `FOR UPDATE` select, `holds_event_id_idx`. Seat map and counts: `seats_event_id_status_idx`. Search: `shows_search_vector_idx` (GIN), `shows_type_idx`, `shows_genre_idx`, `events_starts_at_idx`, `events_show_id_idx`, `events_venue_id_idx`, `venues_country_code_city_idx` (migrations `20261126130000_booking_schema` and `20261127100000_shows_search`). My bookings: `bookings_user_id_created_at_idx`, `tickets_booking_id_idx`. Sessions: `sessions_token_hash_key` (migration `20261126120000_auth_schema`). The one known missing index is the sweeper's `seats(held_until) WHERE status = 'held'` (O64).
+- **Options.** Targets only; targets with a measurement now (needs a dependency and time, not approved); targets with the real count and a list of reductions (chosen).
+- **Trade-off.** The numbers are goals, not measurements; a reader cannot tell from this repository whether 50 ms holds. The round trip count is exact for the code today and changes when the reductions are built.
+- **Status.** `planned` for the targets and the measurement (Phase 5 it-3; the measurement is optional). `implemented` for the indexes and for the hold path as counted (files above; tests D1, D2). The count was read from the code, not from a trace.
+
+### O113. Scale: 100,000 visitors for 20,000 seats on AWS
+
+- **Context.** The brief asks what breaks first at 100,000 visitors for 20,000 seats and what changes. The Scale section above is the short form; this entry gives the reasoning against the code. Nothing here is built or deployed (O3).
+- **What breaks first, in order.**
+  1. The seat-hold write path. Every successful hold is 6 statements in one transaction on the single writer (O112). All 20,000 seats of an event are one event's rows; a popular seat is one row lock. At on-sale thousands of visitors click within seconds, so the pool (10 connections per instance) and the lock queues on hot rows run out before CPU does.
+  2. Seat-map polling. With the default 3 s poll, 100,000 open pages mean about 33,000 requests per second, each reading up to 20,000 seat rows from the writer (`prisma-seat-map-reader.ts`) and sending them as JSON. This would exhaust the database before the hold path is stressed. Today the `max-age=1` header lets a browser reuse an answer, but there is no shared cache (O111).
+  3. The per-request session lookup for signed-in users (`sessions_token_hash_key`, one indexed query per request, plus the role read for admin routes). Cheap but on every request, on the writer.
+  4. Search and facets: indexed, and the facets and count queries are small, but they compete with the writer; the `OR` plan (O70) gets worse as the catalog grows.
+- **What would change.**
+  - A virtual waiting room at CloudFront (a queue token checked at the edge) so only as many buyers enter the on-sale as the hold path serves. Not designed in detail; needs its own plan.
+  - Seat availability cached at CloudFront for 1 to 2 seconds (D3). This removes most of the polling: the origin sees about one request per edge location per TTL per event instead of tens of thousands per second. The per-viewer hold stays uncached and small (`GET .../hold`, O111).
+  - A read replica (Aurora) for search, facets, event detail and the seat map; the hold path, checkout and sessions stay on the writer. Replica lag makes the seat map stale by that lag, which the 409-and-refresh flow already tolerates (D3).
+  - RDS Proxy for connection pooling, with short transactions only (O66); ECS Fargate auto scaling on CPU and request count, with `DATABASE_POOL_MAX` sized so instances times pool stays under the proxy limit (O31).
+  - Per-buyer hold limits: the seat cap per hold exists (`MAX_SEATS_PER_HOLD`, 10, D1); a limit on hold attempts per buyer per minute does not, and belongs to the WAF rate rules and a database-backed counter (rule 40).
+  - Sessions in ElastiCache (Redis): **needs approval** (a new store the project has not approved); today sessions stay in PostgreSQL, and the session lookup is one indexed query. The alternative with no new service is to leave them on the writer and rely on RDS Proxy.
+  - The hold sweeper (O64) scheduled by EventBridge Scheduler as a one-off ECS task.
+- **AWS services (the production target of this project).** CloudFront (static frontend and edge cache, `/api/*` routed to the ALB), WAF (rate rules), S3 (static frontend), ALB, ECS Fargate with auto scaling, Aurora PostgreSQL 17 with a read replica, RDS Proxy, SES, Secrets Manager or SSM Parameter Store, CloudWatch, EventBridge Scheduler. ElastiCache is the only addition and it is marked as needing approval.
+- **Options.** Scale the writer up only (one box: simple, hits the lock ceiling on hot seats anyway); shard events across databases (not needed at one event of 20,000 seats, and the code has no event-to-shard routing); a queue in front of holds (an event bus is not allowed without demonstrated need, rule 01); the list above (chosen).
+- **Trade-off.** Seat availability up to 2 s stale at the edge, and a 409 on a click for a seat that was just taken. A waiting room adds a step for buyers and an extra component. No load test supports any figure here; the 33,000 requests per second is arithmetic from the default poll interval, not a measurement.
+- **Status.** `planned` (Phase 5 it-3, written only). What exists and keeps the path open: stateless instances, database clock, the conditional hold update and its 100-parallel test (D1), the uncached viewer-hold route split from the public seat map (D3), the pool setting (O31).
+
+### O114. Own KPI: hold-to-purchase conversion and hold expiry rate per event
+
+- **Context.** The brief asks for one KPI chosen by the team, with how it would be computed. The default KPI was recorded in Phase 5 it-0 and implemented as a written decision here; no person has confirmed or replaced it. If the owner prefers another KPI, replace it in this entry.
+- **Choice.** Two linked ratios per event, computed from the `holds` table over settled holds:
+  - A hold is settled when its outcome is final: `holds.status` is `converted` (checkout succeeded, set in `checkout-statements.ts`), `expired` (the hold transaction, the sweeper or a failed confirm marked it, `prisma-hold-repository.ts`, `prisma-hold-sweeper.ts`, `prisma-checkout-repository.ts`), `released` (the buyer released the last seat, or an operator released it, O98 to O100), or `active` with `expires_at <= now` (lazy expiry, D2: the row has not been touched or swept yet, and counts as expired).
+  - Conversion rate = converted / settled. Expiry rate = expired / settled. The rest is released. A live hold (`active` and `expires_at > now`) is not yet counted.
+  - Why it is the KPI: it shows whether the 10-minute window (`HOLD_DURATION_MINUTES`) and the checkout are workable (a low conversion with a high expiry rate means buyers run out of time or abandon at payment), and a high expiry rate with few distinct holders signals hoarding. A late-payment rejection (D4) ends as an expired hold with a `rejected` booking, so it is counted as expired and can be split out with `bookings.status = 'rejected'`.
+- **Columns (checked against `backend/prisma/schema.prisma` and the booking migration).** `holds.id`, `holds.event_id`, `holds.status` (CHECK in `active`, `converted`, `expired`, `released`), `holds.expires_at`, `holds.created_at`; `bookings.hold_id`, `bookings.status` (`confirmed`, `rejected`); `seats.hold_id` for seats per hold. `now` is the database clock value read once and passed in, as everywhere (O4).
+- **Example (read-only; `$1` is the database time, `$2` the start of the window).**
+  ```sql
+  SELECT h.event_id,
+         count(*)                                                        AS settled_holds,
+         count(*) FILTER (WHERE h.status = 'converted')                  AS converted,
+         count(*) FILTER (WHERE h.status = 'expired'
+                             OR (h.status = 'active' AND h.expires_at <= $1)) AS expired,
+         count(*) FILTER (WHERE h.status = 'released')                   AS released,
+         round(100.0 * count(*) FILTER (WHERE h.status = 'converted') / count(*), 1) AS conversion_pct,
+         round(100.0 * count(*) FILTER (WHERE h.status = 'expired'
+                             OR (h.status = 'active' AND h.expires_at <= $1)) / count(*), 1) AS expiry_pct
+  FROM holds h
+  WHERE h.created_at >= $2
+    AND (h.status <> 'active' OR h.expires_at <= $1)
+  GROUP BY h.event_id
+  ORDER BY settled_holds DESC;
+  ```
+  The `GROUP BY` on `event_id` is served by `holds_event_id_idx`; the `created_at` filter has no index, which is fine at seed size and would run on the read replica at scale (O113).
+- **Options considered.** p99 time from the seat click to `held_by_me` (needs request timing the repository does not record); QR fetch success rate (needs a ticket-view counter, and tickets are only fetched by their owners); seat-turnover per event (sold seats over seats; a business measure, not a product-quality one). The chosen pair needs no new column or table.
+- **Trade-off.** The ratios are per hold, not per seat or per buyer: a hold with 10 seats counts once, and one buyer's repeated holds count each time. Holds are only rows for successful seat clicks (a failed click rolls its hold back, D1), so clicks that lost to a 409 are not in the denominator. Operator releases count as `released` (they are also in `seat_release_log`). No endpoint, dashboard or scheduled query exists.
+- **Status.** `implemented` as a written decision (default recorded in Phase 5 it-0, definition written in it-3; no person has confirmed it). The data it needs `implemented`: the `holds` table and its status transitions (D1, D2, D4, O64, O98). The SQL was not run against a database in this step; it uses only columns that exist in the schema.
+
+### O115. External review of Phase 5
+
+- **Context.** Reviewer `SH-cursor` ran the review-suite over the Phase 5 commits outside the run that built them, as for Phase 4 (O110), as one single-agent review per round.
+- **Findings, round 1** (`origin/main..HEAD`, 4 commits). 0 Critical, 3 Important: a stale sentence in O52 about the ping page; the workflow log said "documents only" while scripts and the `/me` fix were in the branch; a log claim that O52 was corrected. Suggestions (5): O19 had a duplicate status, O111 lacked a hold test, the `seed:catalog` hash, plan wording and statuses, and the scope of the install static check. All fixed in `60d1bbe`. The first delegation ended `uncertain` (another input reached the reviewer); the report was obtained with a follow-up request.
+- **Findings, round 2** (`206d131..HEAD`). 0 Critical, 1 Important (the KPI it-0 wording in the KPI table and O114) and 3 suggestions (a log sentence about the plan wording, the README status line, this record). All fixed in the fix commit of this round.
+- **Choice.** Fix every finding (chosen) over fixing only Critical and Important findings.
+- **Trade-off.** The review was static. The timed clean-Mac install run and the browser end-to-end check are not covered by it.
+- **Status.** `implemented` (fixes in the commits above; checks by the documentation tests and `node scripts/sync-ai-rules.mjs --check`).
+
 ## Back-office capability proposal
 
 **Manual release of a held seat.** An operator can free a seat stuck in a hold with a required reason (for example, a buyer abandoned checkout during a support call, or a hold blocks the last seat before showtime). It uses the same conditional update as a buyer release and writes a log row.
@@ -1024,11 +1128,24 @@ The Phase 1 summary and its open risks are in O56.
 
 ## AI workflow
 
+The dated, per-phase record is [`docs/ai-workflow-log.md`](docs/ai-workflow-log.md); this section is the summary the submission asks for. Every commit id below is from `git log` of this repository.
+
 ### How Claude is set up
 
-- Claude Code is the main development tool, with project rules (test first, approval before code changes, module boundaries, security, AWS production invariants), skills (feature planning, verification, reviews) and read-only review agents.
-- Every phase has a plan in `plans/` with test-first iterations; each iteration is one reviewable change with its own approval.
-- Subagents run implementation steps; their reports are checked against the code and the test output before anything is accepted.
+- **Tool and rules.** Claude Code does the building. The engineering rules (governance and approval before code changes, test first, modular monolith with thin routes and shared hooks, locking model, security, AWS production invariants, commits) are the source files in `.cursor/rules/`. `scripts/sync-ai-rules.mjs` generates `.claude/rules/*.md` from them, and `npm run lint` fails when the generated copies drift (`scripts/sync-ai-rules.test.mjs`). The same script generates the skills (feature planning, use case, repository, Fastify route and security, verify, release guide, the review skills, install skill) and the review agents of the local `review-suite` plugin (code reviewer, Bugbot contract reviewer, security, performance, test, type, comment, silent-failure and over-engineering reviewers).
+- **What is committed.** `CLAUDE.md`, `AGENT.md`, `.claude/settings.json` and the `install-seathold` skill are tracked; `.cursor/` and `.claude/rules/` are gitignored and exist only in local checkouts (O15), and the other skills and the plugin are not tracked either. A reviewer of the repository sees the rules in summary through `CLAUDE.md`, not the full files. The sync check therefore runs only where `.cursor/` exists.
+- **Plans first.** Every phase has a plan in `plans/` (`plans/seatholder_product_roadmap.plan.md` and `plans/phase_<n>_*.plan.md`) with test-first iterations, an "Agreed decisions" table and a matching `DECISIONS.md` entry for every row. A plan was reviewed before code started (example 2 below).
+- **Test first, one commit per step.** Each iteration was briefed to a Claude Sonnet subagent as a self-contained step (task, files, the test and the behavior it proves, the done-when command, the rules), with the failing run requested before the implementation. Haiku subagents staged and committed, one step per commit (commit messages name the phase and iteration, for example `feat(booking): add hold and release services with conditional seat update (phase 2 it-3)`, `dbfaa06`).
+- **Reports are data.** The main agent re-read the code and re-ran the checks (`npm run verify-fast-part` while iterating, the full `npm run verify` before a push) instead of trusting a subagent's report; a failing step got at most two fix rounds (`.claude/rules/17-common-agents.md`).
+- **Unattended runs.** The `am-feature-impl` skill (Agent Manager) runs a plan iteration with no human in the loop: feature branch, test-first steps delegated to subagents and committed one by one, a private PostgreSQL per run, full verify, a review through a fallback chain or delegated to a named Agent Manager agent, a fix round, a release guide in `docs/release_guides/`, plan and roadmap statuses, push and merge request. Starting it counts as the approval the governance rule asks for, for that scope only; a new dependency, a destructive migration, a CI or Docker change or a design question stops the affected step and becomes a blocker in the report.
+- **Decisions as one record.** Every design choice and trade-off goes into this file in the same change as the code, with a status (`planned` or `implemented`) and the files and tests that prove it.
+
+### How the output was reviewed
+
+1. **Per step.** The main agent checked each subagent report against the code and a fresh verify run before the commit.
+2. **External review, two rounds per phase.** For phases 2, 3 and 4 another Agent Manager agent (reviewer `SH-cursor` named for phases 3 and 4) ran the `review-suite` over the phase, outside the run that built it. Round 1 found 0 Critical findings in each phase and 3, 5 and 3 Important findings for phases 2, 3 and 4; a second round checked the fixes. Every finding was fixed or recorded with its reason as accepted or dropped. The records are O68 (Phase 2), O82 (Phase 3) and O110 (Phase 4); the fix commits are `7b7f11e`, `2afe774`, `82fcf8d`, `2f2bc18`, `7f45614` and `db5f832`.
+3. **Plan review in another AI tool** before code (example 2 below) and a review of the roadmap from an AWS point of view (example 1).
+4. **Limits of the review.** The Phase 4 review was static plus targeted unit runs; no review replaced a manual browser run of the buyer, guest and admin paths, and the log says where red runs were not captured.
 
 ### Where Claude was wrong, and how it was caught
 
@@ -1036,4 +1153,22 @@ The Phase 1 summary and its open risks are in O56.
 
 2. **Plans that disagreed with each other (planning).** A separate review of the plans in another AI tool found that the roadmap, the Phase 2 plan and this file stated the lock predicate differently (`<` against `<=` at the expiry instant), named three different clock sources, described a personalized seat response as edge-cacheable, and capped events at 2,500 seats while the scale answer assumed 20,000. Each was reconciled to one wording (D1, D2, D3, O4, O17), and the missing cases it raised (login with a visitor hold, parallel first clicks of one holder, a test that fires the ticket backstop) became decisions and tests.
 
-More examples are collected in `docs/ai-workflow-log.md` as work happens (`planned`: Phase 0 it-7 onward).
+3. **The guest link exchange was not atomic (Phase 3, code).**
+   - *What Claude produced.* The exchange service (`b7254e2`, routes `d2f62a9`) consumed the one-time link with a conditional `UPDATE`, then read the booking, then created the guest session. Each step was correct alone, and the unit tests used an in-memory link fake that did not model a failing session insert.
+   - *How it was caught.* The external review of Phase 3 (O82, reviewer `SH-cursor`) listed it as Important: a failure after the consume burned the link and left a paid guest with no access and no way to retry. The project's locking model asks for one conditional statement instead of steps that can half-complete, and this flow was three steps.
+   - *What changed.* `2afe774` reads the usable link and the booking first, then consumes the link and creates the session in one statement (`WITH consumed AS (UPDATE ... RETURNING) INSERT INTO guest_sessions ... SELECT FROM consumed`), answers from the booking already read, and invalidates a link whose email failed to send. The second review round then found that the in-memory link fake used in unit tests did not roll the consume back when the session insert failed, so the unit test could not have caught the original bug; `5649840` made the fake atomic and added a test (O73, O82).
+
+4. **A venue upsert that silently reused another timezone (Phase 4, code).**
+   - *What Claude produced.* Creating an event with a new venue used `INSERT ... ON CONFLICT (name, city) DO UPDATE SET name = EXCLUDED.name` (`8fb72b7`), a no-op update that returned the existing row, so an operator who typed another country or timezone for an existing venue got the old values without any warning.
+   - *How it was caught.* The Phase 4 external review (O110, round 1, Important).
+   - *What changed.* `7f45614` made it 409 `VENUE_CONFLICT` unless country and timezone match, with tests in `prisma-event-grid-writer.integration.test.ts` and `create-event.route.integration.test.ts`; `db5f832` shows the conflict in the form (O84).
+
+5. **A first booking migration that created one table, found only on a fresh database (Phase 2).** Runs stayed green because they used a database that had been migrated step by step while the file grew. Applying all migrations to an empty database exposed it; the fix landed before `d5610c6` and the rule since is to apply a schema change to a fresh database before trusting green runs (log, Phase 2; O65).
+
+6. **A race in the seat cap and a clock read in the wrong place (Phase 2).** Two parallel clicks of one holder could both read the old seat count (the cap integration test found it, D1); the checkout read the clock before the payment, so a hold that lapsed during authorization was still sold (found in review of the checkout service and fixed test-first, D4).
+
+7. **Subagent reports that did not match reality (Phases 1 and 2).** A subagent reported a passing fast verify that failed on a fresh run (stale allowlist entries in the rule sync check, Phase 1 it-1, `a0746e4`); a commit subagent started the local database container without being asked, so later commit briefs allowed only git commands; several steps reported tests as test-first when the failing run had not been captured (the Phase 1 it-3, it-4 and it-6 tests, the Phase 2 it-5 integration tests, the Phase 4 create-event integration tests). These are listed in the log as process deviations, not hidden.
+
+8. **A plan that miscounted the hold path (Phase 5).** The phase 5 plan, written by Claude, said the hold transaction takes "about four round trips". Reading the code for the latency entry (O112) showed 9 database round trips for an anonymous holder: the clock read, `BEGIN`, six statements and `COMMIT`. The same pass found three stale statements in older entries (the Phase 1 `AdminApi` note, the O17 grid validation status, and `D3` listing `/api/auth/me` as never cached while the route sets no cache header, O111), now corrected. Found by re-reading entries against the code, not by a test.
+
+More detail per phase, including process deviations and open items, is in `docs/ai-workflow-log.md`.
