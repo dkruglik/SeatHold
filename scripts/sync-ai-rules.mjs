@@ -135,17 +135,8 @@ function agentReferences(text, from, to) {
 // A glob that is on this list and matches a tracked file fails the check (remove the entry); so does a glob that is
 // not on the list and matches nothing, and an entry that no rule uses.
 export const unmatchedGlobAllowlist = [
-  // Phase 1 (auth module, HTTP presentation, email, persistence adapters, first frontend feature service)
-  { glob: "frontend/src/**/services/**", until: "phase 1 it-7: AuthApi feature service" },
-  { glob: "backend/src/modules/**", until: "phase 1: auth module" },
-  { glob: "backend/src/modules/**/application/**", until: "phase 1: auth application services" },
-  { glob: "backend/src/modules/*/infrastructure/**", until: "phase 1: auth Prisma and email adapters" },
-  { glob: "backend/**/modules/**/http/**", until: "phase 1: auth route modules" },
-  { glob: "backend/**/ports/**", until: "phase 1: UserRepository, EmailProvider ports" },
-  { glob: "backend/**/auth/**", until: "phase 1: backend auth module" },
-  { glob: "frontend/**/auth/**", until: "phase 1: frontend auth state" },
+  // Phase 1 (auth module, HTTP presentation, email, persistence adapters)
   { glob: "backend/src/infrastructure/email/**", until: "phase 1: email providers" },
-  { glob: "**/email/**", until: "phase 1: email providers" },
   { glob: "backend/src/modules/auth/presentation/http/**/*service-auth*", until: "phase 1 or later: service auth hook, only if built" },
   { glob: "backend/src/modules/auth/presentation/http/routes/internal-*", until: "phase 1 or later: internal service routes, only if built" },
   // Never in this repository

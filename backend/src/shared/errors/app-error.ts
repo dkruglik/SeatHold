@@ -4,9 +4,13 @@ export type ErrorKind = "validation" | "authentication" | "authorization" | "bus
 export abstract class AppError extends Error {
   abstract readonly kind: ErrorKind;
 
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
+  /** A stable machine-readable code for the HTTP body; the error handler falls back to the code of the kind. */
+  readonly publicCode: string | undefined;
+
+  constructor(message: string, options?: { cause?: unknown; publicCode?: string }) {
+    super(message, options?.cause === undefined ? undefined : { cause: options.cause });
     this.name = new.target.name;
+    this.publicCode = options?.publicCode;
   }
 }
 

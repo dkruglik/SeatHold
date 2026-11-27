@@ -1,10 +1,51 @@
-// Datasource and generator only; the first models arrive in Phase 1.
 // The connection URL comes from DATABASE_URL through prisma.config.ts.
+//
+// Prisma cannot express CHECK constraints, and the first migration is edited by hand for them
+// (see DECISIONS.md O40). Timestamps have no database default: callers pass the injected `now`.
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [citext]
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique @db.Citext
+  role      String   @default("buyer")
+  createdAt DateTime @map("created_at") @db.Timestamptz(3)
+  sessions  Session[]
+
+  @@map("users")
+}
+
+model AuthCode {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String    @db.Citext
+  codeHash      String    @map("code_hash")
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
+  attempts      Int       @default(0)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(3)
+  invalidatedAt DateTime? @map("invalidated_at") @db.Timestamptz(3)
+  createdAt     DateTime  @map("created_at") @db.Timestamptz(3)
+
+  @@index([email, createdAt(sort: Desc)])
+  @@map("auth_codes")
+}
+
+model Session {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
 }

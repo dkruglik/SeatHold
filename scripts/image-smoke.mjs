@@ -26,6 +26,15 @@ export function smokeSettings(env, argv) {
   };
 }
 
+// A throwaway pepper for the smoke containers (the backend requires one in every environment). Not a secret.
+const smokePepper = "image-smoke-pepper-not-a-secret-0123456789";
+
+const smokeCsrfSecret = "image-smoke-csrf-secret-not-a-secret-0123456789";
+
+export function smokeEnv(databaseUrl, extra) {
+  return { APP_ENV: "local", DATABASE_URL: databaseUrl, AUTH_CODE_PEPPER: smokePepper, CSRF_SECRET: smokeCsrfSecret, ...extra };
+}
+
 export function dockerRunArgs({ image, name, network, env }) {
   const envArgs = Object.entries(env).flatMap(([key, value]) => ["-e", `${key}=${value}`]);
   return ["run", "-d", "--name", name, "--network", network, ...envArgs, image];
@@ -83,7 +92,7 @@ function logsOf(name) {
 }
 
 async function healthyShutdownCase(settings, name) {
-  const env = { APP_ENV: "local", DATABASE_URL: settings.databaseUrl, BACKEND_PORT: String(settings.port) };
+  const env = smokeEnv(settings.databaseUrl, { BACKEND_PORT: String(settings.port) });
   const started = docker(dockerRunArgs({ image: settings.image, name, network: settings.network, env }));
   if (started.status !== 0) return [`docker run failed: ${started.err.trim()}`];
   if (!(await waitForHealth(`http://127.0.0.1:${settings.port}/api/health`, healthDeadlineMs))) {
@@ -97,7 +106,7 @@ async function healthyShutdownCase(settings, name) {
 
 function invalidConfigCase(settings, name) {
   const databaseUrl = `postgresql://seatholder:${fakePassword}@127.0.0.1:5432/seatholder`;
-  const env = { APP_ENV: "local", DATABASE_URL: databaseUrl, BACKEND_PORT: "abc" };
+  const env = smokeEnv(databaseUrl, { BACKEND_PORT: "abc" });
   const started = docker(dockerRunArgs({ image: settings.image, name, network: settings.network, env }));
   if (started.status !== 0) return [`docker run failed: ${started.err.trim()}`];
   const exitCode = Number(docker(["wait", name]).out.trim());

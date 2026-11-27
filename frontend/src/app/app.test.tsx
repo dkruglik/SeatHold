@@ -1,11 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import { createMemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
+import { ApiClient } from "../shared/lib/api-client";
+import { createFakeBackend } from "../test/fake-backend";
+import { ApiClientProvider } from "./api-client-context";
 import { App } from "./app";
 import { routes } from "./router";
 
 function renderAt(path: string) {
-  return render(<App router={createMemoryRouter(routes, { initialEntries: [path] })} />);
+  const client = new ApiClient({ apiBaseUrl: "/api" }, createFakeBackend().fetchImpl);
+  return render(
+    <ApiClientProvider client={client}>
+      <App router={createMemoryRouter(routes, { initialEntries: [path] })} />
+    </ApiClientProvider>,
+  );
 }
 
 describe("App", () => {

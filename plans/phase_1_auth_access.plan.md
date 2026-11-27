@@ -4,31 +4,31 @@ overview: "Passwordless email-code login with server-side sessions in PostgreSQL
 todos:
   - id: it-0-approvals
     content: Approve nodemailer and @fastify/csrf-protection (exact pins) and the auth defaults below
-    status: pending
+    status: completed
   - id: it-1-email-provider
     content: EmailProvider port, console and SMTP adapters, factory that fails fast on console in production
-    status: pending
+    status: completed
   - id: it-2-auth-schema
     content: users, auth_codes, sessions tables with constraints, repositories and mappers
-    status: pending
+    status: completed
   - id: it-3-login-codes
     content: Request-code and verify-code services (hash, expiry, attempts, single use, invalidation, rate limit, sign-up as buyer)
-    status: pending
+    status: completed
   - id: it-4-sessions-routes
     content: Session service, cookie, requireAuth hook, /api/auth routes (request-code, verify, me, logout, logout-all)
-    status: pending
+    status: completed
   - id: it-5-csrf-origin
     content: browserStateChangeHooks (CSRF token + Origin) composed on every mutating browser route
-    status: pending
+    status: completed
   - id: it-6-admin-access
     content: requireRole hook, /api/admin plugin with prefix hook, route-wide 401/403/2xx test, user:promote CLI, seeded users
-    status: pending
+    status: completed
   - id: it-7-frontend-auth
-    content: Login screen (email then code), /api/auth/me app state, logout, RequireAuth and RequireAdmin route guards
-    status: pending
+    content: "Login screen (email then code), /api/auth/me app state, logout, RequireAuth and RequireAdmin route guards. Still open: not run in a real browser against a real backend."
+    status: completed
   - id: it-8-docs-verify
-    content: Install skill prints logins and Mailpit URL, DECISIONS security entry, README, full verify, roadmap status
-    status: pending
+    content: "Install skill prints logins and Mailpit URL, DECISIONS security entry, README, full verify, roadmap status. Still open: manual flow in section 10 not yet run."
+    status: completed
 isProject: false
 ---
 

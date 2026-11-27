@@ -63,7 +63,7 @@ describe("ApiClient.get requests", () => {
 
 describe("ApiClient.get failures", () => {
   it("maps a non-2xx response to an ApiError with the status and the body code", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ code: "seat_taken", message: "secret-detail" }, 409));
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ error: { code: "seat_taken", message: "secret-detail" } }, 409));
 
     const error = await clientWith(fetchImpl).get("/seats").catch((e: unknown) => e);
 
@@ -72,8 +72,16 @@ describe("ApiClient.get failures", () => {
     expect((error as ApiError).code).toBe("seat_taken");
   });
 
+  it("reads the code from error.code, the backend error shape, and ignores a top-level code", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ code: "top_level", error: { code: "INVALID_CODE", message: "m" } }, 400));
+
+    const error = (await clientWith(fetchImpl).get("/x").catch((e: unknown) => e)) as ApiError;
+
+    expect(error.code).toBe("INVALID_CODE");
+  });
+
   it("leaves the code undefined when the body has none or is not JSON", async () => {
-    for (const response of [jsonResponse({ message: "x" }, 500), new Response("<html>boom</html>", { status: 502 })]) {
+    for (const response of [jsonResponse({ message: "x" }, 500), jsonResponse({ code: "top_level" }, 500), new Response("<html>boom</html>", { status: 502 })]) {
       const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(response);
       const error = (await clientWith(fetchImpl).get("/x").catch((e: unknown) => e)) as ApiError;
 

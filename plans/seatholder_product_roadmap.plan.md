@@ -6,8 +6,8 @@ todos:
     content: "Phase 0 built on branch feature/phase-0-ignore-agent-env, 2026-11-26: npm workspaces and tooling, typed config, Docker Compose (Postgres 17, Mailpit), Fastify backend with /api/health, database clock and graceful shutdown, Vite + React + Mantine frontend on /api, backend image and GitHub Actions CI, skeletons of install-seathold skill, README, DECISIONS.md and AI workflow log. Still open: first GitHub Actions run (multi-arch image build, arm64 unproven on the dev host), install-seathold run on a clean Mac, deploy and release-guide checks (plan: plans/phase_0_setup.plan.md)"
     status: completed
   - id: phase-1-auth
-    content: "Phase 1: email-code login, Postgres sessions, roles (buyer default, admin via seed/CLI only), CSRF, /api/admin/* prefix hook with route-wide 401/403 test, seeded admin and buyer, login screen; DECISIONS security entry (plan: plans/phase_1_auth_access.plan.md)"
-    status: pending
+    content: "Phase 1 built on branch feature/phase-1-auth-access, 2026-11-26: email-code login, Postgres sessions with hashed tokens, roles (buyer default, admin via seed and user:promote CLI only), CSRF and Origin checks, /api/admin/* prefix hook with route-wide 401/403 test, seeded admin and buyer, login screen and route guards, DECISIONS security entry, release guide (docs/release_guides/phase-1-auth-access.md). Still open: login flow not run in a real browser against a real backend; first GitHub Actions run; Phase 0 branch not merged yet (Phase 1 is based on it); production deploy and release-guide checks; no migration path in the backend image (DECISIONS O35) (plan: plans/phase_1_auth_access.plan.md)"
+    status: completed
   - id: phase-2-booking-core
     content: "Phase 2: catalog schema, seed, seat hold/confirm/expiry with the two KPI tests (100 parallel holds -> 1 winner; controlled-clock expiry); DECISIONS entries for locking, hold state and expiry, late payment, data store (plan: plans/phase_2_booking_core.plan.md)"
     status: pending
@@ -35,7 +35,7 @@ Source brief: `plans/Appcharge_AC11_TeamLeader_AI_Test_Task_PartA.md`.
 | Phase | Status | Detailed plan |
 |---|---|---|
 | 0 Setup | completed (8/8 iterations; open: GitHub Actions run, clean-Mac install, deploy and release-guide checks) | [phase_0_setup.plan.md](phase_0_setup.plan.md) |
-| 1 Auth and access | pending | [phase_1_auth_access.plan.md](phase_1_auth_access.plan.md) |
+| 1 Auth and access | completed (9/9 iterations; open: browser run of the login flow, GitHub Actions run, Phase 0 merge, production deploy and release-guide checks, migration path in the backend image (DECISIONS O35)) | [phase_1_auth_access.plan.md](phase_1_auth_access.plan.md) |
 | 2 Booking core | pending | [phase_2_booking_core.plan.md](phase_2_booking_core.plan.md) |
 | 3 Buyer flow (end to end) | pending | [phase_3_buyer_flow.plan.md](phase_3_buyer_flow.plan.md) |
 | 4 Back office | pending | [phase_4_back_office.plan.md](phase_4_back_office.plan.md) |

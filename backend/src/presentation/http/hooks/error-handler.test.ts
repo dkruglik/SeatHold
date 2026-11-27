@@ -21,6 +21,17 @@ const config: AppConfig = {
   logLevel: "info",
   shutdownTimeoutMs: 1000,
   frontendOrigin: "http://localhost:5173",
+  emailProvider: "console",
+  emailFrom: "no-reply@seathold.local",
+  smtpHost: "localhost",
+  smtpPort: 1025,
+  authCodePepper: "unit-test-pepper-0123456789-abcdefghij",
+  csrfSecret: "unit-test-csrf-secret-0123456789-abcdef",
+  authRequestCodeLimit: 5,
+  authRequestCodeWindowMinutes: 15,
+  authRequestCodeCooldownSeconds: 60,
+  cookieSecure: false,
+  sessionTtlDays: 30,
 };
 
 interface LogRecord {
@@ -98,6 +109,21 @@ describe("HTTP error contract for application errors", () => {
     expect(errors[0]?.err?.stack).toContain("Error: db password leaked");
   });
 
+});
+
+describe("HTTP error contract for public codes", () => {
+  it("sends the public code an application error carries instead of the generic one", async () => {
+    const built = build();
+    app = built.app;
+    app.get("/api/test-error", () => {
+      throw new AuthenticationError("Authentication required", { publicCode: "UNAUTHENTICATED" });
+    });
+
+    const response = await app.inject({ method: "GET", url: "/api/test-error" });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({ error: { code: "UNAUTHENTICATED", message: "Authentication required" } });
+  });
 });
 
 describe("HTTP error contract for unexpected errors and bad requests", () => {

@@ -5,6 +5,7 @@ import {
   checkShutdownRun,
   dockerRunArgs,
   isHealthyBody,
+  smokeEnv,
   smokeSettings,
 } from "./image-smoke.mjs";
 
@@ -81,5 +82,17 @@ describe("checkInvalidConfigRun", () => {
     const problems = checkInvalidConfigRun({ exitCode: 0, logs: "port abc password fake-pw-91" }, options);
 
     assert.equal(problems.length, 4);
+  });
+});
+
+describe("smokeEnv", () => {
+  it("starts the image with a pepper of at least 32 characters, which the backend requires", () => {
+    const env = smokeEnv("postgresql://u:p@h/d", { BACKEND_PORT: "3001" });
+
+    assert.equal(env.APP_ENV, "local");
+    assert.equal(env.DATABASE_URL, "postgresql://u:p@h/d");
+    assert.equal(env.BACKEND_PORT, "3001");
+    assert.ok(env.AUTH_CODE_PEPPER.length >= 32);
+    assert.ok(env.CSRF_SECRET.length >= 32);
   });
 });

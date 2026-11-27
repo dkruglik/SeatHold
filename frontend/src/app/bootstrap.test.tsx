@@ -47,6 +47,7 @@ describe("bootstrap", () => {
   });
 
   it("renders the real routes by default", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockImplementation(() => Promise.resolve(new Response('{"user":null}', { status: 200 }))));
     bootstrap({}, rootElement());
 
     await screen.findByRole("heading", { level: 1, name: "SeatHolder" });
