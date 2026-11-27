@@ -1,4 +1,4 @@
-import { MantineProvider } from "@mantine/core";
+import { TestThemeProvider } from "../../test/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,7 +6,6 @@ import { vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { ApiClientProvider } from "../../app/api-client-context";
 import { FrontendConfigProvider } from "../../app/config/config-context";
-import { theme } from "../../app/theme";
 import { ApiClient } from "../../shared/lib/api-client";
 import { EventPage, type EventPageProps } from "./event-page";
 
@@ -138,7 +137,7 @@ export function renderEvent(server: FakeServer, props: EventPageProps = {}, fake
   const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input, init) => Promise.resolve(answer(server, String(input), init)));
   const router = createMemoryRouter([{ path: "/events/:eventId", element: <EventPage {...props} /> }], { initialEntries: [`/events/${eventId}`] });
   const view = render(
-    <MantineProvider theme={theme} env="test">
+    <TestThemeProvider>
       <QueryClientProvider client={new QueryClient()}>
         <FrontendConfigProvider config={{ apiBaseUrl: "/api", seatPollIntervalMs: pollMs }}>
           <ApiClientProvider client={new ApiClient({ apiBaseUrl: "/api" }, fetchImpl)}>
@@ -146,7 +145,7 @@ export function renderEvent(server: FakeServer, props: EventPageProps = {}, fake
           </ApiClientProvider>
         </FrontendConfigProvider>
       </QueryClientProvider>
-    </MantineProvider>,
+    </TestThemeProvider>,
   );
   return { ...view, user: userEvent.setup(fakeTimers ? { advanceTimers: vi.advanceTimersByTime } : {}) };
 }

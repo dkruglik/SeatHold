@@ -1,4 +1,4 @@
-import { Alert, Button, Stack } from "@mantine/core";
+import { Alert, Button, Stack } from "../../../shared/ui";
 import { useRef } from "react";
 import { useCreateEventForm } from "../hooks/use-create-event-form";
 import { venueZone } from "../lib/event-form";

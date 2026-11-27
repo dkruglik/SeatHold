@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../../shared/lib/api-client";
-import type { Booking } from "../../../shared/ui/booking-card";
+import { type Booking } from "../../../shared/ui";
 import { takeFragmentToken } from "../lib/take-fragment-token";
 import type { GuestApi } from "../services/guest-api";
 

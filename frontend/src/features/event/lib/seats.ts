@@ -1,4 +1,4 @@
-import type { SeatMapSeat } from "../../../shared/ui/seat-map";
+import { type SeatMapSeat } from "../../../shared/ui";
 import type { PublicSeatMap } from "../types";
 
 /** The public states, with the seats of my hold (known from the hold route) marked `held_by_me`. */

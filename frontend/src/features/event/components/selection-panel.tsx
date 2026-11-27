@@ -1,6 +1,5 @@
-import { Alert, Button, Group, Paper, Stack, Text, Title, VisuallyHidden } from "@mantine/core";
+import { Alert, Button, Group, Paper, type SeatMapSeat, Stack, Text, Title, VisuallyHidden } from "../../../shared/ui";
 import { formatPrice } from "../../../shared/lib/format";
-import type { SeatMapSeat } from "../../../shared/ui/seat-map";
 import { formatRemaining } from "../hooks/use-countdown";
 import type { HoldSession } from "../hooks/use-hold-session";
 import { seatLabel } from "../lib/seats";

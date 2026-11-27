@@ -1,4 +1,4 @@
-import { Anchor, Container, Text, Title } from "@mantine/core";
+import { Anchor, Container, Text, Title } from "../../../shared/ui";
 import { Link } from "react-router";
 
 export function NotAllowedPage() {

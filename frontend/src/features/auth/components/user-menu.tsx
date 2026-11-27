@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Text } from "@mantine/core";
+import { Alert, Button, ColorSchemeToggle, Group, Text } from "../../../shared/ui";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ApiError } from "../../../shared/lib/api-client";
@@ -46,7 +46,7 @@ function SignedIn({ email, admin, failed, onLogout }: { readonly email: string; 
 }
 
 /** Header area: Sign in for a visitor; the email and Log out for a signed-in user. Renders nothing while `me` loads; if it failed, an alert with Retry. */
-export function UserMenu() {
+function AccountMenu() {
   const me = useMe();
   const api = useAuthApi();
   const session = useAuthSession();
@@ -81,4 +81,14 @@ export function UserMenu() {
     );
   }
   return <SignedIn email={me.data.email} admin={me.data.role === "admin"} failed={failed} onLogout={() => void logout()} />;
+}
+
+/** The header's right side: the color scheme toggle and the account menu. */
+export function UserMenu() {
+  return (
+    <Group gap="sm" wrap="wrap" justify="flex-end">
+      <ColorSchemeToggle />
+      <AccountMenu />
+    </Group>
+  );
 }

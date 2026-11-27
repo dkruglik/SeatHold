@@ -1,9 +1,8 @@
-import { Alert, Anchor, Container, Group, Stack } from "@mantine/core";
+import { Alert, Anchor, Container, Group, SeatMap, Stack } from "../../shared/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError } from "../../shared/lib/api-client";
-import { SeatMap } from "../../shared/ui/seat-map";
 import { CheckoutPanel, type OrderSummary } from "../checkout";
 import { EventHeader } from "./components/event-header";
 import { EventLoadError, EventLoading, EventNotFound } from "./components/event-states";

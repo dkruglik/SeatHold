@@ -1,7 +1,6 @@
-import { Alert, Anchor, Button, Center, Container, Group, Loader, Stack, Text, Title } from "@mantine/core";
+import { Alert, Anchor, BookingCard, Button, Center, Container, Group, Loader, Stack, Text, Title } from "../../shared/ui";
 import { Link } from "react-router";
 import { ApiError } from "../../shared/lib/api-client";
-import { BookingCard } from "../../shared/ui/booking-card";
 import { UserMenu } from "../auth";
 import { useMyBookings } from "./hooks/use-my-bookings";
 

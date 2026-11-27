@@ -1,4 +1,4 @@
-import { Anchor, Stack, Tabs, Text, Title } from "@mantine/core";
+import { Anchor, Stack, Tabs, Text, Title } from "../../shared/ui";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { AdminLayout } from "./components/admin-header";

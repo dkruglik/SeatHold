@@ -1,4 +1,4 @@
-import { Button, Stack, Text } from "@mantine/core";
+import { Button, Stack, Text } from "../../../shared/ui";
 import type { MockPaymentOutcome } from "../types";
 
 interface TestPaymentProps {

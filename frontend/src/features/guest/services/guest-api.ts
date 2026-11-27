@@ -1,5 +1,5 @@
 import { ApiError, type ApiClient } from "../../../shared/lib/api-client";
-import { isBooking, type Booking } from "../../../shared/ui/booking-card";
+import { type Booking, isBooking } from "../../../shared/ui";
 
 export type ResendResult =
   | { readonly kind: "sent" }

@@ -1,4 +1,4 @@
-import { Badge, Group, Stack, Text, Title } from "@mantine/core";
+import { Badge, Group, Stack, Text, Title } from "../../../shared/ui";
 import { formatPrice, formatStart, seatsLabel } from "../../../shared/lib/format";
 import type { EventDetail } from "../types";
 

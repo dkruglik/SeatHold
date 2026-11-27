@@ -1,4 +1,4 @@
-import { SimpleGrid, Stack, Text, TextInput } from "@mantine/core";
+import { SimpleGrid, Stack, Text, TextInput } from "../../../shared/ui";
 import { formatStart } from "../../../shared/lib/format";
 import { MAX_SEATS, totalSeats } from "../lib/event-form";
 import { bind, type FormApi } from "./form-types";

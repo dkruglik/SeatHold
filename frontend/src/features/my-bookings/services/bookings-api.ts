@@ -1,5 +1,5 @@
 import type { ApiClient } from "../../../shared/lib/api-client";
-import { isBooking, type Booking } from "../../../shared/ui/booking-card";
+import { type Booking, isBooking } from "../../../shared/ui";
 
 /** The signed-in user's bookings. Throws `ApiError` (401 for an anonymous caller); a malformed body is an error too. */
 export class BookingsApi {

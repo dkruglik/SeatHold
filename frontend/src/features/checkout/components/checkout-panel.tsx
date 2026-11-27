@@ -1,4 +1,4 @@
-import { Alert, Button, Paper, Stack, TextInput, Title } from "@mantine/core";
+import { Alert, Button, Paper, Stack, TextInput, Title } from "../../../shared/ui";
 import { useEffect, useRef, useState } from "react";
 import { useMe } from "../../auth";
 import { useCheckout } from "../hooks/use-checkout";

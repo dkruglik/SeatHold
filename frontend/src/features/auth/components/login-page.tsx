@@ -1,4 +1,4 @@
-import { Alert, Anchor, Button, Container, Paper, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Anchor, Button, Container, Paper, Stack, Text, TextInput, Title } from "../../../shared/ui";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation } from "react-router";
 import { useLoginFlow } from "../hooks/use-login-flow";

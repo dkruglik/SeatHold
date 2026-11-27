@@ -1,4 +1,4 @@
-import { Alert } from "@mantine/core";
+import { Alert } from "../../../shared/ui";
 import type { Closed } from "../hooks/use-guest-access";
 
 const titles: Record<Closed, string> = {

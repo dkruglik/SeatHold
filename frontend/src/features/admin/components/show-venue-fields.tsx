@@ -1,4 +1,4 @@
-import { Alert, NativeSelect, Stack, Textarea, TextInput } from "@mantine/core";
+import { Alert, NativeSelect, Stack, Textarea, TextInput } from "../../../shared/ui";
 import { NEW } from "../lib/event-form";
 import { commonTimezones } from "../lib/timezones";
 import type { Lookups } from "../types";

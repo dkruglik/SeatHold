@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Modal, Stack, Text, Textarea } from "@mantine/core";
+import { Alert, Button, Group, Modal, Stack, Text, Textarea } from "../../../shared/ui";
 import { useState } from "react";
 import { ApiError } from "../../../shared/lib/api-client";
 import { useReleaseSeat } from "../hooks/use-admin-queries";

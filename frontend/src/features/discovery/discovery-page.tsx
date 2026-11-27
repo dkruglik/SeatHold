@@ -1,4 +1,4 @@
-import { Container, Group, Stack, Text, Title } from "@mantine/core";
+import { Container, Group, Stack, Text, Title } from "../../shared/ui";
 import { useRef } from "react";
 import { UserMenu } from "../auth";
 import { FilterBar } from "./components/filter-bar";

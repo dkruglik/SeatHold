@@ -1,4 +1,4 @@
-import { Anchor, Badge, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { Anchor, Badge, Group, Paper, Stack, Text, Title } from "../../../shared/ui";
 import { Link } from "react-router";
 import { formatPrice, formatStart, seatsLabel } from "../../../shared/lib/format";
 import type { ShowItem } from "../types";

@@ -1,4 +1,4 @@
-import { Anchor, Stack, Title } from "@mantine/core";
+import { Anchor, Stack, Title } from "../../shared/ui";
 import { Link } from "react-router";
 import { AdminLayout } from "./components/admin-header";
 import { CreateEventForm } from "./components/create-event-form";

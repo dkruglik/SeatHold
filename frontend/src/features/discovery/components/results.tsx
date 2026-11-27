@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Pagination, Skeleton, Stack, Text } from "@mantine/core";
+import { Alert, Button, Group, Pagination, Skeleton, Stack, Text } from "../../../shared/ui";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ShowSearchResult } from "../types";
 import { ShowRow } from "./show-row";

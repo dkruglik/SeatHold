@@ -1,4 +1,4 @@
-import { MantineProvider } from "@mantine/core";
+import { TestThemeProvider } from "../../test/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,9 +6,8 @@ import { StrictMode } from "react";
 import { vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { ApiClientProvider } from "../../app/api-client-context";
-import { theme } from "../../app/theme";
 import { ApiClient } from "../../shared/lib/api-client";
-import type { Booking } from "../../shared/ui/booking-card";
+import { type Booking } from "../../shared/ui";
 import { GuestAccessPage } from "./guest-access-page";
 
 export const secretToken = "tok_0123456789abcdefghijklmnopqrstuvwxyz";
@@ -57,13 +56,13 @@ export function renderGuest({ hash = "", strict = false, ...routes }: RenderOpti
     initialEntries: ["/guest/access"],
   });
   const tree = (
-    <MantineProvider theme={theme} env="test">
+    <TestThemeProvider>
       <QueryClientProvider client={new QueryClient()}>
         <ApiClientProvider client={new ApiClient({ apiBaseUrl: "/api" }, fetchImpl)}>
           <RouterProvider router={router} />
         </ApiClientProvider>
       </QueryClientProvider>
-    </MantineProvider>
+    </TestThemeProvider>
   );
   render(strict ? <StrictMode>{tree}</StrictMode> : tree);
   const exchangeCalls = () => calls.filter((c) => c.path === "/guest/exchange");

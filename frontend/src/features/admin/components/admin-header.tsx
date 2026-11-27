@@ -1,4 +1,4 @@
-import { Container, Group, Text } from "@mantine/core";
+import { Container, Group, Text } from "../../../shared/ui";
 import type { ReactNode } from "react";
 import { UserMenu } from "../../auth";
 

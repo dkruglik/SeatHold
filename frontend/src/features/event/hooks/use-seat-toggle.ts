@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../../shared/lib/api-client";
-import type { SeatMapSeat } from "../../../shared/ui/seat-map";
+import { type SeatMapSeat } from "../../../shared/ui";
 import { eventKeys } from "./event-queries";
 import { useEventApi } from "./use-event-api";
 

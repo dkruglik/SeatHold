@@ -1,4 +1,4 @@
-import { Anchor, Table, Text } from "@mantine/core";
+import { Anchor, Table, Text } from "../../../shared/ui";
 import { Link } from "react-router";
 import { formatPrice, formatStart } from "../../../shared/lib/format";
 import type { AdminEventRow } from "../types";

@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Pagination, Skeleton, Stack, Text } from "@mantine/core";
+import { Alert, Button, Group, Pagination, Skeleton, Stack, Text } from "../../../shared/ui";
 
 export function ListSkeleton({ label }: { readonly label: string }) {
   return (
