@@ -4,7 +4,7 @@ Branch: `feature/phase-3-buyer-flow` · MR: not opened yet · Plan: `plans/phase
 
 Deploy order: Phase 2 first (it is already in `main`, and so is everything it needs from Phase 1 and Phase 0). Do the Phase 1 and Phase 2 "Before deploy" steps first if they are not done on the target environment (guides [phase-1-auth-access.md](phase-1-auth-access.md) and [phase-2-booking-core.md](phase-2-booking-core.md)); this guide does not repeat them. The new migrations alter `shows` and add foreign keys to `bookings`, both created by Phase 2.
 
-Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`), `<event-id>` (a UUID picked with the SQL in "After deploy", step 3), `<test-email>` (a mailbox you can read), `<unused-email>` (any well-formed address that has made no booking), `<database-url>`, `<db-host>`, `<db-port>`, `<db-name>`, `<db-user>` (the production database connection details, as in the Phase 1 guide). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `TODO(operator)`.
+Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`), `<event-id>` (a UUID picked with the SQL in "After deploy", step 3), `<test-email>` (a mailbox you can read), `<unused-email>` (any well-formed address that has made no booking), `<database-url>`, `<db-host>`, `<db-port>`, `<db-name>`, `<db-user>` (the production database connection details, as in the Phase 1 guide). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `deferred to deploy (not deployed by this project)`.
 
 ## What changes for users
 
@@ -39,7 +39,7 @@ No new secrets. Nothing for the secret store.
 Two existing variables now matter more:
 
 - `FRONTEND_ORIGIN` is embedded in every emailed guest link. It must be the exact public https origin of the site, with no trailing slash and no path. A wrong value sends buyers to a dead link. The backend refuses a non-https or localhost value in production (Phase 0).
-- The guest link email uses the Phase 1 email settings: `EMAIL_PROVIDER=smtp`, `EMAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` and `SMTP_PASS` (secret). If they are wrong, login codes fail too. The Phase 1 guide lists them and their `TODO(operator)` items. The difference: a failed login email returns an error to the caller, a failed guest link email does not (see "Known limits").
+- The guest link email uses the Phase 1 email settings: `EMAIL_PROVIDER=smtp`, `EMAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` and `SMTP_PASS` (secret). If they are wrong, login codes fail too. The Phase 1 guide lists them and their `deferred to deploy (not deployed by this project)` items. The difference: a failed login email returns an error to the caller, a failed guest link email does not (see "Known limits").
 
 Add the public variables to your local `.env` only if you run production-like checks locally; `.env.example` already carries them:
 
@@ -56,11 +56,11 @@ For production, add the three `GUEST_*` lines to the backend task environment an
 
 ### Other requirements
 
-1. Everything is under `/api`, so the existing `/api/*` CloudFront behaviour to the load balancer covers the seven new routes. No new behaviour is needed. Cache headers the backend sends: `GET /api/shows` and `GET /api/events/:eventId` `public, max-age=1`; `GET /api/shows/facets` `public, max-age=60`; `GET /api/me/bookings` and `GET /api/guest/booking` `no-store` with `Vary: Cookie`; `POST /api/guest/exchange` `no-store`. TODO(operator): confirm the CloudFront cache policy for `/api/*` forwards the `Cookie`, `Origin` and `X-CSRF-Token` headers and honours the origin `Cache-Control` (the repository holds no CloudFront configuration), and does not cache `no-store` answers.
-2. The frontend is a single-page app with four new paths: `/`, `/events/:eventId`, `/bookings` and `/guest/access` (plus `/login` and `/admin` from earlier phases). A reload or a pasted link on any of them must serve `index.html`. TODO(operator): confirm the S3 and CloudFront setup returns `index.html` (status 200) for unknown non-`/api` paths, for example through a custom error response. Without it, the emailed guest link shows an error page.
-3. The Phase 2 catalog loading is still needed for anything to be visible. For a demo deployment run the one-off `node backend/dist/scripts/seed-catalog.js` once, as described in the [Phase 2 guide](phase-2-booking-core.md), section 6 ("Loading the catalog"). Search, facets and the event page return empty results until the catalog exists. TODO(operator): decide whether this is a demo deployment (load the catalog) or a real one (no loader until the Phase 4 back office), as already asked in the Phase 2 guide.
-4. TODO(operator): the mock payment gateway takes the outcome (`succeed` or `fail`) from the client, and now there is a screen that offers it to every visitor. Do not expose the booking UI to real customers until a real payment adapter exists, or block `POST /api/events/*/hold/checkout` at the edge. Decide which, and who owns it (carried from the Phase 2 guide).
-5. The guest link email needs a working SES account with the sender domain verified and the account out of the sandbox, otherwise only verified addresses receive links (Phase 1 guide, "Other requirements", item 1). TODO(operator): confirm the SES state before real guests buy.
+1. Everything is under `/api`, so the existing `/api/*` CloudFront behaviour to the load balancer covers the seven new routes. No new behaviour is needed. Cache headers the backend sends: `GET /api/shows` and `GET /api/events/:eventId` `public, max-age=1`; `GET /api/shows/facets` `public, max-age=60`; `GET /api/me/bookings` and `GET /api/guest/booking` `no-store` with `Vary: Cookie`; `POST /api/guest/exchange` `no-store`. deferred to deploy (not deployed by this project): confirm the CloudFront cache policy for `/api/*` forwards the `Cookie`, `Origin` and `X-CSRF-Token` headers and honours the origin `Cache-Control` (the repository holds no CloudFront configuration), and does not cache `no-store` answers.
+2. The frontend is a single-page app with four new paths: `/`, `/events/:eventId`, `/bookings` and `/guest/access` (plus `/login` and `/admin` from earlier phases). A reload or a pasted link on any of them must serve `index.html`. deferred to deploy (not deployed by this project): confirm the S3 and CloudFront setup returns `index.html` (status 200) for unknown non-`/api` paths, for example through a custom error response. Without it, the emailed guest link shows an error page.
+3. The Phase 2 catalog loading is still needed for anything to be visible. For a demo deployment run the one-off `node backend/dist/scripts/seed-catalog.js` once, as described in the [Phase 2 guide](phase-2-booking-core.md), section 6 ("Loading the catalog"). Search, facets and the event page return empty results until the catalog exists. deferred to deploy (not deployed by this project): decide whether this is a demo deployment (load the catalog) or a real one (no loader until the Phase 4 back office), as already asked in the Phase 2 guide.
+4. deferred to deploy (not deployed by this project): the mock payment gateway takes the outcome (`succeed` or `fail`) from the client, and now there is a screen that offers it to every visitor. Do not expose the booking UI to real customers until a real payment adapter exists, or block `POST /api/events/*/hold/checkout` at the edge. Decide which, and who owns it (carried from the Phase 2 guide).
+5. The guest link email needs a working SES account with the sender domain verified and the account out of the sandbox, otherwise only verified addresses receive links (Phase 1 guide, "Other requirements", item 1). deferred to deploy (not deployed by this project): confirm the SES state before real guests buy.
 
 ## Deploy
 
@@ -73,7 +73,7 @@ The backend image has no migration path (DECISIONS.md O35), as in Phases 1 and 2
 docker build -f backend/Dockerfile -t seatholder-backend .
 ```
 
-3. Deploy the image with the environment above. TODO(operator): the backend release command (the README gives no AWS commands).
+3. Deploy the image with the environment above. deferred to deploy (not deployed by this project): the backend release command (the README gives no AWS commands).
 4. Build the frontend. The new dependencies (`qrcode`, `@mantine/dates`, `dayjs`) are bundled into the static build; nothing new runs on a server:
 
 ```bash
@@ -81,7 +81,7 @@ npm ci
 VITE_SEAT_POLL_INTERVAL_MS=3000 npm run build -w frontend
 ```
 
-Then publish `frontend/dist` behind CloudFront. TODO(operator): the frontend upload and CloudFront invalidation commands (the README gives none).
+Then publish `frontend/dist` behind CloudFront. deferred to deploy (not deployed by this project): the frontend upload and CloudFront invalidation commands (the README gives none).
 
 ### Migrations
 
@@ -103,7 +103,7 @@ unset DATABASE_URL
 
 Expected: `All migrations have been successfully applied.` The run lists `20261127100000_shows_search` and `20261127110000_guest_access_schema`. If it fails with `relation "bookings" does not exist`, Phase 2 is not applied: stop and apply it.
 
-TODO(operator): run migrations against the direct database endpoint, not RDS Proxy (see the Phase 1 guide).
+deferred to deploy (not deployed by this project): run migrations against the direct database endpoint, not RDS Proxy (see the Phase 1 guide).
 
 Check that they are applied:
 
@@ -133,7 +133,7 @@ curl -s "$SITE/api/health"
 echo
 ```
 
-Expected: `{"status":"ok"}`. If the tasks do not become healthy, read the task log: a line `Invalid configuration: <VARIABLE> must be a positive integer` names the wrong variable (`GUEST_LINK_TTL_HOURS`, `GUEST_RESEND_LIMIT` or `GUEST_RESEND_WINDOW_MINUTES` for this release). Fix it and redeploy. TODO(operator): the log-group name and the command to tail it (the README has no AWS commands).
+Expected: `{"status":"ok"}`. If the tasks do not become healthy, read the task log: a line `Invalid configuration: <VARIABLE> must be a positive integer` names the wrong variable (`GUEST_LINK_TTL_HOURS`, `GUEST_RESEND_LIMIT` or `GUEST_RESEND_WINDOW_MINUTES` for this release). Fix it and redeploy. deferred to deploy (not deployed by this project): the log-group name and the command to tail it (the README has no AWS commands).
 
 ### 2. The migrations and the new tables (SQL checks)
 
@@ -220,7 +220,7 @@ Expected: every line `200` and `text/html`. A `403` or `404` on `/bookings` or `
 
 ### 6. Manual smoke: signed-in buyer (browser)
 
-This is the first run in a real browser: this branch has only jsdom component tests and backend integration tests (see "Known limits"). In production the email goes through SES, so use a mailbox you can read for `<test-email>`; locally the email goes to Mailpit at http://localhost:8025.
+The repository owner ran this smoke path in desktop Chrome on 2026-11-27 (buyer, guest and admin paths). It stays as the operator's smoke test after deploy. In production the email goes through SES, so use a mailbox you can read for `<test-email>`; locally the email goes to Mailpit at http://localhost:8025.
 
 **Action:** creates one confirmed booking with the mock payment and one ticket per seat. Safe on a demo deployment; on a real deployment do not run it (see "Other requirements", item 4).
 
@@ -267,7 +267,7 @@ When the email provider rejects a guest link email, the booking stays confirmed,
 guest link email was not sent; the buyer can request a new link
 ```
 
-This line is the operator signal that a guest has paid and holds no link. The buyer's recovery is the resend form on `/guest/access`. Two related warnings: `undelivered guest link could not be invalidated` (the stale link may still be usable until it expires; it is not delivered to anyone). TODO(operator): create a CloudWatch metric filter and alarm on the line `guest link email was not sent` and decide who is paged (the repository holds no CloudWatch configuration). TODO(operator): the log-group name and the command to search it (the README has no AWS commands).
+This line is the operator signal that a guest has paid and holds no link. The buyer's recovery is the resend form on `/guest/access`. Two related warnings: `undelivered guest link could not be invalidated` (the stale link may still be usable until it expires; it is not delivered to anyone). deferred to deploy (not deployed by this project): create a CloudWatch metric filter and alarm on the line `guest link email was not sent` and decide who is paged (the repository holds no CloudWatch configuration). deferred to deploy (not deployed by this project): the log-group name and the command to search it (the README has no AWS commands).
 
 ### SQL checks: guest activity
 
@@ -317,10 +317,10 @@ Expected: `COMMIT`. The Phase 1 and Phase 2 tables, bookings and tickets are unt
 
 Each item below is also recorded in `DECISIONS.md`.
 
-- No browser end-to-end run was done on this branch: the frontend has jsdom component tests and the backend has integration tests only. The manual smoke steps 6 and 7 are the first real browser check.
-- The GitHub Actions workflow has not run on this branch.
+- The repository owner ran the manual end-to-end in desktop Chrome on 2026-11-27 (buyer, guest and admin). Steps 6 and 7 stay as the operator's smoke test after deploy. Real phones and other browsers are an accepted limit (not tested).
+- The GitHub Actions workflow passed on main after the merges (owner-confirmed, 2026-11-27).
 - Search `q` matches whole words of the show title (full-text search) OR a substring of the venue name. The OR branch cannot use the GIN index at larger catalog sizes. The fix is a `UNION` of the two matches; revisit it when `EXPLAIN` regresses (DECISIONS.md O70). Not a concern at 200 shows.
-- `guest_access_links`, `guest_sessions` and `guest_resend_attempts` have no retention sweep. Expired, consumed and revoked rows are inert (every read checks time and flags) but stay, and one `guest_resend_attempts` row is written per resend attempt (DECISIONS.md O73, O74). TODO(operator): decide when to purge them, before the tables grow, either with a Phase 4 job or a one-off job from the API image.
+- `guest_access_links`, `guest_sessions` and `guest_resend_attempts` have no retention sweep. Expired, consumed and revoked rows are inert (every read checks time and flags) but stay, and one `guest_resend_attempts` row is written per resend attempt (DECISIONS.md O73, O74). deferred to deploy (not deployed by this project): decide when to purge them, before the tables grow, either with a Phase 4 job or a one-off job from the API image.
 - An email send failure leaves the buyer without a link until they use the resend form. The undelivered link is invalidated. Alert on the log line in "After deploy", step 9.
 - The mock payment gateway takes the outcome from the client, and the checkout panel offers the choice to every visitor (carried from Phase 2; see "Other requirements", item 4).
 - If the browser drops the connection after the guest exchange succeeded but before it stores the `gsid` cookie, the link is consumed and the session exists but the buyer has no cookie. Reloading cannot reuse the link; the resend form is the recovery (DECISIONS.md O82).
@@ -328,5 +328,5 @@ Each item below is also recorded in `DECISIONS.md`.
 - The resend limit is per email address, so a third request for one address blocks that address for the window, including a legitimate owner (DECISIONS.md O74). The 429 carries `Retry-After` and `retryAfterSeconds` (the same value for every address, so it reveals nothing).
 - The backend image has no migration path (DECISIONS.md O35), as in Phases 1 and 2.
 - Phase 2 operator items that are still open: demo or real deployment and the catalog load, the sweeper schedule (expiry is lazy, so it is optional), and migrating through the direct database endpoint (see the Phase 2 guide, "Known limits").
-- `TODO(operator)` lines above: the CloudFront cache policy for `/api/*`, the SPA fallback to `index.html`, demo or real deployment and the catalog load, keeping the mock payment away from real customers, the SES state for guest emails, the backend and frontend release commands, the log-group name, an alarm on the undelivered guest link warning, the retention of the guest tables, and migrating through the direct database endpoint.
+- `deferred to deploy (not deployed by this project)` lines above: the CloudFront cache policy for `/api/*`, the SPA fallback to `index.html`, demo or real deployment and the catalog load, keeping the mock payment away from real customers, the SES state for guest emails, the backend and frontend release commands, the log-group name, an alarm on the undelivered guest link warning, the retention of the guest tables, and migrating through the direct database endpoint.
 - README: "Buyer flow" in `README.md`. Decisions: DECISIONS.md D5 and O70 to O82.

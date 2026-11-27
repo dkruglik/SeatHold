@@ -6,8 +6,8 @@ todos:
     content: Confirm the own KPI default (hold-to-purchase conversion and hold expiry rate) and the latency targets below. Used as written, recorded in DECISIONS O111-O114; no person confirmed them
     status: completed
   - id: it-1-install-skill
-    content: install-seathold complete - prerequisites, Homebrew services, install, migrate, seed, start, health wait, URLs and logins; timed clean-Mac run. Skill rewritten with a static check (917be0a). Still open (timed clean-Mac run by a person, not run)
-    status: in_progress
+    content: "install-seathold complete - prerequisites, Homebrew services, install, migrate, seed, start, health wait, URLs and logins; static check (917be0a). The timed clean-Mac run was skipped by the owner decision on 2026-11-27 (no Mac available; accepted risk)."
+    status: completed
   - id: it-2-readme
     content: README final - what it is, run on Windows (Docker) and Mac (Homebrew) without the skill, scripts, tests, what was cut
     status: completed
@@ -18,8 +18,8 @@ todos:
     content: AI workflow section from the log - Claude setup, review loop, one real wrong-output example and how it was caught
     status: completed
   - id: it-5-final-verify
-    content: Full verify on the final commit, manual end-to-end for buyer, guest and admin, roadmap statuses. Still open (full verify on the final commit, manual end-to-end not run)
-    status: in_progress
+    content: "Roadmap statuses. Manual end-to-end for buyer, guest and admin run by the repository owner in desktop Chrome on 2026-11-27. GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27)."
+    status: completed
 isProject: false
 ---
 

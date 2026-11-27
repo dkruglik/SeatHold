@@ -156,8 +156,8 @@ The Phase 1 summary and its open risks are in O56.
 
 - **Choice.** Backend: Node 24, TypeScript, Fastify, Prisma, PostgreSQL. Frontend: React, TypeScript, Vite. Tests: Vitest. npm workspaces. A modular monolith with explicit modules (`auth`, `catalog`, `booking`, `guest-access`, `backoffice`).
 - **Options.** Microservices; NestJS; Next.js full stack.
-- **Trade-off.** One deployable is simpler and fits 4-6 hours; module boundaries keep later extraction possible.
-- **Status.** `planned`: Phase 0 to Phase 4. In place after Phase 0: npm workspaces, Fastify, Prisma, React, Vite and Vitest (`package.json`, `backend/package.json`, `frontend/package.json`; run by `npm run verify-fast-part`). The `auth` module exists (`backend/src/modules/auth/`: domain, application, infrastructure, presentation; Phase 1). Missing: the `catalog`, `booking`, `guest-access` and `backoffice` modules, which arrive in later phases, so no test proves the module layout yet.
+- **Trade-off.** One deployable is simpler to build and run; module boundaries keep later extraction possible. The 4-6 hour window was a plan, not a measured fact (see Scope and cuts).
+- **Status.** `implemented`: Phase 0 (npm workspaces, Fastify, Prisma, React, Vite and Vitest; `package.json`, `backend/package.json`, `frontend/package.json`; run by `npm run verify-fast-part`) and Phases 1 to 4, which added the five module directories under `backend/src/modules/`: `auth` (Phase 1), `catalog` and `booking` (Phase 2), `guest-access` (Phase 3) and `backoffice` (Phase 4). Each has `domain`, `application`, `infrastructure` and `presentation` layers and an `index.ts` entry point. No automated test or lint rule proves the boundaries: `eslint.config.js` sets only generic rules, and no test checks which module imports which. The layout is checked by code review only.
 
 ### O2. Authentication model
 
@@ -241,14 +241,14 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** Development, tests and verify run on Docker Compose (PostgreSQL 17, Mailpit). The macOS install skill uses Homebrew services with the same versions and `.env` keys.
 - **Options.** Docker on the Mac too; Homebrew everywhere.
 - **Trade-off.** Two local setups to keep in line (a review check enforces it); in return the clean-Mac run avoids Docker Desktop's GUI install and fits under 10 minutes.
-- **Status.** `planned`: Phase 0 it-3, it-7. In place: `docker-compose.yml` (PostgreSQL 17.12, Mailpit v1.34.0; checked by `docker compose config -q`), `.env.example` (test `backend/src/config/env-example.test.ts`), `README.md` (test `scripts/readme-commands.test.mjs`), `.claude/skills/install-seathold/SKILL.md` (tracked, test `scripts/git-hygiene.test.mjs`). The install skill is rewritten and statically checked (917be0a: its commands are checked against `package.json`). Missing: the timed clean-Mac run has not been done; a person must run it on a Mac, so the Homebrew path is unproven and the install proof stays open.
+- **Status.** Decided 2026-11-27 by the owner. In place: `docker-compose.yml` (PostgreSQL 17.12, Mailpit v1.34.0; checked by `docker compose config -q`), `.env.example` (test `backend/src/config/env-example.test.ts`), `README.md` (test `scripts/readme-commands.test.mjs`), `.claude/skills/install-seathold/SKILL.md` (tracked, test `scripts/git-hygiene.test.mjs`). The install skill is rewritten and statically checked (917be0a: its commands are checked against `package.json`). Skipped by the owner's decision (no Mac available): the timed clean-Mac run is not done, so the Homebrew path is unproven; accepted risk.
 
 ### O14. CI
 
 - **Choice.** GitHub Actions: lint, typecheck, unit and integration tests with a PostgreSQL 17 service, build, and a multi-architecture backend image build (not pushed). `scripts/verify.mjs` runs the same steps locally.
 - **Options.** GitLab CI (the repository is on GitHub, so it would need a mirror); no CI, local `verify` only (no visible evidence in the public repository).
 - **Trade-off.** Image is built but never deployed.
-- **Status.** `planned`: Phase 0 it-2, it-6. The workflow and its `image-build` job (QEMU and Buildx, no push) exist, and `scripts/verify.test.mjs` asserts that `scripts/verify.mjs` runs the commands of `.github/workflows/ci.yml`. Missing: the workflow has not run on GitHub yet, so the PostgreSQL service and the multi-architecture build are unproven; the entry moves to `implemented` after the first green run.
+- **Status.** `implemented`: Phase 0 it-2, it-6. The workflow and its `image-build` job (QEMU and Buildx, no push) exist, and `scripts/verify.test.mjs` asserts that `scripts/verify.mjs` runs the commands of `.github/workflows/ci.yml`. The first run on GitHub passed on main after the merges (owner-confirmed, 2026-11-27), so the PostgreSQL service and the multi-architecture build ran green in CI.
 
 ### O15. Committed AI setup
 
@@ -1002,7 +1002,7 @@ The Phase 1 summary and its open risks are in O56.
 - **Findings, round 1.** 0 Critical, 3 Important, 5 suggestions. Important: a new venue with an existing name and city but another country or timezone silently reused the old venue (fixed in `7f45614`, now 409 `VENUE_CONFLICT`, O84); an expired hold whose seat row was still `held` could not be released from the UI (fixed in `7f45614` and `db5f832`, `releasable` and "Clear stale hold", O101); no Phase 4 release guide and O49 still named the removed ping route (fixed in `0d01f94`, O95). Suggestions: the release route was missing from the CSRF guard list (fixed, `mutating-routes-guard.test.ts`); the seat release writes booking tables from backoffice (accepted, O97); the count and the page are not one snapshot (accepted, O102); buyer emails in logs (checked, no body or query is logged, a test pins it, O102a); the plan statuses lagged (updated in `70ba664`).
 - **Findings, round 2** (`1d1051a..HEAD`). 0 Critical, 0 Important, confirmed every round 1 item resolved or explicitly accepted; two suggestions: this record, and the Phase 1 plan still listing the ping route (both fixed).
 - **Choice.** Fix every finding and record each accepted one with its entry (chosen) over fixing only Critical and Important findings.
-- **Trade-off.** The seat release coupling (O97) and the non-snapshot lists (O102) remain by choice. The review was static plus targeted unit runs; the integration and manual browser checks are not part of it.
+- **Trade-off.** The seat release coupling (O97) and the non-snapshot lists (O102) remain by choice. The review was static plus targeted unit runs; the integration and manual browser checks are not part of it. The owner's desktop Chrome run on 2026-11-27 covered the buyer, guest and admin paths (O130).
 - **Status.** `implemented` for the fixes (commits above, tests as listed in O84, O101 and O102a).
 
 ### O111. Cache headers today, and the cache layer that is not built
@@ -1119,8 +1119,8 @@ The Phase 1 summary and its open risks are in O56.
 - **Context.** Phase 3 had a palette, a font stack and a radius. Phase 6 asks for a spacing and typography scale and a dark scheme.
 - **Choice.** `frontend/src/app/theme.ts` sets spacing and font-size scales (`xs` to `xl`), line heights, heading sizes `h1` to `h6`, `primaryShade` 6 (light) and 8 (dark), and `focusRing: "auto"`. `theme-components.ts` sets component defaults (Button, Card, Table, TextInput, Modal, Tabs) so features add no per-use styling. Muted text and the focus ring are contrast-checked: Mantine's default dimmed text (gray 6) failed WCAG AA, so `cssVariablesResolver` maps `--mantine-color-dimmed` to gray 7 (light) and dark 1 (dark), and `focus-ring.css` draws a 2px outline from `--seat-focus-ring` (seat 6 light, seat 4 dark). `theme.test.ts` computes the contrast ratios and asserts AA (4.5:1 for text, 3:1 for the ring), including white text on the primary shades. A `ColorSchemeToggle` (light, dark, auto) sits in the header's `UserMenu` area; the provider uses `defaultColorScheme="auto"`.
 - **Storage.** Mantine's localStorage manager stores only the preference string (`light`, `dark` or `auto`); nothing else is kept in the browser for the theme.
-- **Trade-off accepted.** There is no `ColorSchemeScript` in `index.html`, so a visitor with a stored dark preference can see one light frame on the first paint before React sets the scheme. Accepted for this phase. The fix is to add Mantine's `ColorSchemeScript` (an inline script) to `frontend/index.html`; not done because it changes the HTML entry and needs a real-browser check.
-- **Status.** `implemented` (Phase 6 it-1, `7b870e2`; `app/theme.ts`, `app/theme-components.ts`, `app/focus-ring.css`, `app/app.tsx`, `shared/ui/color-scheme-toggle/`; tests `app/theme.test.ts`, `color-scheme-toggle.test.tsx`, `seat-map/seat-marker-dark.test.tsx`). The first-paint flash is open.
+- **Trade-off accepted.** There is no `ColorSchemeScript` in `index.html`, so a visitor with a stored dark preference can see one light frame on the first paint before React sets the scheme. Decided by the owner on 2026-11-27: light first. The app keeps light as the default scheme and does not add Mantine's `ColorSchemeScript` (an inline script) to `frontend/index.html`; a visitor with a stored dark preference may see one light frame before React sets the scheme. Accepted.
+- **Status.** `implemented` (Phase 6 it-1, `7b870e2`; `app/theme.ts`, `app/theme-components.ts`, `app/focus-ring.css`, `app/app.tsx`, `shared/ui/color-scheme-toggle/`; tests `app/theme.test.ts`, `color-scheme-toggle.test.tsx`, `seat-map/seat-marker-dark.test.tsx`). The first-paint flash is decided (owner, 2026-11-27: light first, no `ColorSchemeScript`).
 
 ### O118. Frontend: range picker extensions
 - **Context.** Phase 6 it-2 asks for presets, a time zone label, validation and keyboard support on the `DateTimeRangePicker`.
@@ -1131,7 +1131,7 @@ The Phase 1 summary and its open risks are in O56.
 ### O119. Frontend: seat map extensions
 - **Context.** Phase 6 it-3 asks for keyboard navigation, a tooltip, row labels and zoom for small screens.
 - **Choice.** Roving tabindex (`use-seat-keyboard.ts`, `nextSeatId` in `seat-layout.ts`): one seat is the tab stop and it is a seat id, so it survives a refresh of the seats; arrows move, Home and End go to the first and last seat of the row, PageUp and PageDown go to the same seat number in the first and last row, Enter and Space activate. A tooltip ("Row C, seat 7 · price · state", `seat-tooltip.tsx`) shows on hover or focus and hides on Escape. Row labels are on both sides (the right one hidden from assistive tech). Zoom and pan (`zoom-pan.tsx`, `zoom-state.ts`, `use-zoom-gestures.ts`): scale 1 to 3 in local state, nothing persisted, pan clamped so no empty edge shows; Zoom in, Zoom out and Reset view buttons are hidden from the `sm` breakpoint up (`hiddenFrom="sm"`); pinch and drag use pointer events. Seat colours come from theme variables, so the map follows the dark scheme.
-- **Trade-off.** The pinch gesture is tested only with synthetic pointer events in jsdom; it was not tried on a real touch device (open item). At scale 1 the map is not draggable, so the page still scrolls. Canvas rendering stays out of scope.
+- **Trade-off.** The pinch gesture is tested only with synthetic pointer events in jsdom; it was not tried on a real touch device; accepted limit (the owner's check was desktop Chrome only, 2026-11-27, O130). At scale 1 the map is not draggable, so the page still scrolls. Canvas rendering stays out of scope.
 - **Status.** `implemented` (Phase 6 it-3, `d8203ea`; `shared/ui/seat-map/`; tests `seat-map-extensions.test.tsx`, `seat-layout.test.ts`, `zoom-state.test.ts`, `seat-marker-dark.test.tsx`, `seat-map.test.tsx`).
 
 ### O120. Frontend: responsive rules
@@ -1209,8 +1209,16 @@ The Phase 1 summary and its open risks are in O56.
 - **Context.** Reviewer `SH-cursor` reviewed the fixes of O123 to O128 outside the run that built them, one single-agent review per round with the `code-review` skill, as for O68, O82, O110, O115 and O122.
 - **Options.** Fix every finding; disprove or accept some with a recorded reason (chosen, as in O122).
 - **Choice.** Round 1: 0 Critical, 1 Important, 4 suggestions. Important: `totalPages` promised pages the offset cap rejects (fixed in `70c9b5c`, O124). Suggestions: the README did not document the cap (fixed in `78aad92`); no application-layer `PAGE_TOO_DEEP` test (fixed in `70c9b5c`); the failed invalidate did not log the safe code (fixed in `70c9b5c`, O126); the SMTP message-shape coupling (accepted, recorded in O126). Round 2: 0 Critical, 0 Important, 5 suggestions: the O126 and O124 status wording, the O89 cross-reference, a direct `reachablePages` test, and this audit-trail record; all fixed in the commit that adds this entry. The reviewer accepted the sweeper index decision (O128) and the Money brand (O127).
-- **Trade-off.** Not verified by the review or the fixes: no browser check of the seat map row grouping change (O123); the route integration tests ran in the fast part only on the final commit, plus the slow part.
+- **Trade-off.** Not verified by the review or the fixes: no browser check of the seat map row grouping change (O123), covered by the owner's desktop Chrome run on 2026-11-27 (O130); the route integration tests ran in the fast part only on the final commit, plus the slow part.
 - **Status.** `implemented` (commits `70c9b5c`, `78aad92` and the commit that adds this entry).
+
+### O130. Browser check and owner decisions for Phases 3 to 6
+
+- **Context.** Phases 3 to 6 kept open items that waited for a manual run in a real browser, a GitHub Actions run, the first-paint decision, a clean-Mac run and the operator deploy lines.
+- **Options.** Keep every browser, device, CI, Mac and deploy item open until a phone, several browsers, a Mac run and a deployment exist; or accept the limits the owner chose and record the rest as deferred (chosen).
+- **Choice.** On 2026-11-27 the owner: ran the buyer, guest and admin paths end to end in desktop Chrome (seat map with the O123 row grouping, hold countdown, the seat lock checked with two browsers, checkout, bookings, back office); saw GitHub Actions pass on main after the merges; decided the first paint is light first with no `ColorSchemeScript` (O117, accepted); accepted that phones and other browsers are not tested (desktop Chrome only, O119); decided to skip the clean-Mac timed run of `install-seathold` (no Mac, O13). The remaining operator deploy lines in the release guides (AWS commands, CloudFront cache policy and SPA fallback, SES, secret store, WAF, first admin, log commands, demo versus real deployment, mock payment exposure, sweeper schedule, the 20,000-seat production check) are deferred to deploy by the owner's decision: this project is designed for AWS and does not deploy it, so each line stays as the checklist for whoever deploys. The plans, roadmap, release guides, AI workflow log and README record these. The owner also asked, in the same change, for the stale statements in O1, 'Cut so far' and the time budget to be fixed; no code changed.
+- **Trade-off.** A desktop Chrome run does not prove phones or other browsers, and the Homebrew install path stays unproven on a clean Mac (accepted risk). The manual runs have no test behind them, so CI cannot repeat them. Not closed by these decisions: the keyboard-only purchase check (Phase 6), which the owner's run did not name. The second review rounds for Phases 4 and 6 are recorded in O110 and O122.
+- **Status.** `implemented` as a record of decisions and a manual check; no code or test changed. Files: `plans/seatholder_product_roadmap.plan.md`, `plans/phase_0_setup.plan.md`, `plans/phase_3_buyer_flow.plan.md`, `plans/phase_4_back_office.plan.md`, `plans/phase_5_deliverables.plan.md`, `plans/phase_6_design_system.plan.md`, `docs/release_guides/*.md`, `docs/ai-workflow-log.md`, `README.md`, `DECISIONS.md`.
 
 ## Back-office capability proposal
 
@@ -1225,8 +1233,20 @@ The Phase 1 summary and its open risks are in O56.
 - **Priority order.** Auth foundation, booking core, end-to-end buyer and guest flow, back office, deliverables, design-system depth. If time runs out, cuts go from the last phase backwards.
 - **Out of scope.** Real payments, real email delivery, cloud deployment, mobile apps, multi-language UI (brief section 7); general admission; multiple price tiers.
 - **Time budget.** About 5.5 hours: Phase 0 0.75 h, Phase 1 0.75 h, Phase 2 1 h, Phase 3 1.25 h, Phase 4 0.5 h, Phase 5 0.75 h, Phase 6 0.5 h. Iterations are review units for AI-driven work, not hours each.
-- **Cut candidates, in order.** Phase 6 beyond the base theme; manual seat release (Phase 4 it-6); guest link resend (Phase 3, keep exchange); search facets endpoint (hard-coded filter values instead); multi-architecture image build in CI (amd64 only).
-- **Cut so far.** Nothing.
+- **Time budget against the work done.** The 5.5 hours above describe the plan, not the work done. The tree now also holds release guides for every phase (`docs/release_guides/`), a multi-round external review record (O68, O82, O110, O115, O122, O129) and design-system depth past the brief (theme, shared UI layer, picker presets, seat map keyboard and zoom, responsive pass). That extra depth is a deliberate choice, recorded in the phase entries and O130. The actual elapsed time was not measured, so this file states no hours for the work done.
+- **Cut candidates, in order (a planning list; none was cut: manual seat release, guest link resend, the facets endpoint, the multi-architecture CI build and Phase 6 depth were all built).** Phase 6 beyond the base theme; manual seat release (Phase 4 it-6); guest link resend (Phase 3, keep exchange); search facets endpoint (hard-coded filter values instead); multi-architecture image build in CI (amd64 only).
+- **Cut so far.** Cut or not built, as listed in the README section [What was cut](README.md#what-was-cut), checked against the code:
+  - Real payment provider: payment is a mock whose outcome the client chooses; refunds are not built.
+  - Live seat updates by SSE or WebSocket: the seat map polls.
+  - Caching layer (D3): not built; only short `Cache-Control` headers on public reads.
+  - Scheduled hold sweeper: the script exists, nothing schedules it, because expiry is lazy.
+  - Retention jobs: used guest links and resend attempts are not purged.
+  - Sales dashboard and other back-office extras: no event editing or cloning, price changes or CSV export.
+  - Per-buyer ticket limit (O121).
+  - `ColorSchemeScript`: light first by the owner's decision, so a stored dark preference can flash light on first paint (O117, accepted).
+  - AWS deployment and infrastructure as code: designed, not built.
+  - Load tests: none.
+  - Phone and other-browser tests: desktop Chrome only, an accepted limit (O119).
 
 ---
 
@@ -1249,7 +1269,7 @@ The dated, per-phase record is [`docs/ai-workflow-log.md`](docs/ai-workflow-log.
 1. **Per step.** The main agent checked each subagent report against the code and a fresh verify run before the commit.
 2. **External review, two rounds per phase.** For phases 2, 3 and 4 another Agent Manager agent (reviewer `SH-cursor` named for phases 3 and 4) ran the `review-suite` over the phase, outside the run that built it. Round 1 found 0 Critical findings in each phase and 3, 5 and 3 Important findings for phases 2, 3 and 4; a second round checked the fixes. Every finding was fixed or recorded with its reason as accepted or dropped. The records are O68 (Phase 2), O82 (Phase 3) and O110 (Phase 4); the fix commits are `7b7f11e`, `2afe774`, `82fcf8d`, `2f2bc18`, `7f45614` and `db5f832`.
 3. **Plan review in another AI tool** before code (example 2 below) and a review of the roadmap from an AWS point of view (example 1).
-4. **Limits of the review.** The Phase 4 review was static plus targeted unit runs; no review replaced a manual browser run of the buyer, guest and admin paths, and the log says where red runs were not captured.
+4. **Limits of the review.** The Phase 4 review was static plus targeted unit runs; no review replaced a manual browser run of the buyer, guest and admin paths, and the log says where red runs were not captured. The owner's desktop Chrome run on 2026-11-27 covered those paths (O130).
 
 ### Where Claude was wrong, and how it was caught
 

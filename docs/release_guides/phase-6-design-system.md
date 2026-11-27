@@ -4,7 +4,7 @@ Branch: `feature/phase-6-design-system` · MR: not opened yet · Plan: `plans/ph
 
 Deploy order: Phases 1 to 5 first (guides [phase-1-auth-access.md](phase-1-auth-access.md), [phase-2-booking-core.md](phase-2-booking-core.md), [phase-3-buyer-flow.md](phase-3-buyer-flow.md), [phase-4-back-office.md](phase-4-back-office.md), [phase-5-deliverables.md](phase-5-deliverables.md)). This guide does not repeat their steps. This release is frontend only.
 
-Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`) and `<host>` (the host part of `<site-origin>`). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `TODO(operator)`.
+Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`) and `<host>` (the host part of `<site-origin>`). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `deferred to deploy (not deployed by this project)`.
 
 ## What changes for users
 
@@ -28,7 +28,7 @@ None. This release adds no variable and changes no default (`.env.example` and t
 
 ### Other requirements
 
-1. The build is a static Vite build (`frontend/dist`). The existing SPA fallback for `/admin`, `/bookings` and `/events/<id>` must still be in place (asked in [phase-4-back-office.md](phase-4-back-office.md), "Other requirements"). TODO(operator): confirm it.
+1. The build is a static Vite build (`frontend/dist`). The existing SPA fallback for `/admin`, `/bookings` and `/events/<id>` must still be in place (asked in [phase-4-back-office.md](phase-4-back-office.md), "Other requirements"). deferred to deploy (not deployed by this project): confirm it.
 2. Keep the previous `frontend/dist` (or its object-store version) so the rollback is a redeploy.
 
 ## Deploy
@@ -42,7 +42,7 @@ npm run build -w frontend
 
 Expected: `tsc --noEmit` and `vite build` finish without errors and `frontend/dist` exists.
 
-Then upload `frontend/dist` to the static host. TODO(operator): the upload command and the CloudFront invalidation command (the README gives none; see [phase-4-back-office.md](phase-4-back-office.md), "Deploy"). The invalidation must cover `/index.html` at least, so browsers load the new hashed assets.
+Then upload `frontend/dist` to the static host. deferred to deploy (not deployed by this project): the upload command and the CloudFront invalidation command (the README gives none; see [phase-4-back-office.md](phase-4-back-office.md), "Deploy"). The invalidation must cover `/index.html` at least, so browsers load the new hashed assets.
 
 ### Migrations
 
@@ -116,7 +116,7 @@ None. This release adds no background job, queue or schedule.
 
 ## Rollback
 
-Redeploy the previous static build and invalidate the CDN again. TODO(operator): the same upload and invalidation commands as in "Deploy", pointed at the previous build. Normally redeploy the previous artifact; the documentation commits do not need reverting. To undo the code instead, revert the frontend commits and rebuild:
+Redeploy the previous static build and invalidate the CDN again. deferred to deploy (not deployed by this project): the same upload and invalidation commands as in "Deploy", pointed at the previous build. Normally redeploy the previous artifact; the documentation commits do not need reverting. To undo the code instead, revert the frontend commits and rebuild:
 
 ```bash
 git revert --no-edit 99b89c7 3a1ae01 7b870e2 d8203ea f7c803f
@@ -128,11 +128,11 @@ There is no data change, no migration to undo and no variable to remove. A visit
 
 ## Known limits
 
-- The dark preference can flash one light frame on the first paint of a reload, because `index.html` has no `ColorSchemeScript` (DECISIONS O117). TODO(operator): decide whether to accept it or add the script in a later change (it needs a real-browser check).
-- Pinch and pan on the seat map are tested only with synthetic pointer events in jsdom (O119). TODO(operator): a person tries pinch, drag and the Zoom in, Zoom out and Reset view buttons on a real phone and records the result in `docs/ai-workflow-log.md`.
+- The dark preference can flash one light frame on the first paint of a reload, because `index.html` has no `ColorSchemeScript` (DECISIONS O117). Decided by the owner on 2026-11-27: light first, no script; the flash is accepted.
+- Pinch and pan on the seat map are tested only with synthetic pointer events in jsdom (O119). Accepted limit (O130): the owner checked in desktop Chrome only, so phones and other browsers are not tested.
 - Real tap target sizes are unverified: jsdom has no layout, so the tests prove which components render at a width, not that they fit 360 px (O120). The real-device check above covers it.
 - Text inputs and selects keep their default size and inline links are not enlarged (O120).
 - The Discovery date filter uses the browser's time zone, not the venue's (O118); the picker shows the zone in its label.
 - Live seat updates and a per-buyer ticket limit were cut (O121); seats still refresh by polling.
-- The GitHub Actions workflow has not run on this branch.
-- Open `TODO(operator)` lines above: the SPA fallback check, the upload and CloudFront invalidation commands, the first-paint decision and the real-device check on a phone.
+- The GitHub Actions workflow passed on main after the merges (owner-confirmed, 2026-11-27).
+- Open deferred-to-deploy lines above: the SPA fallback check and the upload and CloudFront invalidation commands.

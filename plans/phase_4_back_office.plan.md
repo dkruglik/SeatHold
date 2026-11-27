@@ -24,8 +24,8 @@ todos:
     content: Optional - manual release of a held seat by an operator (the proposed capability)
     status: completed
   - id: it-7-docs-verify
-    content: "Proposed capability written up, README, manual check as buyer and admin, full verify, roadmap status. Open: manual browser check (only jsdom and integration tests run), second review round, full npm run verify on the final commit, GitHub Actions run"
-    status: in_progress
+    content: "Proposed capability written up, README, roadmap status. Manual end-to-end as buyer and admin run by the repository owner in desktop Chrome on 2026-11-27. GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27). External review in two rounds (O110)."
+    status: completed
 isProject: false
 ---
 

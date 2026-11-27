@@ -4,7 +4,7 @@ Branch: `feature/phase-4-back-office` · MR: not opened yet · Plan: `plans/phas
 
 Deploy order: Phase 3 first (and the Phase 1 and Phase 2 steps it depends on). Do their "Before deploy" steps if they are not done on the target environment (guides [phase-1-auth-access.md](phase-1-auth-access.md), [phase-2-booking-core.md](phase-2-booking-core.md) and [phase-3-buyer-flow.md](phase-3-buyer-flow.md)); this guide does not repeat them. The new migration adds a table with foreign keys to `seats`, `events`, `holds` and `users`, all created by earlier phases.
 
-Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`), `<admin-email>` (a mailbox you can read, which becomes the admin), `<buyer-email>` (a second mailbox you can read, which stays a buyer), `<event-id>` and `<seat-id>` (UUIDs picked with the SQL in "After deploy"), `<database-url>`, `<db-host>`, `<db-port>`, `<db-name>`, `<db-user>` (the production database connection details, as in the Phase 1 guide). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `TODO(operator)`.
+Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`), `<admin-email>` (a mailbox you can read, which becomes the admin), `<buyer-email>` (a second mailbox you can read, which stays a buyer), `<event-id>` and `<seat-id>` (UUIDs picked with the SQL in "After deploy"), `<database-url>`, `<db-host>`, `<db-port>`, `<db-name>`, `<db-user>` (the production database connection details, as in the Phase 1 guide). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `deferred to deploy (not deployed by this project)`.
 
 ## What changes for users
 
@@ -26,9 +26,9 @@ None. This release adds no variable and changes no default (`.env.example` and t
 
 ### Other requirements
 
-1. Everything is under `/api`, so the existing `/api/*` CloudFront behaviour to the load balancer covers the six admin routes. Every admin answer carries `Cache-Control: no-store` because it can hold buyer emails. TODO(operator): confirm the CloudFront cache policy for `/api/admin/*` does not cache and still forwards the `Cookie`, `Origin` and `X-CSRF-Token` headers (the repository holds no CloudFront configuration).
+1. Everything is under `/api`, so the existing `/api/*` CloudFront behaviour to the load balancer covers the six admin routes. Every admin answer carries `Cache-Control: no-store` because it can hold buyer emails. deferred to deploy (not deployed by this project): confirm the CloudFront cache policy for `/api/admin/*` does not cache and still forwards the `Cookie`, `Origin` and `X-CSRF-Token` headers (the repository holds no CloudFront configuration).
 2. The frontend gets new paths under `/admin` (the event list, a create form and an event page). A reload on any of them must serve `index.html` (see the Phase 3 guide, "Other requirements", item 2).
-3. TODO(operator): decide who is the first admin and make sure that person can receive the login email (see "After deploy", step 3). The seed is refused in production, so there is no default admin.
+3. deferred to deploy (not deployed by this project): decide who is the first admin and make sure that person can receive the login email (see "After deploy", step 3). The seed is refused in production, so there is no default admin.
 4. The backend and the frontend must be released together: the new screens need the new routes.
 
 ## Deploy
@@ -42,7 +42,7 @@ The backend image has no migration path (DECISIONS.md O35), as in earlier phases
 docker build -f backend/Dockerfile -t seatholder-backend .
 ```
 
-3. Deploy the image. TODO(operator): the backend release command (the README gives no AWS commands).
+3. Deploy the image. deferred to deploy (not deployed by this project): the backend release command (the README gives no AWS commands).
 4. Build the frontend. It adds no dependency and no build variable:
 
 ```bash
@@ -50,7 +50,7 @@ npm ci
 npm run build -w frontend
 ```
 
-Then publish `frontend/dist` behind CloudFront. TODO(operator): the frontend upload and CloudFront invalidation commands (the README gives none).
+Then publish `frontend/dist` behind CloudFront. deferred to deploy (not deployed by this project): the frontend upload and CloudFront invalidation commands (the README gives none).
 
 ### Migrations
 
@@ -71,7 +71,7 @@ unset DATABASE_URL
 
 Expected: `All migrations have been successfully applied.` and the list names `20261127120000_seat_release_log`. If it fails with `relation "holds" does not exist` or a similar message, an earlier phase is not applied: stop and apply it.
 
-TODO(operator): run migrations against the direct database endpoint, not RDS Proxy (see the Phase 1 guide).
+deferred to deploy (not deployed by this project): run migrations against the direct database endpoint, not RDS Proxy (see the Phase 1 guide).
 
 Check that it is applied:
 
@@ -102,7 +102,7 @@ curl -s "$SITE/api/health"
 echo
 ```
 
-Expected: `{"status":"ok"}`. No variable is new, so a startup failure here is not about this release: read the task log for `Invalid configuration: <VARIABLE> ...`. TODO(operator): the log-group name and the command to tail it (the README has no AWS commands).
+Expected: `{"status":"ok"}`. No variable is new, so a startup failure here is not about this release: read the task log for `Invalid configuration: <VARIABLE> ...`. deferred to deploy (not deployed by this project): the log-group name and the command to tail it (the README has no AWS commands).
 
 ### 2. The migration and the new table (SQL checks)
 
@@ -138,7 +138,7 @@ Log in as `<buyer-email>` and as `<admin-email>` with the same commands as in th
 npm run user:promote -- '<admin-email>'
 ```
 
-Expected: `<admin-email> is now admin` (or `already admin`). TODO(operator): run it from a one-off task in the production network if the database is not reachable from where you run it.
+Expected: `<admin-email> is now admin` (or `already admin`). deferred to deploy (not deployed by this project): run it from a one-off task in the production network if the database is not reachable from where you run it.
 
 Now the access checks (read-only):
 
@@ -165,7 +165,7 @@ curl -s -c "$ADMIN_JAR" -b "$ADMIN_JAR" -X POST -H "Origin: $SITE" -H "X-CSRF-To
 
 Expected: a body with `"seatCount":20000` and an `eventId`, then `status=201`. Locally the transaction took about 0.4 to 0.5 s; expect a few seconds through the network and database of production. A value near 30 s means the transaction timeout would fail the request; then report it. Possible answers: `403` (the CSRF token or `FRONTEND_ORIGIN` does not match), `400` with code `INVALID_EVENT` (the message names the field), `409` with code `VENUE_CONFLICT` (a venue named `Release check hall` in `Berlin` already exists with another country or time zone).
 
-TODO(operator): no route deletes an event, and seats are referenced by holds, tickets and the release log, so a test event cannot be removed through the application. Decide whether to run this check in production at all, or only against a demo environment; if a test event must be removed, plan a manual database cleanup with a backup first (this guide gives no delete SQL).
+deferred to deploy (not deployed by this project): no route deletes an event, and seats are referenced by holds, tickets and the release log, so a test event cannot be removed through the application. Decide whether to run this check in production at all, or only against a demo environment; if a test event must be removed, plan a manual database cleanup with a backup first (this guide gives no delete SQL).
 
 Check what the database holds (psql, counts only):
 
@@ -250,7 +250,7 @@ Then, in the browser as admin, open `<site-origin>/admin`, open the event and lo
 ### 7. Logs
 
 ```bash
-# TODO(operator): replace with your log tail command (the README has no AWS commands), then filter:
+# deferred to deploy (not deployed by this project): replace with your log tail command (the README has no AWS commands), then filter:
 #   ... | grep 'seat released by operator'
 ```
 
@@ -289,15 +289,15 @@ Expected: `COMMIT`. Seats, holds, events and users are untouched.
 
 Each item below is also recorded in `DECISIONS.md`.
 
-- No browser end-to-end run was done on this branch: the frontend has jsdom component tests and the backend has integration tests only. Step 6 (the browser part) is the first real browser check of the back office.
-- The GitHub Actions workflow has not run on this branch.
+- The repository owner ran the buyer, guest and admin paths end to end in desktop Chrome on 2026-11-27. Step 6 (the browser part) stays as the operator's smoke test after deploy.
+- The GitHub Actions workflow passed on main after the merges (owner-confirmed, 2026-11-27).
 - Only the manual seat release has an audit trail (`seat_release_log`). Other admin actions, including creating events and reading buyer emails, are not logged beyond the request log (DECISIONS.md O98). A general admin audit log is a production addition.
 - There is no route to edit or delete an event, a show or a venue. A new venue whose name and city exist is reused only when its country and time zone match, otherwise `VENUE_CONFLICT` (O84).
 - The create form lists at most 500 shows and 500 venues (O94).
 - The list total and the items are separate reads, so under concurrent writes they can differ by a row (O102).
 - The manual release is not repeatable (409 on the second call) and does not notify the buyer (O96).
 - The back office repeats some booking and catalog SQL rules (lazy expiry, held seats becoming available) in its own readers and releaser (O88, O97).
-- There is no rate limit on admin routes beyond the edge. TODO(operator): confirm the WAF rate rules cover `/api/admin/*`.
+- There is no rate limit on admin routes beyond the edge. deferred to deploy (not deployed by this project): confirm the WAF rate rules cover `/api/admin/*`.
 - The backend image has no migration path (DECISIONS.md O35), as in earlier phases.
-- Open `TODO(operator)` lines above: the CloudFront cache policy for `/api/admin/*`, the SPA fallback for `/admin`, who the first admin is, whether to run the 20,000-seat check in production and how to clean up its event, the backend and frontend release commands, the log-group name and tail command, migrating through the direct database endpoint, and WAF rate rules for the admin prefix.
+- Open deferred-to-deploy lines above: the CloudFront cache policy for `/api/admin/*`, the SPA fallback for `/admin`, who the first admin is, whether to run the 20,000-seat check in production and how to clean up its event, the backend and frontend release commands, the log-group name and tail command, migrating through the direct database endpoint, and WAF rate rules for the admin prefix.
 - README: "Admin back office" in `README.md`. Decisions: DECISIONS.md O83 to O109.

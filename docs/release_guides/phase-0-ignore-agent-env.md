@@ -56,7 +56,7 @@ Secrets: the only new secret is `DATABASE_URL` for production. Nothing is deploy
 
 1. The GitHub repository must allow Actions. The workflow needs no secret and no registry: the image is built and never pushed.
 2. The `image-build` job needs QEMU and Buildx, which the workflow sets up itself on the hosted runner. The `image-smoke` job needs only Docker and a `postgres:17.12` service container, both on the hosted runner.
-3. TODO(operator): confirm the repository on GitHub has Actions enabled, and who reads the workflow results.
+3. The repository on GitHub has Actions enabled, and the workflow passed on main after the merges (owner-confirmed, 2026-11-27). deferred to deploy (not deployed by this project): who reads the workflow results.
 
 ## Deploy
 
@@ -204,9 +204,9 @@ Nothing is deployed, so there is nothing to roll back in an environment. To undo
 ## Known limits
 
 - The runtime image has neither the Prisma CLI nor migrations (DECISIONS.md O35); Phase 1 it-1 must add a one-off migration task or image stage. Deploy sets `APP_ENV=production` explicitly: an unset `APP_ENV` means `local` rules (O32).
-- TODO(operator): the GitHub workflow `.github/workflows/ci.yml` has never run. Its first run must be fully green, especially the multi-arch `image-build` job. The arm64 build is unproven on the development host (no buildx or QEMU there).
-- TODO(operator): the macOS install skill (`.claude/skills/install-seathold/`) is v0 and has not been run on a clean Mac. Run it once and record the result.
-- TODO(operator): the Agent Manager review of this branch (agent SH-cursor) ended `blocked` (input-required) and was replaced by an in-session review. Decide whether a second review is needed.
-- TODO(operator): decisions O1, O3, O13 and O14 in `DECISIONS.md` stay `planned` until the checks above pass: O14 moves to `implemented` after the first green workflow run; O13 after the install skill runs on a Mac; O3 after the arm64 image build is proven; O1 when the modules arrive from Phase 1.
+- The GitHub workflow `.github/workflows/ci.yml` passed on main after the merges (owner-confirmed, 2026-11-27). The arm64 build is unproven on the development host (no buildx or QEMU there).
+- The macOS install skill (`.claude/skills/install-seathold/`) is v0. The clean-Mac run was skipped by the owner's decision (2026-11-27, no Mac available); the skill is statically checked only, an accepted risk.
+- deferred to deploy (not deployed by this project): the Agent Manager review of this branch (agent SH-cursor) ended `blocked` (input-required) and was replaced by an in-session review. Decide whether a second review is needed.
+- Decisions in `DECISIONS.md`: O14 is `implemented` (the workflow passed on main, owner-confirmed 2026-11-27); O13 is decided, with the clean-Mac run skipped as an accepted risk; O3 stays `planned` until the arm64 image build is proven; O1 when the modules arrive from Phase 1.
 - Not verified when this guide was written: `npm ci` on an empty checkout, `npm run verify-slow-part`, and the `curl` step from the host shell. In the writing environment the host loopback could not reach published container ports, so the health response was verified inside the container (`docker exec ... wget`), together with the container health status `healthy`, user `node` and `docker stop` exit 0. `npm run verify-fast-part` and `docker compose up -d` (stack healthy) were run and passed.
 - README sections for these steps: "Run on Windows or Linux (Docker)", "Scripts", "Tests and verify" and "Backend image" in `README.md`.
