@@ -234,7 +234,7 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** Mantine, themed, with our own component layer; `DateTimeRangePicker` (date and time from-to in one control) and `SeatMap` (SVG) are our own extensions.
 - **Options.** MUI (its date-time range picker is in the paid tier); Radix with own styling (more work).
 - **Trade-off.** A dependency on Mantine's API; Mantine has a date range and a single date-time picker but no date-time range, so the extension is real work.
-- **Status.** `implemented` for Phase 3 it-4 and it-6 (O76, O77); Phase 6 deepens both components and stays `planned`.
+- **Status.** `implemented` for Phase 3 it-4 and it-6 (O76, O77); Phase 6 it-2 (picker, O118) and it-3 (seat map, O119) deepen both components and are `implemented`.
 
 ### O13. Local environment
 
