@@ -6,6 +6,7 @@ import { testConfig } from "../../modules/auth/presentation/http/auth-route-test
 import { createAuthHooks } from "../../modules/auth/index.js";
 import { User } from "../../modules/auth/domain/user.js";
 import type { SessionService } from "../../modules/auth/application/session-service.js";
+import type { BackofficeServices } from "../../modules/backoffice/index.js";
 import { adminPlugin } from "./admin-plugin.js";
 import { registerErrorHandler } from "./hooks/error-handler.js";
 
@@ -74,9 +75,11 @@ describe("adminPlugin", () => {
 });
 
 describe("the real app", () => {
-  it("registers GET /api/admin/ping behind the guard (anonymous gets 401; the admin 200 is in admin-access.integration.test.ts)", async () => {
-    ({ app } = buildMemoryAuthApp(testConfig()));
-    const response = await app.inject({ method: "GET", url: "/api/admin/ping" });
+  it("registers a back-office route (GET /api/admin/lookups) behind the guard (anonymous gets 401; the admin 200 is in admin-access.integration.test.ts)", async () => {
+    const lookups = { execute: () => Promise.resolve({ shows: [], venues: [] }) };
+    const backoffice = { services: { lookups } as unknown as BackofficeServices };
+    ({ app } = buildMemoryAuthApp(testConfig(), undefined, { backoffice }));
+    const response = await app.inject({ method: "GET", url: "/api/admin/lookups" });
 
     expect(response.statusCode).toBe(401);
   });

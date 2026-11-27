@@ -101,7 +101,7 @@ export function useAuthApp(overrides: Partial<AppConfig> = {}, beforeReady?: (ap
     // Catalog, booking and back-office services too, so one app serves the admin route-wide check and the end-to-end back-office tests.
     const catalog = createCatalogServices(config, { ...createPrismaCatalogRepositories(prisma), clock });
     const booking = createBookingServices({ prisma, clock, holdDurationMinutes: config.holdDurationMinutes, maxSeatsPerHold: config.maxSeatsPerHold });
-    const backoffice = createBackofficeServices({ eventGridWriter: new PrismaEventGridWriter(prisma), clock });
+    const backoffice = createBackofficeServices({ eventGridWriter: new PrismaEventGridWriter(prisma), prisma, clock });
     current = buildApp(config, { clock, auth: { services }, catalog: { services: catalog }, booking: { services: booking }, backoffice: { services: backoffice } });
     current.addHook("onRoute", (route: RouteOptions) => {
       for (const method of [route.method].flat()) routes.push({ method, url: route.url });

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 import { PrismaUserRepository } from "../../modules/auth/index.js";
+import { seedEvent } from "../../modules/backoffice/presentation/http/admin-read-test-support.js";
 import {
   cookieHeader,
   sidOf,
@@ -28,16 +29,20 @@ const SAMPLE_BODIES: Readonly<Record<string, object>> = {
   },
 };
 
+/** A route's path with its parameters filled in: `:eventId` names an event that exists, so the admin answer is a 2xx rather than 404. */
+const withParams = (url: string, eventId: string): string => url.replace(":eventId", eventId);
+
 interface Credentials {
   readonly sid: string;
 }
 
 /** One request as a browser would send it: mutating methods carry valid CSRF credentials so only the role decides. */
-async function call(harness: AuthHarness, route: RegisteredRoute, who: Credentials | null): Promise<{ status: number; code: string | undefined }> {
+async function call(harness: AuthHarness, route: RegisteredRoute, who: Credentials | null, eventId: string): Promise<{ status: number; code: string | undefined }> {
   const headers = who === null ? {} : cookieHeader(who.sid);
+  const url = withParams(route.url, eventId);
   const response = SAFE_METHODS.has(route.method)
-    ? await harness.get(route.url, headers)
-    : await harness.post(route.url, SAMPLE_BODIES[`${route.method} ${route.url}`] ?? {}, headers);
+    ? await harness.get(url, headers)
+    : await harness.post(url, SAMPLE_BODIES[`${route.method} ${route.url}`] ?? {}, headers);
   const body = response.json() as { error?: { code?: string } };
   return { status: response.statusCode, code: body.error?.code };
 }
@@ -45,10 +50,11 @@ async function call(harness: AuthHarness, route: RegisteredRoute, who: Credentia
 /** The routes under /api/admin that do not answer anonymous 401, buyer 403 FORBIDDEN_ROLE and admin 2xx. Empty means the boundary holds. */
 async function accessViolations(harness: AuthHarness, buyer: Credentials, admin: Credentials): Promise<string[]> {
   const violations: string[] = [];
+  const { eventId } = await seedEvent(harness.prisma, { seats: [["A", 1]] });
   for (const route of adminRoutes(harness)) {
-    const anonymous = await call(harness, route, null);
-    const asBuyer = await call(harness, route, buyer);
-    const asAdmin = await call(harness, route, admin);
+    const anonymous = await call(harness, route, null, eventId);
+    const asBuyer = await call(harness, route, buyer, eventId);
+    const asAdmin = await call(harness, route, admin, eventId);
     if (anonymous.status !== 401 || anonymous.code !== "UNAUTHENTICATED") violations.push(`${route.method} ${route.url} anonymous -> ${anonymous.status}`);
     if (asBuyer.status !== 403 || asBuyer.code !== "FORBIDDEN_ROLE") violations.push(`${route.method} ${route.url} buyer -> ${asBuyer.status}`);
     if (asAdmin.status < 200 || asAdmin.status > 299) violations.push(`${route.method} ${route.url} admin -> ${asAdmin.status}`);
@@ -66,39 +72,41 @@ async function sessions(harness: AuthHarness): Promise<{ buyer: Credentials; adm
 describe("every route under /api/admin (the real app)", () => {
   const harness = useAuthApp();
 
-  it("is registered at all (ping exists)", () => {
-    expect(adminRoutes(harness).map((route) => `${route.method} ${route.url}`)).toContain("GET /api/admin/ping");
-  });
-
-  it("covers the back-office routes: creating an event is registered under /api/admin", () => {
-    expect(adminRoutes(harness).map((route) => `${route.method} ${route.url}`)).toEqual(expect.arrayContaining(["POST /api/admin/events"]));
+  it("covers every back-office route: all of them are registered under /api/admin", () => {
+    expect(adminRoutes(harness).map((route) => `${route.method} ${route.url}`).sort()).toEqual([
+      "GET /api/admin/events",
+      "GET /api/admin/events/:eventId/bought-tickets",
+      "GET /api/admin/events/:eventId/open-tickets",
+      "GET /api/admin/lookups",
+      "POST /api/admin/events",
+    ]);
   });
 
   it("answers anonymous 401 UNAUTHENTICATED, buyer 403 FORBIDDEN_ROLE and admin 2xx", async () => {
     const { buyer, admin } = await sessions(harness);
 
     expect(await accessViolations(harness, buyer, admin)).toEqual([]);
-    expect((await harness.get("/api/admin/ping", cookieHeader(admin.sid))).json()).toEqual({ ok: true });
+    expect((await harness.get("/api/admin/lookups", cookieHeader(admin.sid))).json()).toMatchObject({ shows: expect.any(Array), venues: expect.any(Array) });
   });
 
   it("takes a demotion into effect on the next request of the same session", async () => {
     const { admin } = await sessions(harness);
-    expect((await harness.get("/api/admin/ping", cookieHeader(admin.sid))).statusCode).toBe(200);
+    expect((await harness.get("/api/admin/lookups", cookieHeader(admin.sid))).statusCode).toBe(200);
 
     await new PrismaUserRepository(harness.prisma).setRoleByEmail("root@example.io", "buyer");
 
-    const after = await harness.get("/api/admin/ping", cookieHeader(admin.sid));
+    const after = await harness.get("/api/admin/lookups", cookieHeader(admin.sid));
     expect(after.statusCode).toBe(403);
     expect(after.json()).toEqual({ error: { code: "FORBIDDEN_ROLE", message: expect.any(String) } });
   });
 
   it("takes a promotion into effect on the next request of the same session", async () => {
     const { buyer } = await sessions(harness);
-    expect((await harness.get("/api/admin/ping", cookieHeader(buyer.sid))).statusCode).toBe(403);
+    expect((await harness.get("/api/admin/lookups", cookieHeader(buyer.sid))).statusCode).toBe(403);
 
     await new PrismaUserRepository(harness.prisma).setRoleByEmail("ada@example.io", "admin");
 
-    expect((await harness.get("/api/admin/ping", cookieHeader(buyer.sid))).statusCode).toBe(200);
+    expect((await harness.get("/api/admin/lookups", cookieHeader(buyer.sid))).statusCode).toBe(200);
   });
 });
 

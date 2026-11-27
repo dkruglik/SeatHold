@@ -22,7 +22,7 @@ export function createDefaultRuntime(config: AppConfig): Runtime & { readonly ap
   const logger: WarnLogger = { warn: (message, fields) => late.log?.warn(fields ?? {}, message) };
   const { booking, guestAccess } = createBookingWithGuestAccess(config, { prisma, clock, email, logger });
   const catalog = createCatalogServices(config, { ...createPrismaCatalogRepositories(prisma), clock });
-  const backoffice = createBackofficeServices({ eventGridWriter: new PrismaEventGridWriter(prisma), clock });
+  const backoffice = createBackofficeServices({ eventGridWriter: new PrismaEventGridWriter(prisma), prisma, clock });
   const app = buildApp(config, { clock, auth: { services }, booking: { services: booking }, guestAccess: { services: guestAccess }, catalog: { services: catalog }, backoffice: { services: backoffice } });
   late.log = app.log;
   return { prisma, app };

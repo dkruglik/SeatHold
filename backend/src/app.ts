@@ -7,7 +7,6 @@ import { browserStateChangeHooks } from "./presentation/http/hooks/browser-state
 import { adminPlugin } from "./presentation/http/admin-plugin.js";
 import { registerErrorHandler } from "./presentation/http/hooks/error-handler.js";
 import { healthRoute } from "./presentation/http/routes/health.route.js";
-import { adminPingRoute } from "./presentation/http/routes/admin-ping.route.js";
 import { authPlugin, createAuthHooks, type AuthPluginOptions } from "./modules/auth/index.js";
 import { catalogPlugin, type CatalogPluginOptions } from "./modules/catalog/index.js";
 import { bookingPlugin, type BookingPluginOptions } from "./modules/booking/index.js";
@@ -63,7 +62,7 @@ export function buildApp(config: AppConfig, deps: AppDeps): FastifyInstance {
       prefix: "/api/admin",
       auth: createAuthHooks(deps.auth.services.sessions),
       mutationHooks,
-      routes: [adminPingRoute, ...(deps.backoffice === undefined ? [] : backofficeRoutes(deps.backoffice.services))],
+      routes: deps.backoffice === undefined ? [] : backofficeRoutes(deps.backoffice.services),
     });
   }
   if (deps.booking !== undefined && deps.auth !== undefined) {
