@@ -17,6 +17,8 @@ How AI was used to build SeatHolder, how it was directed and checked, and where 
 
 **Not yet done.** The workflow has not run on GitHub, and the macOS install skill has not been run on a clean Mac.
 
+**Update 2026-11-27.** GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27). The owner decided to skip the clean-Mac run of the install skill (no Mac available); the skill stays statically checked only, an accepted risk.
+
 ## 2026-11-26: Phase 1 (auth and access)
 
 **What the AI did.** The run followed iterations it-1 to it-7 of `plans/phase_1_auth_access.plan.md`, then this documentation step (it-8): the email provider port with console and SMTP adapters (it-1, `a0746e4`), the auth schema, migration and repositories (it-2, `dd41b53`), login code request and verify services (it-3, `6c62d74`), sessions, the `sid` cookie and the auth routes (it-4, `2db1e99`), CSRF token and Origin checks on browser mutations (it-5, `b521d9e`), the admin boundary, role hook, promote and demote scripts and the seed (it-6, `09f7ef2`), and the login screen, auth state and route guards in the frontend (it-7, `49b1104`). The install skill, `DECISIONS.md` security entry (O56) and README "Authentication" section came with it-8.
@@ -31,6 +33,8 @@ How AI was used to build SeatHolder, how it was directed and checked, and where 
 - The CSRF and Origin hooks arrived one iteration after the routes they protect, so the branch had a documented unprotected window for mutations between it-4 and it-5. It-5 closed it; nothing was merged or deployed in between.
 
 **Not yet done.** The login flow has not been exercised in a real browser against a real backend, and the CI workflow has not run on GitHub. Open security risks and the before-production list are in `DECISIONS.md` O56.
+
+**Update 2026-11-27.** GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27).
 
 ## 2026-11-26: Phase 2 (booking core)
 
@@ -68,6 +72,8 @@ After the third review round the user asked which options exist for loading the 
 
 **Not yet done.** The review-suite has not run on Phase 3, the full `npm run verify` has not run for this documentation step, and the buyer and guest paths have not been exercised end to end in a real browser. The install skill has not run on a clean Mac. The guest-link and resend-attempt tables have no retention job, the 1 s browser cache of the public search and event answers adds to any later edge cache, and the search `OR` branch cannot use the GIN index (O70). Results of the review and of verify are not claimed here.
 
+**Update 2026-11-27.** The owner ran the buyer and guest paths end to end in desktop Chrome (seat map, hold countdown, checkout, bookings, guest link), with expiry on screen and the two-browser race in the same run. GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27). Real phones and other browsers are an accepted limit (not tested).
+
 **Review round (Phase 3).** The external review ran through another Agent Manager agent (reviewer `SH-cursor`), outside the run that built the phase. The first delegation did not return a result: it was unmatched and was cancelled. The retry ended `uncertain` (another-user-input), and the result was obtained through a follow-up request. It found 0 Critical and 5 Important findings (the exchange was not atomic, the exchange route read the booking twice, the CSRF and Origin guard test missed the guest routes, there was no release guide, the roadmap was not updated) and 6 suggestions (an unsent link stayed valid after an email failure, the resend 429 had no `Retry-After`, the search `OR` cannot use the GIN index, no retention of the guest tables, a malformed guest link showed a server error, the Vitest pool). The fix round: `2afe774` (link consume and session creation in one statement, the route answers from the booking already read, a link whose email failed is invalidated, the guard test covers the guest POST routes), `82fcf8d` (a 400 from the exchange is shown as an invalid link; Vitest `vmThreads`, measured over three runs each) and the Retry-After commit (the resend 429 carries `Retry-After` and `retryAfterSeconds`). The release guide and the roadmap status were handled in separate steps. Two suggestions were accepted and deferred, not fixed: the search `OR` (O70) and the retention of guest tables (O73, O74), both listed in the release guide. After the fixes the backend ran 481 unit and 274 integration tests and the frontend 216 tests, all passing. The review was not repeated after the fixes, so its second result is not claimed here. The decisions are in `DECISIONS.md` O73, O74, O79, O81 and O82.
 
 ## 2026-11-27: Phase 4 (back office)
@@ -84,6 +90,8 @@ After the third review round the user asked which options exist for loading the 
 - Red runs are incomplete. The integration tests for create-event were written after the implementation, so no failing run was captured for them. The admin lists unit test had only a type-level red for the timezone fields (the missing fields failed the type check, not an assertion). The tests assert the behavior, but the test-first rule was not shown for those steps.
 
 **Not yet done.** No browser end-to-end run was done: the screens have jsdom component tests and the routes have integration tests, but nobody drove the back office in a real browser against a real backend. The install skill has not run on a clean Mac, and the GitHub Actions workflow has not run on this branch. The 20,000-seat timing (about 0.4 to 0.5 s) was measured locally only.
+
+**Update 2026-11-27.** The owner ran the buyer, guest and admin paths end to end in desktop Chrome, including the back office. GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27). The second review round is recorded in O110.
 
 **Review round (Phase 4).** The external review ran through another Agent Manager agent (reviewer `SH-cursor`), outside the run that built the phase. It found 0 Critical and 3 Important findings, and 5 suggestions. The Important findings (the venue conflict, the stale hold release and the documentation) and the suggestions were all fixed. The review was not repeated after the fixes, so a second result is not claimed here. The decisions are in `DECISIONS.md` O84, O91, O93 and O101.
 
@@ -116,3 +124,5 @@ After the third review round the user asked which options exist for loading the 
 **Where it went wrong and how it was caught.** Mantine's default muted text (gray 6) failed WCAG AA; the contrast assertions in `theme.test.ts` show the gap, and the theme now maps it to gray 7 (O117).
 
 **Not yet done.** The external review of Phase 6 is recorded in O122 (two rounds, all findings fixed or disproved by tests). Still open: a manual keyboard-only purchase and a check on real devices, `ColorSchemeScript` for the dark first paint, and the full `npm run verify` on the final commit.
+
+**Update 2026-11-27.** Owner decisions: the first paint is light first with no ColorSchemeScript (O117, accepted); phones and other browsers are an accepted limit (desktop Chrome only); GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27). Deploy-time lines are deferred to deploy. The second review round is recorded in O122. Still open: the keyboard-only purchase check, which the owner's run did not name. At the owner's request, the same change also fixed the stale statements in DECISIONS O1, 'Cut so far' and the time budget (O130).

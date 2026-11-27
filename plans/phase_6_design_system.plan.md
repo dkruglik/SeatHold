@@ -15,7 +15,7 @@ todos:
     content: SeatMap legend, row labels, price and state tooltip, keyboard navigation, zoom and pan on small screens (d8203ea)
     status: completed
   - id: it-4-responsive-pass
-    content: Desktop and mobile layout on every screen (discovery, event, checkout, tickets, guest, admin) (3a1ae01); real-device check still open
+    content: "Desktop and mobile layout on every screen (discovery, event, checkout, tickets, guest, admin) (3a1ae01); phones and other browsers an accepted limit (desktop Chrome only, 2026-11-27)"
     status: completed
   - id: it-5-optional-extras
     content: Optional - one item from brief section 5 if time remains (for example SSE seat updates or a per-buyer ticket limit); not built, cut (O121)

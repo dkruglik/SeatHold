@@ -4,7 +4,7 @@ Branch: `feature/phase-5-deliverables` · MR: not opened yet · Plan: `plans/pha
 
 Deploy order: Phases 1 to 4 first (guides [phase-1-auth-access.md](phase-1-auth-access.md), [phase-2-booking-core.md](phase-2-booking-core.md), [phase-3-buyer-flow.md](phase-3-buyer-flow.md), [phase-4-back-office.md](phase-4-back-office.md)). This guide does not repeat their steps.
 
-Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`), `<admin-email>` or `<buyer-email>` (a mailbox you can read, for the signed-in check) and `<host>` (the host part of `<site-origin>`). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `TODO(operator)`.
+Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`), `<admin-email>` or `<buyer-email>` (a mailbox you can read, for the signed-in check) and `<host>` (the host part of `<site-origin>`). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `deferred to deploy (not deployed by this project)`.
 
 ## What changes for users
 
@@ -23,7 +23,7 @@ None. This release adds no variable and changes no default (`.env.example` and t
 
 ### Other requirements
 
-1. `GET /api/auth/me` is under `/api`, so the existing `/api/*` CloudFront behaviour covers it. TODO(operator): confirm the CloudFront cache policy for `/api/*` honours the origin `Cache-Control` and forwards `Cookie`, as asked in the earlier guides ([phase-3-buyer-flow.md](phase-3-buyer-flow.md) and [phase-4-back-office.md](phase-4-back-office.md), "Other requirements"). The check below proves it.
+1. `GET /api/auth/me` is under `/api`, so the existing `/api/*` CloudFront behaviour covers it. deferred to deploy (not deployed by this project): confirm the CloudFront cache policy for `/api/*` honours the origin `Cache-Control` and forwards `Cookie`, as asked in the earlier guides ([phase-3-buyer-flow.md](phase-3-buyer-flow.md) and [phase-4-back-office.md](phase-4-back-office.md), "Other requirements"). The check below proves it.
 2. The frontend is not changed. No frontend release is needed.
 
 ## Deploy
@@ -34,7 +34,7 @@ Backend only. Use the same release as for earlier phases.
 docker build -f backend/Dockerfile -t seatholder-backend .
 ```
 
-TODO(operator): the backend release command (the README gives no AWS commands).
+deferred to deploy (not deployed by this project): the backend release command (the README gives no AWS commands).
 
 ### Migrations
 
@@ -58,7 +58,7 @@ curl -s "$SITE/api/health"
 echo
 ```
 
-Expected: `{"status":"ok"}`. No variable is new, so a startup failure is not about this release: read the task log for `Invalid configuration: <VARIABLE> ...`. TODO(operator): the log-group name and the command to tail it.
+Expected: `{"status":"ok"}`. No variable is new, so a startup failure is not about this release: read the task log for `Invalid configuration: <VARIABLE> ...`. deferred to deploy (not deployed by this project): the log-group name and the command to tail it.
 
 ### 2. `/api/auth/me` headers, anonymous (read-only)
 
@@ -91,7 +91,7 @@ for i in 1 2; do curl -sI -b "$USER_JAR" "$SITE/api/auth/me" | grep -iE '^(x-cac
 curl -sI "$SITE/api/auth/me" | grep -iE '^x-cache'
 ```
 
-Expected: no `age` header, and `x-cache` is `Miss from cloudfront` or `Error from cloudfront`, never `Hit from cloudfront` and never `RefreshHit from cloudfront`. Anonymous and signed-in answers differ (`{"user":null}` against your user) on every call. If a hit appears, stop: the cache policy ignores the origin header. Fix the policy (`TODO(operator)` in "Other requirements") or roll back and report it. No `x-cache` header at all means the request did not go through CloudFront: tell the operator which path was used.
+Expected: no `age` header, and `x-cache` is `Miss from cloudfront` or `Error from cloudfront`, never `Hit from cloudfront` and never `RefreshHit from cloudfront`. Anonymous and signed-in answers differ (`{"user":null}` against your user) on every call. If a hit appears, stop: the cache policy ignores the origin header. Fix the policy (`deferred to deploy (not deployed by this project)` in "Other requirements") or roll back and report it. No `x-cache` header at all means the request did not go through CloudFront: tell the operator which path was used.
 
 ### 5. Clean up the test session
 
@@ -121,9 +121,9 @@ Then redeploy as in "Deploy". The change only adds two response headers on one r
 
 ## Known limits
 
-- The timed clean-Mac run of the `install-seathold` skill has not been done. The skill is written and statically checked only (its commands are compared with `package.json`, `.env.example` keys and repository paths). TODO(operator): a person runs the skill on a clean Mac, notes the minutes (target: under 10) and every fix needed, and records them in `docs/ai-workflow-log.md`.
-- The manual end-to-end run for a buyer, a guest and an admin has not been done in a real browser. The frontend has jsdom component tests and the backend has integration tests only. TODO(operator): run the demo path from `README.md` ("Demo path in five lines") in a browser as buyer, guest and admin, and record the result in `docs/ai-workflow-log.md`.
+- The timed clean-Mac run of the `install-seathold` skill was skipped by the owner's decision on 2026-11-27 (no Mac available). The skill is written and statically checked only (its commands are compared with `package.json`, `.env.example` keys and repository paths). Accepted risk: the install path on a clean Mac is unproven.
+- The manual end-to-end run for a buyer, a guest and an admin was run by the repository owner in desktop Chrome on 2026-11-27. deferred to deploy (not deployed by this project): after deploy, run the demo path from `README.md` ("Demo path in five lines") in a browser as buyer, guest and admin, and record the result in `docs/ai-workflow-log.md`.
 - No cache layer exists: no CloudFront configuration is in the repository. The latency targets, the scale design and the KPI query (O112 to O114) are written, not measured or built.
-- The GitHub Actions workflow has not run on this branch.
-- Open `TODO(operator)` lines above: the CloudFront cache policy for `/api/*`, the backend release command, the log-group name and tail command, the clean-Mac skill run, and the browser end-to-end run.
+- The GitHub Actions workflow passed on main after the merges (owner-confirmed, 2026-11-27).
+- Open deferred-to-deploy lines above: the CloudFront cache policy for `/api/*`, the backend release command, the log-group name and tail command, and the browser smoke test after deploy (the clean-Mac skill run was skipped, accepted risk).
 - README: "Quick start", "Install skill" and "What was cut" in `README.md`. Decisions: DECISIONS.md O111 to O114.

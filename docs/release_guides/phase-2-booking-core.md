@@ -2,9 +2,9 @@
 
 Branch: `feature/phase-2-booking-core` · MR: not opened yet · Plan: `plans/phase_2_booking_core.plan.md` it-1 to it-7 · Date: 2026-11-26
 
-Deploy order: Phase 1 first, or together with it. This branch is stacked on the unmerged Phase 1 branch (`feature/phase-1-auth-access`, guide [phase-1-auth-access.md](phase-1-auth-access.md), which itself deploys after Phase 0). The booking routes read sessions and the CSRF cookie from Phase 1, and the new migration has foreign keys to the Phase 1 `users` table and uses its `citext` extension. Do every "Before deploy" step of the Phase 1 guide first (secrets, SMTP, migration role); this guide does not repeat them.
+Deploy order: Phase 1 first, or together with it. Phase 1 (`feature/phase-1-auth-access`, merged into `main`, guide [phase-1-auth-access.md](phase-1-auth-access.md), which itself deploys after Phase 0). The booking routes read sessions and the CSRF cookie from Phase 1, and the new migration has foreign keys to the Phase 1 `users` table and uses its `citext` extension. Do every "Before deploy" step of the Phase 1 guide first (secrets, SMTP, migration role); this guide does not repeat them.
 
-Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`), `<event-id>` and `<seat-id>` (UUIDs picked with the SQL in "After deploy", step 3), `<database-url>`, `<db-host>`, `<db-port>`, `<db-name>`, `<db-user>` (the production database connection details, as in the Phase 1 guide). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `TODO(operator)`.
+Placeholders used below: `<site-origin>` (the public https origin, the same value as `FRONTEND_ORIGIN`), `<event-id>` and `<seat-id>` (UUIDs picked with the SQL in "After deploy", step 3), `<database-url>`, `<db-host>`, `<db-port>`, `<db-name>`, `<db-user>` (the production database connection details, as in the Phase 1 guide). The README has no AWS commands and this repository holds no AWS names, so every AWS-specific step is marked `deferred to deploy (not deployed by this project)`.
 
 ## What changes for users
 
@@ -58,8 +58,8 @@ For production, add the same three lines to the task environment.
 ### Other requirements
 
 1. The Phase 1 requirements still apply: https on `<site-origin>`, `FRONTEND_ORIGIN` equal to the exact browser origin (every booking mutation checks the `Origin` header), and `/api/*` routed to the backend.
-2. TODO(operator): decide whether this is a demo deployment or a real one. The `seed` command refuses to run when `APP_ENV=production` (it also creates a well-known admin). The catalog-only command `node backend/dist/scripts/seed-catalog.js` is allowed in production (DECISIONS.md O69) and loads fictional demo data (12 venues, 200 shows, 200 events, 40,000 seats). For a demo deployment run it once after the deploy ("After deploy", section 6). For a real deployment do not run it: real events come from the back office in Phase 4 (`POST /api/admin/events`), and until then the production database has no venues, shows or events and the seat map route has nothing to return.
-3. TODO(operator): the mock payment gateway is the only payment adapter. `POST /api/events/:eventId/hold/checkout` takes `paymentOutcome` (`succeed` or `fail`) from the client, so any caller can mark a payment as paid. Do not expose the booking routes to real customers in production until a real payment adapter replaces it, or block `POST /api/events/*/hold/checkout` at the edge. Decide which, and who owns it.
+2. deferred to deploy (not deployed by this project): decide whether this is a demo deployment or a real one. The `seed` command refuses to run when `APP_ENV=production` (it also creates a well-known admin). The catalog-only command `node backend/dist/scripts/seed-catalog.js` is allowed in production (DECISIONS.md O69) and loads fictional demo data (12 venues, 200 shows, 200 events, 40,000 seats). For a demo deployment run it once after the deploy ("After deploy", section 6). For a real deployment do not run it: real events come from the back office in Phase 4 (`POST /api/admin/events`), and until then the production database has no venues, shows or events and the seat map route has nothing to return.
+3. deferred to deploy (not deployed by this project): the mock payment gateway is the only payment adapter. `POST /api/events/:eventId/hold/checkout` takes `paymentOutcome` (`succeed` or `fail`) from the client, so any caller can mark a payment as paid. Do not expose the booking routes to real customers in production until a real payment adapter replaces it, or block `POST /api/events/*/hold/checkout` at the edge. Decide which, and who owns it.
 4. The expiry sweeper exists (`backend/src/modules/booking/infrastructure/persistence/prisma-hold-sweeper.ts`) but is not scheduled and not needed for correctness: expiry is lazy. Nothing schedules it in this release; the optional one-off sweep command is in section 7, and correctness does not depend on it.
 
 ## Deploy
@@ -73,7 +73,7 @@ The deploy path is the one in the Phase 1 guide ("Deploy"): the backend image ha
 docker build -f backend/Dockerfile -t seatholder-backend .
 ```
 
-3. Deploy the image with the environment above. TODO(operator): the backend release command (the README gives no AWS command).
+3. Deploy the image with the environment above. deferred to deploy (not deployed by this project): the backend release command (the README gives no AWS command).
 
 No frontend change: skip the frontend release.
 
@@ -96,7 +96,7 @@ unset DATABASE_URL
 
 Expected: `All migrations have been successfully applied.` The run lists `20261126130000_booking_schema` (and `20261126120000_auth_schema` too if Phase 1 was not applied yet). If it fails with `relation "users" does not exist`, Phase 1 is not applied: stop and apply it.
 
-TODO(operator): run migrations against the direct database endpoint, not RDS Proxy (see the Phase 1 guide).
+deferred to deploy (not deployed by this project): run migrations against the direct database endpoint, not RDS Proxy (see the Phase 1 guide).
 
 Check that it is applied:
 
@@ -128,7 +128,7 @@ curl -s "$SITE/api/health"
 echo
 ```
 
-Expected: `{"status":"ok"}`. If the tasks do not become healthy, read the task log: a line `Invalid configuration: <VARIABLE> ...` names the variable that is wrong. For this release that can be `HOLD_DURATION_MINUTES`, `MAX_SEATS_PER_HOLD` or `DEFAULT_CURRENCY`. Fix it and redeploy. TODO(operator): the log-group name and the command to tail it (the README has no AWS commands). This release adds no new log event names.
+Expected: `{"status":"ok"}`. If the tasks do not become healthy, read the task log: a line `Invalid configuration: <VARIABLE> ...` names the variable that is wrong. For this release that can be `HOLD_DURATION_MINUTES`, `MAX_SEATS_PER_HOLD` or `DEFAULT_CURRENCY`. Fix it and redeploy. deferred to deploy (not deployed by this project): the log-group name and the command to tail it (the README has no AWS commands). This release adds no new log event names.
 
 ### 2. The migration, the tables and stale holds (SQL checks)
 
@@ -246,7 +246,7 @@ Expected: both finish with all tests passed. The first runs 100 parallel holds o
 node backend/dist/scripts/seed-catalog.js
 ```
 
-TODO(operator): the AWS command that starts the one-off task (the README gives no AWS commands). For a real deployment skip this section: the catalog comes from the back office in Phase 4, and no import-from-file command exists.
+deferred to deploy (not deployed by this project): the AWS command that starts the one-off task (the README gives no AWS commands). For a real deployment skip this section: the catalog comes from the back office in Phase 4, and no import-from-file command exists.
 
 Expected output on the first run, exit code 0:
 
@@ -287,7 +287,7 @@ SELECT count(*) FROM seats WHERE status = 'held' AND held_until <= now();
 
 ### Scheduler checks
 
-None. Nothing in this repository schedules the sweeper. TODO(operator): decide whether to run the sweep on a schedule (for example an EventBridge Scheduler target that starts a one-off task from the API image with the command `node backend/dist/scripts/sweep-holds.js --batch-size=500`) or skip it, which is safe because expiry is lazy.
+None. Nothing in this repository schedules the sweeper. deferred to deploy (not deployed by this project): decide whether to run the sweep on a schedule (for example an EventBridge Scheduler target that starts a one-off task from the API image with the command `node backend/dist/scripts/sweep-holds.js --batch-size=500`) or skip it, which is safe because expiry is lazy.
 
 ## Rollback
 
@@ -315,11 +315,11 @@ Expected: `COMMIT`. The Phase 1 tables and accounts are untouched.
 
 ## Known limits
 
-- The mock payment takes the outcome from the client and is the only payment adapter (see the TODO(operator) in "Other requirements").
+- The mock payment takes the outcome from the client and is the only payment adapter (see the deferred to deploy (not deployed by this project) in "Other requirements").
 - The production catalog is fictional demo data loaded by `seed:catalog` (section 6); a real deployment has no loader until the back office (Phase 4), and there is no import from a file. Event start dates stay those of the first run.
 - The sweeper is not scheduled (the one-off command `node backend/dist/scripts/sweep-holds.js` exists). Stale `held` rows stay until a later hold or read treats them as free; correctness does not depend on it.
 - No booking UI yet (Phase 3), so nothing in the browser exercises these routes.
 - The backend image has no migration path (DECISIONS.md O35), as in Phase 1.
-- The GitHub Actions workflow has not run on this branch.
-- TODO(operator) lines above: whether this is a demo or a real deployment (and so whether to load the demo catalog), how to keep the mock payment away from real customers, the backend release command, the log-group name, and migrating through the direct database endpoint.
+- The GitHub Actions workflow passed on main after the merges (owner-confirmed, 2026-11-27).
+- deferred to deploy (not deployed by this project) lines above: whether this is a demo or a real deployment (and so whether to load the demo catalog), how to keep the mock payment away from real customers, the backend release command, the log-group name, and migrating through the direct database endpoint.
 - README: "Booking" in `README.md`. Decisions: DECISIONS.md D1, D2, D4, D6 and O58 to O69 (O67 is the checkout price, O68 the external review, O69 loading the catalog in production).
