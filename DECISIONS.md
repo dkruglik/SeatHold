@@ -995,6 +995,15 @@ The Phase 1 summary and its open risks are in O56.
 
 ---
 
+### O110. External review of Phase 4
+
+- **Context.** Reviewer `SH-cursor` ran the review-suite over the Phase 4 commits (`2ea51e6..HEAD`) outside the run that built them, as for Phase 2 (O68) and Phase 3 (O82), as one single-agent review per round.
+- **Findings, round 1.** 0 Critical, 3 Important, 5 suggestions. Important: a new venue with an existing name and city but another country or timezone silently reused the old venue (fixed in `7f45614`, now 409 `VENUE_CONFLICT`, O84); an expired hold whose seat row was still `held` could not be released from the UI (fixed in `7f45614` and `db5f832`, `releasable` and "Clear stale hold", O101); no Phase 4 release guide and O49 still named the removed ping route (fixed in `0d01f94`, O95). Suggestions: the release route was missing from the CSRF guard list (fixed, `mutating-routes-guard.test.ts`); the seat release writes booking tables from backoffice (accepted, O97); the count and the page are not one snapshot (accepted, O102); buyer emails in logs (checked, no body or query is logged, a test pins it, O102a); the plan statuses lagged (updated in `70ba664`).
+- **Findings, round 2** (`1d1051a..HEAD`). 0 Critical, 0 Important, confirmed every round 1 item resolved or explicitly accepted; two suggestions: this record, and the Phase 1 plan still listing the ping route (both fixed).
+- **Choice.** Fix every finding and record each accepted one with its entry (chosen) over fixing only Critical and Important findings.
+- **Trade-off.** The seat release coupling (O97) and the non-snapshot lists (O102) remain by choice. The review was static plus targeted unit runs; the integration and manual browser checks are not part of it.
+- **Status.** `implemented` for the fixes (commits above, tests as listed in O84, O101 and O102a).
+
 ## Back-office capability proposal
 
 **Manual release of a held seat.** An operator can free a seat stuck in a hold with a required reason (for example, a buyer abandoned checkout during a support call, or a hold blocks the last seat before showtime). It uses the same conditional update as a buyer release and writes a log row.
