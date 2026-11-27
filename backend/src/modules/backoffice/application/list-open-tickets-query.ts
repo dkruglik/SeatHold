@@ -1,6 +1,6 @@
 import { EventNotFound } from "../../catalog/index.js";
 import type { Clock } from "../../../shared/time/clock.js";
-import { pagedOf, windowOf, type Paged, type PageInput } from "./page.js";
+import { pagedOf, TICKET_LIST_OFFSET_LIMIT, windowOf, type Paged, type PageInput } from "./page.js";
 import type { EventHeader, EventTicketsReader, OpenTicketRow } from "./ports/admin-readers.js";
 
 export interface OpenTickets extends Paged<OpenTicketRow> {
@@ -15,7 +15,7 @@ export class ListOpenTicketsQuery {
     const now = await this.deps.clock.now();
     const event = await this.deps.reader.findHeader(input.eventId);
     if (event === null) throw new EventNotFound();
-    const { rows, total } = await this.deps.reader.listOpen({ eventId: input.eventId, now, ...windowOf(input) });
-    return { event, ...pagedOf(input, rows, total) };
+    const { rows, total } = await this.deps.reader.listOpen({ eventId: input.eventId, now, ...windowOf(input, TICKET_LIST_OFFSET_LIMIT) });
+    return { event, ...pagedOf(input, rows, total, TICKET_LIST_OFFSET_LIMIT) };
   }
 }

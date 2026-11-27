@@ -2,7 +2,7 @@ import type { PrismaService } from "../../../../infrastructure/persistence/prism
 import type { CatalogSeedRepository } from "../../application/ports/catalog-seed-repository.js";
 import type { SeedEvent, SeedShow, SeedVenue } from "../../domain/catalog-seed-data.js";
 import { toEventColumns, toShowColumns, toVenueColumns } from "./catalog-seed-mappers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 /** Bulk, race-safe inserts: one statement per table, `ON CONFLICT DO NOTHING` on the natural key or stable id. */
 export class PrismaCatalogSeedRepository implements CatalogSeedRepository {

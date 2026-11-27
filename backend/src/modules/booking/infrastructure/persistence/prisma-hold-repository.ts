@@ -4,7 +4,8 @@ import { InfrastructureError } from "../../../../shared/errors/app-error.js";
 import type { ActiveHold, HoldRepository, HoldTransaction } from "../../application/ports/hold-repository.js";
 import type { Holder } from "../../domain/holder.js";
 import { holderColumns, toActiveHold } from "./hold-mappers.js";
-import { guarded, isUniqueViolation } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
+import { isUniqueViolation } from "./unique-violation.js";
 
 type Tx = Prisma.TransactionClient;
 

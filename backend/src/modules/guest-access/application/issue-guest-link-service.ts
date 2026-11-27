@@ -1,3 +1,4 @@
+import { InfrastructureError } from "../../../shared/errors/app-error.js";
 import type { WarnLogger } from "../../../shared/logging/warn-logger.js";
 import type { Clock } from "../../../shared/time/clock.js";
 import type { EmailProvider } from "../../auth/index.js";
@@ -44,7 +45,7 @@ export class IssueGuestLinkService {
     try {
       await email.send(message);
     } catch (error) {
-      logger.warn("guest link email was not sent; the buyer can request a new link", { bookingId: input.bookingId, errorName: errorName(error) });
+      logger.warn("guest link email was not sent; the buyer can request a new link", { bookingId: input.bookingId, ...errorFields(error) });
       await this.invalidateUndelivered(input.bookingId, now);
     }
   }
@@ -54,9 +55,20 @@ export class IssueGuestLinkService {
     try {
       await this.deps.links.invalidateUnusedForBookings([bookingId], now);
     } catch (error) {
-      this.deps.logger.warn("undelivered guest link could not be invalidated", { bookingId, errorName: errorName(error) });
+      this.deps.logger.warn("undelivered guest link could not be invalidated", { bookingId, ...errorFields(error) });
     }
   }
 }
 
 const errorName = (error: unknown): string => (error instanceof Error ? error.name : "unknown");
+
+/**
+ * Two message shapes end in a short code: the SMTP adapter's "Email delivery failed (ECONNREFUSED)" and the database
+ * wrapper's "Persistence failed: <operation> (57P01)". The whole message must match; only the code is logged, never the text.
+ */
+const SAFE_FAILURES = [/^Email delivery failed \(([A-Z0-9_]{1,32})\)$/, /^Persistence failed: [^()]+ \(([A-Z0-9]{2,8})\)$/];
+
+function errorFields(error: unknown): { errorName: string; errorCode?: string } {
+  const code = error instanceof InfrastructureError ? SAFE_FAILURES.map((pattern) => pattern.exec(error.message)?.[1]).find((c) => c !== undefined) : undefined;
+  return code === undefined ? { errorName: errorName(error) } : { errorName: errorName(error), errorCode: code };
+}

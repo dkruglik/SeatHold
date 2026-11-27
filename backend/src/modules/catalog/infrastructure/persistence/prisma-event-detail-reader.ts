@@ -1,6 +1,6 @@
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { EventDetailReader, EventDetailRow } from "../../application/ports/event-detail-reader.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 interface Row {
   readonly event_id: string;

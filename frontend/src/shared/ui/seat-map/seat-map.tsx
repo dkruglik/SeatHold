@@ -1,5 +1,5 @@
 import { Stack } from "@mantine/core";
-import type { KeyboardEvent } from "react";
+import { type KeyboardEvent, useMemo } from "react";
 import { groupByRow, labelWidth, pitch, rowY, seatX } from "./seat-layout";
 import { SeatLegend } from "./seat-legend";
 import { SeatRows } from "./seat-rows";
@@ -14,7 +14,7 @@ import { ZoomPan } from "./zoom-pan";
  * One seat is the tab stop; arrows, Home, End, PageUp and PageDown move focus. Seat ids key the buttons, so a refresh keeps focus.
  */
 export function SeatMap({ rows, seatsPerRow, seats, onSelect, disabled = false, priceMinor, currency }: SeatMapProps) {
-  const byRow = groupByRow(seats);
+  const byRow = useMemo(() => groupByRow(seats), [seats]);
   const keyboard = useSeatKeyboard(byRow);
   const tooltip = useSeatTooltip();
   const width = labelWidth * 2 + seatsPerRow * pitch;

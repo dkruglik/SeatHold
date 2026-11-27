@@ -1,7 +1,7 @@
 import type { Prisma } from "../../../../generated/prisma/client.js";
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { SeatReleaseInput, SeatReleaseOutcome, SeatReleaser } from "../../application/ports/seat-releaser.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 type Tx = Prisma.TransactionClient;
 

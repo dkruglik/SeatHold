@@ -1,6 +1,6 @@
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { AdminLookupsReader, LookupShow, LookupVenue } from "../../application/ports/admin-readers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 interface VenueRow {
   readonly id: string;

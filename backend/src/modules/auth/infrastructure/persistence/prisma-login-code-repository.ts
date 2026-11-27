@@ -3,7 +3,7 @@ import type { LoginCodeRepository, NewLoginCode } from "../../application/ports/
 import { normalizeEmail } from "../../domain/email.js";
 import type { LoginCode } from "../../domain/login-code.js";
 import { toLoginCode } from "./auth-mappers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 export class PrismaLoginCodeRepository implements LoginCodeRepository {
   constructor(private readonly prisma: PrismaService) {}

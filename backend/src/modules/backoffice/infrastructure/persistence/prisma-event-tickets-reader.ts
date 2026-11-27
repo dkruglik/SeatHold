@@ -1,6 +1,6 @@
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { BoughtTicketRow, EventHeader, EventTicketsReader, OpenTicketRow, PageCriteria, Rows } from "../../application/ports/admin-readers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 interface OpenRow {
   readonly id: string;

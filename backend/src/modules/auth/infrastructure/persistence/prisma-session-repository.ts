@@ -2,7 +2,7 @@ import type { PrismaService } from "../../../../infrastructure/persistence/prism
 import type { NewSession, SessionRepository } from "../../application/ports/session-repository.js";
 import type { ActiveSession, Session } from "../../domain/session.js";
 import { toActiveSession, toSession } from "./auth-mappers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 export class PrismaSessionRepository implements SessionRepository {
   constructor(private readonly prisma: PrismaService) {}

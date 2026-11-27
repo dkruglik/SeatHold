@@ -1,6 +1,6 @@
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { GuestResendLimiter, ResendAttempt } from "../../application/ports/guest-resend-limiter.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 export class PrismaGuestResendLimiter implements GuestResendLimiter {
   constructor(private readonly prisma: PrismaService) {}

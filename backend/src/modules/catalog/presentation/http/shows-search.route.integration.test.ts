@@ -147,6 +147,18 @@ describe("GET /api/shows pagination", () => {
     expect(body).toMatchObject({ items: [], total: 6, page: 9 });
   });
 
+  it("serves the last allowed offset and rejects the first deeper one with PAGE_TOO_DEEP", async () => {
+    for (const query of ["page=200&pageSize=50", "page=10000&pageSize=1"]) {
+      const ok = await harness.get(`/api/shows?${query}`);
+      expect(ok.statusCode).toBe(200);
+      expect(ok.json()).toMatchObject({ items: [], total: 0 });
+    }
+    const tooDeep = await harness.get("/api/shows?page=201&pageSize=50");
+    expect(tooDeep.statusCode).toBe(400);
+    expect(tooDeep.json()).toMatchObject({ error: { code: "PAGE_TOO_DEEP" } });
+    expect((await harness.get("/api/shows?page=10001&pageSize=1")).statusCode).toBe(400);
+  });
+
   it("rejects page 0, pageSize 0 and pageSize 51 with 400, and accepts pageSize 50", async () => {
     expect((await harness.get("/api/shows?page=0")).statusCode).toBe(400);
     expect((await harness.get("/api/shows?pageSize=0")).statusCode).toBe(400);

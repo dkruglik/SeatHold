@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { InfrastructureError } from "../../../shared/errors/app-error.js";
 import { ORIGIN, setup, tokenIn } from "./guest-access-fixtures.test-support.js";
 import { EVENT_START, HOUR, T0 } from "./in-memory-guest-access.test-support.js";
 
@@ -47,5 +48,59 @@ describe("IssueGuestLinkService", () => {
     expect(logger.lines).toHaveLength(2);
     expect(logger.lines.every((l) => l.fields?.bookingId === "b1")).toBe(true);
     expect(logger.text()).not.toContain("example.com");
+  });
+});
+
+describe("IssueGuestLinkService failure log", () => {
+  it("logs the adapter's safe error code with the booking id, never the address or the token", async () => {
+    const { issue, email, logger } = setup();
+    email.send = () => Promise.reject(new InfrastructureError("Email delivery failed (ECONNREFUSED)"));
+
+    await issue.issue(input);
+
+    expect(logger.lines[0]?.fields).toEqual({ bookingId: "b1", errorName: "InfrastructureError", errorCode: "ECONNREFUSED" });
+    expect(logger.text()).not.toContain("example.com");
+    expect(logger.text()).not.toContain("#t=");
+  });
+
+  it("logs no error code when the failure carries none or its message is not the adapter's shape", async () => {
+    const { issue, email, logger } = setup();
+    email.fail = true;
+
+    await issue.issue(input);
+    email.send = () => Promise.reject(new InfrastructureError("Email delivery failed (bad code, guest@example.com)"));
+    await issue.issue(input);
+
+    expect(logger.lines).toHaveLength(2);
+    for (const line of logger.lines) expect(line.fields).not.toHaveProperty("errorCode");
+    expect(logger.text()).not.toContain("example.com");
+  });
+});
+
+describe("IssueGuestLinkService invalidate failure log", () => {
+  const failBoth = (invalidateMessage: string) => {
+    const ctx = setup();
+    ctx.email.fail = true;
+    ctx.links.invalidateUnusedForBookings = () => Promise.reject(new InfrastructureError(invalidateMessage));
+    return ctx;
+  };
+
+  it("logs the safe database code of a guarded failure, never the operation text", async () => {
+    const { issue, logger } = failBoth("Persistence failed: invalidate links (57P01)");
+
+    await issue.issue(input);
+
+    expect(logger.lines[1]?.fields).toEqual({ bookingId: "b1", errorName: "InfrastructureError", errorCode: "57P01" });
+    expect(logger.lines[1]?.fields).not.toHaveProperty("operation");
+    expect(logger.text()).not.toContain("invalidate links");
+  });
+
+  it("logs no code when the guarded message has none or is not that shape", async () => {
+    for (const message of ["Persistence failed: invalidate links", "Persistence failed: invalidate links (bad code)", "oops Persistence failed: x (57P01)"]) {
+      const { issue, logger } = failBoth(message);
+      await issue.issue(input);
+      expect(logger.lines[1]?.fields).not.toHaveProperty("errorCode");
+      expect(logger.text()).not.toContain("invalidate links");
+    }
   });
 });

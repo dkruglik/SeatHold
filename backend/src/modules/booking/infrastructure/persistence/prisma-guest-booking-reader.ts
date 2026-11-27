@@ -1,7 +1,7 @@
 import type { PrismaService } from "../../../../infrastructure/persistence/prisma-service.js";
 import type { GuestBookingReader } from "../../application/ports/guest-booking-reader.js";
 import type { StoredMyBooking, StoredMyTicket } from "../../application/ports/my-bookings-reader.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 interface BookingRow {
   readonly booking_id: string;

@@ -4,7 +4,7 @@ import { normalizeEmail } from "../../domain/email.js";
 import type { Role } from "../../domain/role.js";
 import type { User } from "../../domain/user.js";
 import { toUser } from "./auth-mappers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaService) {}

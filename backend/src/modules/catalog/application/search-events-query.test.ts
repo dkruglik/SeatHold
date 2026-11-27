@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ValidationError } from "../../../shared/errors/app-error.js";
 import { ControlledClock } from "../../../shared/time/controlled-clock.js";
 import type { EventSearchCriteria, EventSearchReader } from "./ports/event-search-reader.js";
-import { SearchEventsQuery } from "./search-events-query.js";
+import { SEARCH_OFFSET_LIMIT, SearchEventsQuery } from "./search-events-query.js";
 
 const NOW = new Date("2030-06-01T12:00:00.000Z");
 
@@ -52,5 +52,29 @@ describe("SearchEventsQuery", () => {
     const result = await query.execute({ page: 3, pageSize: 20 });
     expect(calls[0]).toMatchObject({ offset: 40, limit: 20 });
     expect(result).toMatchObject({ total: 41, page: 3, pageSize: 20, totalPages: 3 });
+  });
+});
+
+describe("SearchEventsQuery page depth", () => {
+  it("accepts the last allowed offset and rejects the first disallowed one with PAGE_TOO_DEEP", async () => {
+    const { calls, query } = setup();
+    await expect(query.execute({ page: 200, pageSize: 50 })).resolves.toBeDefined(); // offset 9,950
+    await expect(query.execute({ page: SEARCH_OFFSET_LIMIT, pageSize: 1 })).resolves.toBeDefined(); // offset 9,999
+    const reads = calls.length;
+
+    await expect(query.execute({ page: 201, pageSize: 50 })).rejects.toThrow(expect.objectContaining({ publicCode: "PAGE_TOO_DEEP" }));
+    await expect(query.execute({ page: SEARCH_OFFSET_LIMIT + 1, pageSize: 1 })).rejects.toBeInstanceOf(ValidationError);
+    expect(calls).toHaveLength(reads);
+  });
+
+  it("caps totalPages at the last reachable page and keeps the real total", async () => {
+    const { query } = setup(50_000);
+    const result = await query.execute({ page: 1, pageSize: 50 });
+    expect(result).toMatchObject({ total: 50_000, totalPages: 200 });
+  });
+
+  it("keeps the plain page count while it is below the cap", async () => {
+    const { query } = setup(9_990);
+    expect((await query.execute({ page: 1, pageSize: 30 })).totalPages).toBe(333);
   });
 });

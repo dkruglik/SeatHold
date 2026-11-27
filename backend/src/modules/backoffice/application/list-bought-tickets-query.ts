@@ -1,5 +1,5 @@
 import { EventNotFound } from "../../catalog/index.js";
-import { pagedOf, windowOf, type Paged, type PageInput } from "./page.js";
+import { pagedOf, TICKET_LIST_OFFSET_LIMIT, windowOf, type Paged, type PageInput } from "./page.js";
 import type { BoughtTicketRow, EventHeader, EventTicketsReader } from "./ports/admin-readers.js";
 
 export interface BoughtTickets extends Paged<BoughtTicketRow> {
@@ -13,7 +13,7 @@ export class ListBoughtTicketsQuery {
   async execute(input: PageInput & { readonly eventId: string }): Promise<BoughtTickets> {
     const event = await this.deps.reader.findHeader(input.eventId);
     if (event === null) throw new EventNotFound();
-    const { rows, total } = await this.deps.reader.listBought({ eventId: input.eventId, ...windowOf(input) });
-    return { event, ...pagedOf(input, rows, total) };
+    const { rows, total } = await this.deps.reader.listBought({ eventId: input.eventId, ...windowOf(input, TICKET_LIST_OFFSET_LIMIT) });
+    return { event, ...pagedOf(input, rows, total, TICKET_LIST_OFFSET_LIMIT) };
   }
 }

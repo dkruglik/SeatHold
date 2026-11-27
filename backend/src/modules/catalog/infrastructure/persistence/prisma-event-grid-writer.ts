@@ -4,7 +4,7 @@ import { NotFoundError } from "../../../../shared/errors/app-error.js";
 import type { CreatedEvent, EventGridWriter, NewEventGrid, ShowRef, VenueRef } from "../../application/ports/event-grid-writer.js";
 import { VenueConflict } from "../../domain/errors.js";
 import { rowLabels } from "../../domain/row-label.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 type Tx = Prisma.TransactionClient;
 

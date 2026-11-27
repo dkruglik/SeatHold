@@ -2,7 +2,7 @@ import type { PrismaService } from "../../../../infrastructure/persistence/prism
 import type { CurrentHold, CurrentHoldReader } from "../../application/ports/current-hold-reader.js";
 import type { Holder } from "../../domain/holder.js";
 import { holderColumns } from "./hold-mappers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 /** Read-only: no locks, `now` is a bound parameter. */
 export class PrismaCurrentHoldReader implements CurrentHoldReader {

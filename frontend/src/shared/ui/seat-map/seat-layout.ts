@@ -10,9 +10,14 @@ export type SeatRow = readonly [label: string, seats: readonly SeatMapSeat[]];
 export function groupByRow(seats: readonly SeatMapSeat[]): SeatRow[] {
   const rows = new Map<string, SeatMapSeat[]>();
   for (const seat of seats) {
-    rows.set(seat.row, [...(rows.get(seat.row) ?? []), seat]);
+    const rowSeats = rows.get(seat.row);
+    if (rowSeats === undefined) {
+      rows.set(seat.row, [seat]);
+    } else {
+      rowSeats.push(seat);
+    }
   }
-  return [...rows].map(([label, rowSeats]) => [label, rowSeats.toSorted((a, b) => a.number - b.number)]);
+  return [...rows].map(([label, rowSeats]) => [label, rowSeats.sort((a, b) => a.number - b.number)]);
 }
 
 export function seatX(seat: SeatMapSeat): number {

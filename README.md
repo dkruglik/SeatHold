@@ -197,7 +197,7 @@ Try the guest path locally: `docker compose up -d` (or the Homebrew services) st
 
 | Route | Who | Answers |
 |---|---|---|
-| `GET /api/shows` | anyone | One row per event with `seatsLeft`; query `q`, `type`, `genre`, `country`, `city`, `venueId`, `from`, `to`, `page`, `pageSize` (max 50, default 20); unknown parameters 400; `{ items, total, page, pageSize, totalPages }`; `public, max-age=1` |
+| `GET /api/shows` | anyone | One row per event with `seatsLeft`; query `q`, `type`, `genre`, `country`, `city`, `venueId`, `from`, `to`, `page`, `pageSize` (max 50, default 20); unknown parameters 400; an offset of 10,000 or more is 400 `PAGE_TOO_DEEP` (narrow the filters); `{ items, total, page, pageSize, totalPages }` where `totalPages` stops at the last reachable page; `public, max-age=1` |
 | `GET /api/shows/facets` | anyone | Values for the filter lists (types, genres, countries, cities, venues) that have an upcoming event; `public, max-age=60` |
 | `GET /api/events/:eventId` | anyone | Show, venue, start and price; 400 for a malformed id, 404 `EVENT_NOT_FOUND`; `public, max-age=1` |
 | `GET /api/me/bookings` | signed in | The caller's confirmed bookings (newest first, at most 100) with ticket codes; 401 `UNAUTHENTICATED`; `no-store` |
@@ -252,7 +252,7 @@ Operators work at `/admin` in the browser (the "Back office" link in the user me
 - At most 20,000 seats per event (rows and seats per row 1 to 200), a price up to 1,000,000 minor units, a start time in the future and within 3 years. Bad input is 400 `INVALID_EVENT`.
 - A release needs a reason and is logged in the `seat_release_log` table (who, which seat, which hold, the reason, the time). A second release of the same seat answers 409 `SEAT_NOT_HELD`. The reason is stored, never written to the application log. Only this action has an audit trail; a general admin audit log is a production addition.
 - Buyer and guest emails appear only in admin responses. Ticket codes and payment details appear in no admin list.
-- Admin lists are paged: `page` 1 to 100000, `pageSize` 1 to 100; unknown query parameters are 400. The total and the items are two reads, not one snapshot.
+- Admin lists are paged: `pageSize` 1 to 100, and the offset is capped (400 `PAGE_TOO_DEEP`: 10,000 for events, 20,000 for ticket lists, and `totalPages` stops at the last reachable page); unknown query parameters are 400. The total and the items are two reads, not one snapshot.
 
 Reasoning: `DECISIONS.md` O83 to O109. Deploy and checks: [`docs/release_guides/phase-4-back-office.md`](docs/release_guides/phase-4-back-office.md).
 

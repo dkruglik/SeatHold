@@ -3,7 +3,7 @@ import type { ConsumeAndCreateSession, GuestLinkRepository, NewGuestLink } from 
 import type { GuestAccessLink } from "../../domain/guest-access-link.js";
 import type { GuestLinkState } from "../../domain/guest-link-state.js";
 import { toGuestAccessLink } from "./guest-access-mappers.js";
-import { guarded } from "./persistence-errors.js";
+import { guarded } from "../../../../shared/persistence/guarded.js";
 
 export class PrismaGuestLinkRepository implements GuestLinkRepository {
   constructor(private readonly prisma: PrismaService) {}
