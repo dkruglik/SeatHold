@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "../errors/app-error.js";
-import { assertOffsetWithinLimit, lastReachablePage } from "./offset-limit.js";
+import { assertOffsetWithinLimit, lastReachablePage, reachablePages } from "./offset-limit.js";
 
 describe("assertOffsetWithinLimit", () => {
   it("accepts the last allowed offset", () => {
@@ -34,5 +34,22 @@ describe("lastReachablePage", () => {
       expect(() => { assertOffsetWithinLimit(last, pageSize, 10_000); }).not.toThrow();
       expect(() => { assertOffsetWithinLimit(last + 1, pageSize, 10_000); }).toThrow(ValidationError);
     }
+  });
+});
+
+describe("reachablePages", () => {
+  it("stops the real page count at the last reachable page", () => {
+    expect(reachablePages(50_000, 50, 10_000)).toBe(200);
+    expect(reachablePages(50_000, 100, 20_000)).toBe(200);
+    expect(reachablePages(10_000_000, 30, 10_000)).toBe(334);
+  });
+
+  it("keeps the real page count when it is below the cap", () => {
+    expect(reachablePages(45, 20, 10_000)).toBe(3);
+    expect(reachablePages(0, 20, 10_000)).toBe(0);
+  });
+
+  it("caps at the limit when the limit allows fewer pages than the total needs", () => {
+    expect(reachablePages(1_000, 50, 100)).toBe(2);
   });
 });

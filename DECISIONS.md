@@ -828,7 +828,7 @@ The Phase 1 summary and its open risks are in O56.
 
 - **Context.** Plan row "Pagination": `page`, `pageSize` max 100.
 - **Options.** Cursor pagination; offset pagination with a bounded window (chosen).
-- **Choice.** `page` 1 to 10000 for the event list and 1 to 20000 for the ticket lists (schema maximums), `pageSize` 1 to 100; an offset beyond 10,000 (event list) or 20,000 (ticket lists) is 400 `PAGE_TOO_DEEP` (O124); default page size 20 for events and 50 for tickets. Unknown query parameters are 400. `total` comes from a separate count statement; `totalPages` is derived. Every list has a total order, so pages do not overlap.
+- **Choice.** `page` 1 to 10000 for the event list and 1 to 20000 for the ticket lists (schema maximums), `pageSize` 1 to 100; an offset beyond 10,000 (event list) or 20,000 (ticket lists) is 400 `PAGE_TOO_DEEP` (O124); default page size 20 for events and 50 for tickets. Unknown query parameters are 400. `total` comes from a separate count statement; `totalPages` is derived, capped at the last reachable page (O124). Every list has a total order, so pages do not overlap.
 - **Trade-off.** Offset reads get slower at deep pages; the offset cap of O124 and the 20,000-seat cap per event keep it small.
 - **Status.** `implemented`: `application/page.ts`, `admin-read-dto.ts`; tests in the three list route tests.
 
@@ -1170,7 +1170,7 @@ The Phase 1 summary and its open risks are in O56.
 - **Options.** Keyset pagination; cap the offset (chosen); leave it.
 - **Choice.** The offset `(page - 1) * pageSize` is capped: below 10,000 for search and the admin event list, below 20,000 for the admin open and bought ticket lists (the biggest grid, O86 and the 20,000 seat rule). Beyond it the answer is 400 `PAGE_TOO_DEEP` with a message to narrow the filters. The Ajv schema page maximums are the largest page that can pass with `pageSize` 1: 10000 for search and the event list, 20000 for the ticket lists. The check is the helper `assertOffsetWithinLimit`, called from the application queries. Review round 1 found that `totalPages` still came from the real count (total 50,000 with `pageSize` 50 gave 1000 pages while page 201 failed). `totalPages` is now `min(ceil(total / pageSize), lastReachablePage(pageSize, limit))`, where `lastReachablePage = ceil(limit / pageSize)` (helpers `lastReachablePage` and `reachablePages`); `total` stays the real count. The frontend only reads `totalPages` for its pagers, so it needed no change.
 - **Trade-off.** A user cannot page past 10,000 results. The filters narrow the list, and search is ordered by date so the useful pages come first. Keyset pagination is the production upgrade if the lists must be fully walkable.
-- **Status.** `implemented`: commit `e0d7a63`; files `backend/src/shared/pagination/offset-limit.ts`, `backend/src/modules/backoffice/application/{page.ts,list-admin-events-query.ts,list-bought-tickets-query.ts,list-open-tickets-query.ts}`, `backend/src/modules/backoffice/presentation/http/{admin-read-dto.ts,routes/bought-tickets.route.ts,routes/list-events.route.ts,routes/open-tickets.route.ts}`, `backend/src/modules/catalog/application/search-events-query.ts`, `backend/src/modules/catalog/presentation/http/catalog-dto.ts`; tests `offset-limit.test.ts` (including `lastReachablePage`), `search-events-query.test.ts` and `admin-queries.test.ts` (boundary PAGE_TOO_DEEP, capped `totalPages`), `page.test.ts`, `shows-search.route.integration.test.ts`, `admin-event-list.route.integration.test.ts`, `admin-open-tickets.route.integration.test.ts`, `admin-bought-tickets.route.integration.test.ts`.
+- **Status.** `implemented`: the offset cap in `e0d7a63` (files `backend/src/shared/pagination/offset-limit.ts`, the backoffice and catalog application queries and DTOs, the four list routes; tests `offset-limit.test.ts` for `assertOffsetWithinLimit`, `search-events-query.test.ts` and `admin-queries.test.ts` for the boundary PAGE_TOO_DEEP, and the four route integration tests `shows-search`, `admin-event-list`, `admin-open-tickets`, `admin-bought-tickets`); the `totalPages` cap in `70c9b5c` (`lastReachablePage` and `reachablePages`; tests `offset-limit.test.ts`, `page.test.ts`, capped `totalPages` and application-layer PAGE_TOO_DEEP in `search-events-query.test.ts` and `admin-queries.test.ts`).
 
 ### O125. One guarded database wrapper
 
@@ -1186,7 +1186,7 @@ The Phase 1 summary and its open risks are in O56.
 - **Options.** Add a `code` property to `InfrastructureError` and the SMTP adapter (touches the shared error, the adapter and the fakes); parse the code in the application layer (chosen, smaller).
 - **Choice.** `IssueGuestLinkService` logs `errorCode` only when the whole `InfrastructureError` message matches `Email delivery failed (<CODE>)` with `CODE` of 1 to 32 characters from `[A-Z0-9_]`. The message text, the address and the token are never logged. Review round 1: when invalidating the undelivered link fails too, that second log line also carries `errorCode`, parsed from the whole message of the `guarded` wrapper, `Persistence failed: <operation> (<CODE>)` with `CODE` matching `[A-Z0-9]{2,8}`; the operation text is never logged. Without a code, no `errorCode` is logged.
 - **Trade-off.** The application layer knows the adapter's and the wrapper's message shapes (kept on purpose in review round 1; a `code` property would remove this coupling). A `code` property is cleaner if more callers need it.
-- **Status.** `implemented`: commit `07c545b`; files `backend/src/modules/guest-access/application/issue-guest-link-service.ts` and `issue-guest-link-service.test.ts` (review round 1 additions are in the working tree, not yet committed).
+- **Status.** `implemented`: commit `07c545b`; files `backend/src/modules/guest-access/application/issue-guest-link-service.ts` and `issue-guest-link-service.test.ts` (review round 1 additions in `70c9b5c`: the second log line with `errorCode`, and its test).
 
 ### O127. Money is a branded type
 
@@ -1203,6 +1203,14 @@ The Phase 1 summary and its open risks are in O56.
 - **Choice.** No index and no migration now. Expiry is lazy (D2, O64), nothing schedules the sweeper yet, and an index on a column that every hold, release and purchase rewrites adds write cost to the hot path for a job that does not run. The `seats` table is bounded by the 20,000 seats per event rule. Revisit when the sweeper is scheduled against a large `seats` table: the partial index `(held_until) WHERE status = 'held'` is the intended shape, added as an additive migration with EXPLAIN evidence.
 - **Trade-off.** A sweep scans the `seats` table until then.
 - **Status.** `implemented` as a decision (no code).
+
+### O129. External review of the review fixes
+
+- **Context.** Reviewer `SH-cursor` reviewed the fixes of O123 to O128 outside the run that built them, one single-agent review per round with the `code-review` skill, as for O68, O82, O110, O115 and O122.
+- **Options.** Fix every finding; disprove or accept some with a recorded reason (chosen, as in O122).
+- **Choice.** Round 1: 0 Critical, 1 Important, 4 suggestions. Important: `totalPages` promised pages the offset cap rejects (fixed in `70c9b5c`, O124). Suggestions: the README did not document the cap (fixed in `78aad92`); no application-layer `PAGE_TOO_DEEP` test (fixed in `70c9b5c`); the failed invalidate did not log the safe code (fixed in `70c9b5c`, O126); the SMTP message-shape coupling (accepted, recorded in O126). Round 2: 0 Critical, 0 Important, 5 suggestions: the O126 and O124 status wording, the O89 cross-reference, a direct `reachablePages` test, and this audit-trail record; all fixed in the commit that adds this entry. The reviewer accepted the sweeper index decision (O128) and the Money brand (O127).
+- **Trade-off.** Not verified by the review or the fixes: no browser check of the seat map row grouping change (O123); the route integration tests ran in the fast part only on the final commit, plus the slow part.
+- **Status.** `implemented` (commits `70c9b5c`, `78aad92` and the commit that adds this entry).
 
 ## Back-office capability proposal
 
