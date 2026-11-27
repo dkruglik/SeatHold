@@ -2,7 +2,7 @@
 
 SeatHolder (the "SeatHold" brief) is a ticket-ordering platform for events with numbered seats. A buyer finds a show, holds seats on a seat map for a limited time and pays inside the window with a mock payment; guests get their tickets through an emailed link; admins create events and release stuck holds. A seat is never sold twice: holds are decided in PostgreSQL, so several backend instances agree. The design targets AWS, but nothing is deployed.
 
-Status: Phases 0 to 4 (setup, auth and access, booking core, buyer flow, back office) are built and merged. Phase 5 (deliverables: this README, the install skill, the remaining `DECISIONS.md` entries, the AI workflow write-up) is in progress. Phase 6 (design system depth) is planned, not started. The plan is [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md); every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
+Status: Phases 0 to 4 (setup, auth and access, booking core, buyer flow, back office) are built and merged. Phase 5 (deliverables: this README, the install skill, the remaining `DECISIONS.md` entries, the AI workflow write-up) is in progress (README, decisions and AI workflow done; the timed install run on a Mac and the final verify with the manual end-to-end are open). Phase 6 (design system depth) is planned, not started. The plan is [`plans/seatholder_product_roadmap.plan.md`](plans/seatholder_product_roadmap.plan.md); every design decision and trade-off is in [`DECISIONS.md`](DECISIONS.md).
 
 ## Contents
 

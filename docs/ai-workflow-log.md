@@ -95,8 +95,10 @@ After the third review round the user asked which options exist for loading the 
 
 **Where it went wrong and how it was caught.**
 
-- The Phase 5 plan said the hold transaction takes "about four round trips". Counting the statements in `hold-seat-service.ts` and `prisma-hold-repository.ts` gives 9 round trips for an anonymous holder (clock read, `BEGIN`, six statements, `COMMIT`) and 10 for a signed-in one. The count in the plan was Claude's own estimate from the earlier planning step; it is replaced in O112 and the KPI table. The plan file still carries the old wording (this step may not edit `plans/`).
+- The Phase 5 plan said the hold transaction takes "about four round trips". Counting the statements in `hold-seat-service.ts` and `prisma-hold-repository.ts` gives 9 round trips for an anonymous holder (clock read, `BEGIN`, six statements, `COMMIT`) and 10 for a signed-in one. The count in the plan was Claude's own estimate from the earlier planning step; it is replaced in O112 and the KPI table. The plan was corrected in `94eb77d`.
 - D3 listed `/api/auth/me` as never cached, but the route sets no `Cache-Control` header (O111). Fixed afterwards in `206d131` with a test written first.
 - Older entries had drifted: O17 and O19 still said `planned` for work built in Phases 1 and 4, O52 described the removed `/api/admin/ping` page and said only the admin ping exists (rewritten to the current admin lists), D5 said the resend "always answers 204" although the limit answers 429, and the Security table listed zod at every HTTP boundary where the routes use Fastify JSON schemas. All corrected in the same change.
+
+**External review (O115).** Reviewer `SH-cursor`, round 1 (`origin/main..HEAD`): 0 Critical, 3 Important, 5 suggestions, fixed in `60d1bbe`; round 2 (`206d131..HEAD`): 0 Critical, 1 Important (KPI it-0 wording), 3 suggestions, fixed in the fix commit of that round. Static review only.
 
 **Not yet done.** The latency targets were not measured; the KPI query was not run against a database; no cache layer exists. The install skill has had only the static check (npm scripts, `.env.example` keys and repository paths), not a run on a clean Mac.

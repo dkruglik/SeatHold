@@ -98,7 +98,7 @@ Plans live in [`plans/`](plans/); the roadmap is [`plans/seatholder_product_road
 | Latency threats | The hold transaction itself (counted from the code: 9 database round trips for an anonymous holder, 10 for a signed-in one, O112), hot seat rows at on-sale, seat-map polling on the writer, connection-pool exhaustion behind RDS Proxy, full-text query plans at larger catalog size | Written (O112) | `planned` Phase 5 it-3 |
 | Scale | See Scale section and O113 | Written | `planned` Phase 5 it-3 |
 | Security | See Security section | Code + written | `implemented` Phase 1 (O56) |
-| Own KPI | Hold-to-purchase conversion and hold expiry rate per event: shows whether the 10-minute window and checkout work, and detects seat hoarding. Exact definition and read-only SQL: O114. Alternatives considered: p99 click-to-held time; QR fetch success rate | Written; computable from `holds` today, no dashboard built | `planned` default (O114); confirm in Phase 5 it-0 |
+| Own KPI | Hold-to-purchase conversion and hold expiry rate per event: shows whether the 10-minute window and checkout work, and detects seat hoarding. Exact definition and read-only SQL: O114. Alternatives considered: p99 click-to-held time; QR fetch success rate | Written; computable from `holds` today, no dashboard built | `implemented` as a written decision (O114); default recorded in Phase 5 it-0, no person has confirmed or replaced it |
 
 ---
 
@@ -1071,7 +1071,7 @@ The Phase 1 summary and its open risks are in O56.
 
 ### O114. Own KPI: hold-to-purchase conversion and hold expiry rate per event
 
-- **Context.** The brief asks for one KPI chosen by the team, with how it would be computed. Confirmation of this default is Phase 5 it-0 (not yet answered by the user).
+- **Context.** The brief asks for one KPI chosen by the team, with how it would be computed. The default KPI was recorded in Phase 5 it-0 and implemented as a written decision here; no person has confirmed or replaced it. If the owner prefers another KPI, replace it in this entry.
 - **Choice.** Two linked ratios per event, computed from the `holds` table over settled holds:
   - A hold is settled when its outcome is final: `holds.status` is `converted` (checkout succeeded, set in `checkout-statements.ts`), `expired` (the hold transaction, the sweeper or a failed confirm marked it, `prisma-hold-repository.ts`, `prisma-hold-sweeper.ts`, `prisma-checkout-repository.ts`), `released` (the buyer released the last seat, or an operator released it, O98 to O100), or `active` with `expires_at <= now` (lazy expiry, D2: the row has not been touched or swept yet, and counts as expired).
   - Conversion rate = converted / settled. Expiry rate = expired / settled. The rest is released. A live hold (`active` and `expires_at > now`) is not yet counted.
@@ -1097,7 +1097,16 @@ The Phase 1 summary and its open risks are in O56.
   The `GROUP BY` on `event_id` is served by `holds_event_id_idx`; the `created_at` filter has no index, which is fine at seed size and would run on the read replica at scale (O113).
 - **Options considered.** p99 time from the seat click to `held_by_me` (needs request timing the repository does not record); QR fetch success rate (needs a ticket-view counter, and tickets are only fetched by their owners); seat-turnover per event (sold seats over seats; a business measure, not a product-quality one). The chosen pair needs no new column or table.
 - **Trade-off.** The ratios are per hold, not per seat or per buyer: a hold with 10 seats counts once, and one buyer's repeated holds count each time. Holds are only rows for successful seat clicks (a failed click rolls its hold back, D1), so clicks that lost to a 409 are not in the denominator. Operator releases count as `released` (they are also in `seat_release_log`). No endpoint, dashboard or scheduled query exists.
-- **Status.** `planned` (Phase 5 it-3 for the written definition; confirmation in it-0). The data it needs `implemented`: the `holds` table and its status transitions (D1, D2, D4, O64, O98). The SQL was not run against a database in this step; it uses only columns that exist in the schema.
+- **Status.** `implemented` as a written decision (default recorded in Phase 5 it-0, definition written in it-3; no person has confirmed it). The data it needs `implemented`: the `holds` table and its status transitions (D1, D2, D4, O64, O98). The SQL was not run against a database in this step; it uses only columns that exist in the schema.
+
+### O115. External review of Phase 5
+
+- **Context.** Reviewer `SH-cursor` ran the review-suite over the Phase 5 commits outside the run that built them, as for Phase 4 (O110), as one single-agent review per round.
+- **Findings, round 1** (`origin/main..HEAD`, 4 commits). 0 Critical, 3 Important: a stale sentence in O52 about the ping page; the workflow log said "documents only" while scripts and the `/me` fix were in the branch; a log claim that O52 was corrected. Suggestions (5): O19 had a duplicate status, O111 lacked a hold test, the `seed:catalog` hash, plan wording and statuses, and the scope of the install static check. All fixed in `60d1bbe`. The first delegation ended `uncertain` (another input reached the reviewer); the report was obtained with a follow-up request.
+- **Findings, round 2** (`206d131..HEAD`). 0 Critical, 1 Important (the KPI it-0 wording in the KPI table and O114) and 3 suggestions (a log sentence about the plan wording, the README status line, this record). All fixed in the fix commit of this round.
+- **Choice.** Fix every finding (chosen) over fixing only Critical and Important findings.
+- **Trade-off.** The review was static. The timed clean-Mac install run and the browser end-to-end check are not covered by it.
+- **Status.** `implemented` (fixes in the commits above; checks by the documentation tests and `node scripts/sync-ai-rules.mjs --check`).
 
 ## Back-office capability proposal
 
