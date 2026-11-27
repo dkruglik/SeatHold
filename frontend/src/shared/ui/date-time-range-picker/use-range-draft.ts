@@ -5,6 +5,7 @@ import { END_BEFORE_START_MESSAGE, validateRange } from "./range-validation";
 
 export type ChangedPart = "dates" | "fromTime" | "toTime";
 
+/** Days are `YYYY-MM-DD` strings, never `Date`s, so a picked day is a wall date in `zone` whatever the browser's zone is. */
 export function emitFor(draft: RangeDraft, zone?: string): DateTimeRange {
   const [startDay, endDay] = draft.dates;
   return {

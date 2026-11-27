@@ -28,10 +28,13 @@ export interface DateTimeRangePickerProps {
 const systemNow = () => new Date();
 
 /**
- * One control for a from-to range of date and time. The value holds UTC ISO instants; the UI edits
- * them in the browser's local time. Changes apply live (no Apply button) so the owner can keep the
- * value in the URL. A day range starts at 00:00 and ends at 23:59 unless the time fields say otherwise.
- * It never emits an inverted range: an end at or before the start is clamped to the start.
+ * One control for a from-to range of date and time. The value holds UTC ISO instants; the UI reads
+ * and writes them in `timeZone` (the browser's zone by default). A picked calendar day is a wall date
+ * in that zone, so day and time fields always agree. Changes apply live (no Apply button) so the
+ * owner can keep the value in the URL. A day range starts at 00:00 and ends at 23:59 unless the time
+ * fields say otherwise. A same-day end at or before the start is clamped to the start. An inverted
+ * value from the owner is shown with a message, not emitted. A range that is already over is
+ * rejected (message, no emit) unless `allowPast`.
  */
 export function DateTimeRangePicker({ value, onChange, label = "Date and time range", clearLabel = "Clear", error, minDate, timeZone, allowPast = false, now = systemNow }: DateTimeRangePickerProps) {
   const zone = timeZone ?? browserTimeZone();

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { formatPrice } from "../../lib/format";
-import { markerSize, stateLook } from "./seat-marker";
+import { stateLook } from "./seat-marker";
+import { markerSize } from "./seat-tokens";
 import type { SeatMapSeat } from "./types";
 
 /** "Row C, seat 7 · €45.00 · available"; the price part is left out when the map has no price. */

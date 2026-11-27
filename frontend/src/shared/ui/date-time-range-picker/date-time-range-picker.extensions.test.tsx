@@ -109,6 +109,25 @@ describe("preset state", () => {
   });
 });
 
+describe("calendar days belong to the timeZone prop", () => {
+  it("reads a picked day as a wall date in the prop zone, not in the browser zone", async () => {
+    // Auckland is UTC+12 in June, whatever zone the test process runs in.
+    const { user, onEmit } = await open(
+      { timeZone: "Pacific/Auckland" },
+      { from: "2026-05-31T12:00:00.000Z", to: "2026-06-01T11:59:00.000Z" },
+    );
+    // The calendar opens on June 2026 (the value's month). Day 15 twice: a one-day range.
+    await user.click(screen.getByRole("button", { name: "15 June 2026" }));
+    await user.click(screen.getByRole("button", { name: "15 June 2026" }));
+    await user.clear(screen.getByLabelText("From time"));
+    await user.type(screen.getByLabelText("From time"), "10:00");
+    await user.clear(screen.getByLabelText("To time"));
+    await user.type(screen.getByLabelText("To time"), "12:00");
+    // 15 June 10:00-12:00 NZST (UTC+12) is 14 June 22:00 to 15 June 00:00 UTC.
+    expect(last(onEmit)).toEqual({ from: "2026-06-14T22:00:00.000Z", to: "2026-06-15T00:00:00.000Z" });
+  });
+});
+
 describe("timezone label", () => {
   it("names the zone and reads the time fields in it", async () => {
     const { user, onEmit } = await open(
@@ -151,10 +170,27 @@ describe("inline validation", () => {
     expect(onEmit).not.toHaveBeenCalled();
   });
 
-  it("allows past ranges with allowPast", async () => {
-    const { onEmit } = await open({ ...berlin, allowPast: true }, { from: "2026-06-01T10:00:00.000Z", to: "2026-06-02T10:00:00.000Z" });
-    expect(screen.queryByRole("alert")).toBeNull();
-    expect(onEmit).not.toHaveBeenCalled();
+  describe("a range that is already over", () => {
+    const past = { from: "2026-06-01T10:00:00.000Z", to: "2026-06-02T10:00:00.000Z" };
+    const editToTime = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.clear(screen.getByLabelText("To time"));
+      await user.type(screen.getByLabelText("To time"), "17:00");
+    };
+
+    it("is shown quietly on mount and emits when edited with allowPast", async () => {
+      const { user, onEmit } = await open({ ...berlin, allowPast: true }, past);
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(onEmit).not.toHaveBeenCalled();
+      await editToTime(user);
+      expect(last(onEmit)).toEqual({ from: "2026-06-01T10:00:00.000Z", to: "2026-06-02T15:00:00.000Z" });
+    });
+
+    it("is not emitted when the same edit is made without allowPast", async () => {
+      const { user, onEmit } = await open(berlin, past);
+      await editToTime(user);
+      screen.getByText("This range is already over");
+      expect(onEmit).not.toHaveBeenCalled();
+    });
   });
 
   it("explains an end before the start and does not apply it", async () => {

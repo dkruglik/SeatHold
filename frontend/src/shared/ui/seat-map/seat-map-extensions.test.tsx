@@ -187,3 +187,65 @@ describe("zoom and pan", () => {
     pointer("pointerup", 2, 300);
   });
 });
+
+function gesture() {
+  setup();
+  const wrapper = screen.getByTestId("zoom-content").parentElement as HTMLElement;
+  return (type: string, pointerId: number, clientX: number, clientY = 0) =>
+    fireEvent(wrapper, Object.assign(new MouseEvent(type, { bubbles: true, clientX, clientY }), { pointerId }));
+}
+
+describe("pinch", () => {
+  const content = () => screen.getByTestId("zoom-content");
+  const scale = () => Number(content().getAttribute("data-scale"));
+  it("scales by the ratio of the finger distances while both fingers move apart symmetrically", () => {
+    const pointer = gesture();
+    pointer("pointerdown", 1, 100);
+    pointer("pointerdown", 2, 140);
+    const seen: number[] = [];
+    for (let step = 1; step <= 3; step += 1) {
+      pointer("pointermove", 1, 100 - step * 6);
+      pointer("pointermove", 2, 140 + step * 6);
+      seen.push(scale());
+    }
+    // The distance grows by 12 per step (40, 52, 64, 76), so the scale is always distance / 40.
+    expect(seen[0]).toBeCloseTo(52 / 40, 5);
+    expect(seen[1]).toBeCloseTo(64 / 40, 5);
+    expect(seen[2]).toBeCloseTo(76 / 40, 5);
+    expect([...seen].sort((a, b) => a - b)).toEqual(seen);
+  });
+
+  it("moving one finger only scales by the new over the old distance", () => {
+    const pointer = gesture();
+    pointer("pointerdown", 1, 100);
+    pointer("pointerdown", 2, 200);
+    pointer("pointermove", 1, 50);
+    expect(scale()).toBeCloseTo(1.5, 5);
+    pointer("pointermove", 1, 25);
+    expect(scale()).toBeCloseTo(175 / 100, 5);
+  });
+
+  it("starts a new pinch from the new distance after a finger is lifted and put down again", () => {
+    const pointer = gesture();
+    pointer("pointerdown", 1, 100);
+    pointer("pointerdown", 2, 200);
+    pointer("pointermove", 2, 300);
+    expect(scale()).toBeCloseTo(2, 5);
+    pointer("pointerup", 2, 300);
+    pointer("pointerdown", 3, 120);
+    pointer("pointermove", 3, 130);
+    // Pointer 1 (100) and pointer 3 (120) are 20 apart; 130 makes it 30, so x1.5 on top of the earlier 2: the lifted finger left no stale distance.
+    expect(scale()).toBeCloseTo(3, 5);
+  });
+
+  it("keeps the scale between 1 and 3", () => {
+    const pointer = gesture();
+    pointer("pointerdown", 1, 100);
+    pointer("pointerdown", 2, 110);
+    pointer("pointermove", 2, 1000);
+    expect(scale()).toBe(3);
+    pointer("pointermove", 2, 100);
+    pointer("pointermove", 2, 100.5);
+    expect(scale()).toBe(1);
+  });
+});

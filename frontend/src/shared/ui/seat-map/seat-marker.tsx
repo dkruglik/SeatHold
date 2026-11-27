@@ -1,6 +1,6 @@
+import { markerSize } from "./seat-tokens";
 import type { SeatState } from "./types";
 
-export const markerSize = 24;
 
 interface StateLook {
   /** Shown to people and exposed as the seat's accessible state. */

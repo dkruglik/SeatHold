@@ -1,4 +1,4 @@
-import { markerSize } from "./seat-marker";
+import { markerSize } from "./seat-tokens";
 import type { SeatMapSeat } from "./types";
 
 export const pitch = 32;

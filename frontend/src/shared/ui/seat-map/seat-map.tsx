@@ -1,5 +1,5 @@
 import { Stack } from "@mantine/core";
-import { useRef, type KeyboardEvent } from "react";
+import type { KeyboardEvent } from "react";
 import { groupByRow, labelWidth, pitch, rowY, seatX } from "./seat-layout";
 import { SeatLegend } from "./seat-legend";
 import { SeatRows } from "./seat-rows";
@@ -14,9 +14,8 @@ import { ZoomPan } from "./zoom-pan";
  * One seat is the tab stop; arrows, Home, End, PageUp and PageDown move focus. Seat ids key the buttons, so a refresh keeps focus.
  */
 export function SeatMap({ rows, seatsPerRow, seats, onSelect, disabled = false, priceMinor, currency }: SeatMapProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
   const byRow = groupByRow(seats);
-  const keyboard = useSeatKeyboard(byRow, svgRef);
+  const keyboard = useSeatKeyboard(byRow);
   const tooltip = useSeatTooltip();
   const width = labelWidth * 2 + seatsPerRow * pitch;
   const height = Math.max(rows, byRow.length) * pitch;
@@ -33,13 +32,14 @@ export function SeatMap({ rows, seatsPerRow, seats, onSelect, disabled = false, 
   return (
     <Stack gap="sm">
       <ZoomPan>
-        <svg ref={svgRef} role="group" aria-label="Seat map" viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", maxWidth: width * 1.5, height: "auto", display: "block" }} onKeyDown={onKeyDown}>
+        <svg role="group" aria-label="Seat map" viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", maxWidth: width * 1.5, height: "auto", display: "block" }} onKeyDown={onKeyDown}>
           <SeatRows
             rows={byRow}
             seatsPerRow={seatsPerRow}
             disabled={disabled}
             onSelect={onSelect}
             tabId={keyboard.tabId}
+            registerSeat={keyboard.registerSeat}
             tooltipFor={(id) => (id === tooltip.activeId ? tooltipId : undefined)}
             onFocusSeat={(id) => {
               keyboard.onSeatFocus(id);
