@@ -11,6 +11,7 @@ import { adminPingRoute } from "./presentation/http/routes/admin-ping.route.js";
 import { authPlugin, createAuthHooks, type AuthPluginOptions } from "./modules/auth/index.js";
 import { catalogPlugin, type CatalogPluginOptions } from "./modules/catalog/index.js";
 import { bookingPlugin, type BookingPluginOptions } from "./modules/booking/index.js";
+import { backofficeRoutes, type BackofficeServices } from "./modules/backoffice/index.js";
 import { guestAccessPlugin, type GuestAccessPluginOptions } from "./modules/guest-access/index.js";
 import type { Clock } from "./shared/time/clock.js";
 
@@ -28,6 +29,8 @@ export interface AppDeps {
   readonly catalog?: Pick<CatalogPluginOptions, "services">;
   /** The guest-access module's services; the /api/guest routes exist only when given. They need no auth: the guest session is its own credential. */
   readonly guestAccess?: Pick<GuestAccessPluginOptions, "services">;
+  /** The back-office services; their routes join the admin plugin, so they exist only with `auth` and are admin-only by construction. */
+  readonly backoffice?: { readonly services: BackofficeServices };
 }
 
 /**
@@ -37,6 +40,9 @@ export interface AppDeps {
 export function buildApp(config: AppConfig, deps: AppDeps): FastifyInstance {
   if (deps.booking !== undefined && deps.auth === undefined) {
     throw new Error("buildApp: booking routes need the auth services for the session lookup; pass deps.auth with deps.booking");
+  }
+  if (deps.backoffice !== undefined && deps.auth === undefined) {
+    throw new Error("buildApp: back-office routes need the auth services for the admin guard; pass deps.auth with deps.backoffice");
   }
   const app = Fastify({ logger: buildLoggerOptions(config, deps.logStream) });
   registerErrorHandler(app);
@@ -57,7 +63,7 @@ export function buildApp(config: AppConfig, deps: AppDeps): FastifyInstance {
       prefix: "/api/admin",
       auth: createAuthHooks(deps.auth.services.sessions),
       mutationHooks,
-      routes: [adminPingRoute],
+      routes: [adminPingRoute, ...(deps.backoffice === undefined ? [] : backofficeRoutes(deps.backoffice.services))],
     });
   }
   if (deps.booking !== undefined && deps.auth !== undefined) {

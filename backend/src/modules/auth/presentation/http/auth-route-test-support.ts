@@ -8,6 +8,9 @@ import { ControlledClock } from "../../../../shared/time/controlled-clock.js";
 import type { EmailProvider } from "../../application/ports/email-provider.js";
 import { ConsoleEmailProvider } from "../../infrastructure/email/console-email-provider.js";
 import { createAuthServices, createPrismaAuthRepositories } from "../../auth-composition.js";
+import { createBackofficeServices } from "../../../backoffice/index.js";
+import { createBookingServices } from "../../../booking/index.js";
+import { PrismaEventGridWriter, createCatalogServices, createPrismaCatalogRepositories } from "../../../catalog/index.js";
 import { fetchCsrf } from "./auth-memory-app-test-support.js";
 import { useAuthDatabase } from "../../infrastructure/persistence/auth-test-support.js";
 
@@ -85,6 +88,7 @@ export function useAuthApp(overrides: Partial<AppConfig> = {}, beforeReady?: (ap
   let current: FastifyInstance | undefined;
 
   beforeEach(async () => {
+    await prisma.client.$executeRawUnsafe("TRUNCATE TABLE payments, tickets, bookings, seats, holds, events, shows, venues CASCADE");
     clock.set(T0);
     lines.length = 0;
     routes.length = 0;
@@ -94,7 +98,11 @@ export function useAuthApp(overrides: Partial<AppConfig> = {}, beforeReady?: (ap
       email: emailOverride ?? new ConsoleEmailProvider((line) => lines.push(line)),
       ...createPrismaAuthRepositories(prisma),
     });
-    current = buildApp(config, { clock, auth: { services } });
+    // Catalog, booking and back-office services too, so one app serves the admin route-wide check and the end-to-end back-office tests.
+    const catalog = createCatalogServices(config, { ...createPrismaCatalogRepositories(prisma), clock });
+    const booking = createBookingServices({ prisma, clock, holdDurationMinutes: config.holdDurationMinutes, maxSeatsPerHold: config.maxSeatsPerHold });
+    const backoffice = createBackofficeServices({ eventGridWriter: new PrismaEventGridWriter(prisma), clock });
+    current = buildApp(config, { clock, auth: { services }, catalog: { services: catalog }, booking: { services: booking }, backoffice: { services: backoffice } });
     current.addHook("onRoute", (route: RouteOptions) => {
       for (const method of [route.method].flat()) routes.push({ method, url: route.url });
     });

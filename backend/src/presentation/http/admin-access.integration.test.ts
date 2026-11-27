@@ -15,6 +15,19 @@ const isAdminRoute = (route: RegisteredRoute): boolean => route.url === ADMIN_PR
 // Fastify registers HEAD next to GET; the access rule is the same, so GET stands for both.
 const adminRoutes = (harness: AuthHarness): RegisteredRoute[] => harness.routes.filter((route) => isAdminRoute(route) && route.method !== "HEAD");
 
+/** The body a route needs to reach its handler, so the admin answer is a 2xx. Routes not listed take an empty body. */
+const SAMPLE_BODIES: Readonly<Record<string, object>> = {
+  "POST /api/admin/events": {
+    show: { new: { title: "Access check", type: "concert", genre: "rock", description: "d" } },
+    venue: { new: { name: "Access hall", city: "Berlin", countryCode: "DE", timezone: "Europe/Berlin" } },
+    startsAt: "2030-06-01T18:00:00.000Z",
+    priceMinor: 1000,
+    currency: "EUR",
+    rows: 2,
+    seatsPerRow: 3,
+  },
+};
+
 interface Credentials {
   readonly sid: string;
 }
@@ -24,7 +37,7 @@ async function call(harness: AuthHarness, route: RegisteredRoute, who: Credentia
   const headers = who === null ? {} : cookieHeader(who.sid);
   const response = SAFE_METHODS.has(route.method)
     ? await harness.get(route.url, headers)
-    : await harness.post(route.url, {}, headers);
+    : await harness.post(route.url, SAMPLE_BODIES[`${route.method} ${route.url}`] ?? {}, headers);
   const body = response.json() as { error?: { code?: string } };
   return { status: response.statusCode, code: body.error?.code };
 }
@@ -55,6 +68,10 @@ describe("every route under /api/admin (the real app)", () => {
 
   it("is registered at all (ping exists)", () => {
     expect(adminRoutes(harness).map((route) => `${route.method} ${route.url}`)).toContain("GET /api/admin/ping");
+  });
+
+  it("covers the back-office routes: creating an event is registered under /api/admin", () => {
+    expect(adminRoutes(harness).map((route) => `${route.method} ${route.url}`)).toEqual(expect.arrayContaining(["POST /api/admin/events"]));
   });
 
   it("answers anonymous 401 UNAUTHENTICATED, buyer 403 FORBIDDEN_ROLE and admin 2xx", async () => {

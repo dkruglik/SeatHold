@@ -16,3 +16,6 @@ export { catalogPlugin, type CatalogPluginOptions } from "./presentation/http/ca
 export { GetEventQuery } from "./application/get-event-query.js";
 export type { EventDetailReader, EventDetailRow } from "./application/ports/event-detail-reader.js";
 export { EventNotFound } from "./domain/errors.js";
+export type { CreatedEvent, EventGridWriter, NewEventGrid, ShowRef, VenueRef } from "./application/ports/event-grid-writer.js";
+export { PrismaEventGridWriter } from "./infrastructure/persistence/prisma-event-grid-writer.js";
+export { rowLabel, rowLabels } from "./domain/row-label.js";
