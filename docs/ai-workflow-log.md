@@ -34,7 +34,7 @@ How AI was used to build SeatHolder, how it was directed and checked, and where 
 
 **Not yet done.** The login flow has not been exercised in a real browser against a real backend, and the CI workflow has not run on GitHub. Open security risks and the before-production list are in `DECISIONS.md` O56.
 
-**Update 2026-11-27.** GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27).
+**Update 2026-11-27.** The login flow was exercised in a real browser: the owner ran the buyer, guest and admin paths in desktop Chrome, which includes sign-in and the admin role check (see "Live browser pass" below). GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27).
 
 ## 2026-11-26: Phase 2 (booking core)
 
@@ -111,6 +111,8 @@ After the third review round the user asked which options exist for loading the 
 
 **Not yet done.** The latency targets were not measured; the KPI query was not run against a database; no cache layer exists. The install skill has had only the static check (npm scripts, `.env.example` keys and repository paths), not a run on a clean Mac.
 
+**Update 2026-11-27.** The manual end-to-end run for a buyer, a guest and an admin that this entry listed as not done was done by the owner in desktop Chrome (see "Live browser pass" below). The clean-Mac run of the install skill is skipped by the owner's decision (no Mac), so the skill stays statically checked only. GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27).
+
 ## 2026-11-27: Phase 6 (design system depth)
 
 **What the AI did.** Built it-1 to it-4 of `plans/phase_6_design_system.plan.md`, one Claude Sonnet subagent per step, tests first: the range picker (it-2, `f7c803f`), the seat map (it-3, `d8203ea`), the theme depth, dark scheme and shared UI layer (it-1, `7b870e2`), and the responsive pass (it-4, `3a1ae01`). One agent wrote this documentation (`DECISIONS.md` O116 to O121, the README "Frontend and UI" section and cut list). The optional it-5 extras were not built (O121).
@@ -126,3 +128,11 @@ After the third review round the user asked which options exist for loading the 
 **Not yet done.** The external review of Phase 6 is recorded in O122 (two rounds, all findings fixed or disproved by tests). Still open: a manual keyboard-only purchase and a check on real devices, `ColorSchemeScript` for the dark first paint, and the full `npm run verify` on the final commit.
 
 **Update 2026-11-27.** Owner decisions: the first paint is light first with no ColorSchemeScript (O117, accepted); phones and other browsers are an accepted limit (desktop Chrome only); GitHub Actions passed on main after the merges (owner-confirmed, 2026-11-27). Deploy-time lines are deferred to deploy. The second review round is recorded in O122. Still open: the keyboard-only purchase check, which the owner's run did not name. At the owner's request, the same change also fixed the stale statements in DECISIONS O1, 'Cut so far' and the time budget (O130).
+
+## 2026-11-27: Live browser pass
+
+**What was done.** The owner started the app and ran the full manual pass in desktop Chrome: the buyer, guest and admin paths end to end, including the seat map, the hold countdown, checkout and the back office. GitHub Actions passed on main after the merges.
+
+**Why it matters.** The automated tests do not do this. The route tests call the API directly and the jsdom tests render the screens against a fake server; neither starts the whole app and clicks through it. Earlier entries that say this pass was not done were true when they were written and are kept as history; each carries an update line.
+
+**What it does not cover.** The owner did not name expiry on screen or the two-browser race for one seat, so those are not claimed as separately checked here. Phones and other browsers (an accepted limit, O119, O130), the clean-Mac run of the install skill (skipped, no Mac) and a keyboard-only purchase. Nothing here was measured or recorded by a tool: it is the owner's report, and no log or recording of the run is kept.
