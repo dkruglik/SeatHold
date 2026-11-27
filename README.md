@@ -293,7 +293,6 @@ The build context is the repository root. The image contains no `.env` or secret
 | `DECISIONS.md` | Design decisions and trade-offs |
 | `docs/ai-workflow-log.md` | How AI was used and checked |
 | `.claude/skills/install-seathold/` | macOS install skill |
-| `.claude/skills/install-seathold/` | The one committed skill: install on a Mac |
 | `docs/release_guides/` | One release guide per phase |
 | `CLAUDE.md` | Working rules for AI agents |
 | `.env.example` | Non-secret defaults for every variable |
